@@ -9,6 +9,7 @@ import {
   type LoanCreate,
   type LoanKind,
   type PaymentMode,
+  type YearMonth,
 } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { Segmented } from '../../core/forms/segmented';
@@ -226,6 +227,8 @@ const requiredDate = (c: AbstractControl<string>) =>
 })
 export class LoanForm {
   readonly loan = input<Loan | null>(null);
+  /** Planungsmonat: ab hier gilt eine geänderte Extra-Tilgung */
+  readonly planMonth = input<YearMonth | null>(null);
   readonly busy = input(false);
   readonly saved = output<LoanFormValue>();
   readonly cancelled = output<void>();
@@ -317,6 +320,12 @@ export class LoanForm {
     const v = this.form.getRawValue();
     const original = toCentsOrNull(v.original);
     const extraMonthlyCents = toCentsOrNull(v.extra) ?? 0;
+    // Geänderte Extra-Tilgung gilt ab dem Planungsmonat; unverändert bleibt ihr Startmonat
+    const before = this.loan();
+    const extraFromMonth =
+      before && before.extraMonthlyCents === extraMonthlyCents
+        ? before.extraFromMonth
+        : this.planMonth();
     const common = {
       name: v.name.trim(),
       balanceCents: toCents(v.balance),
@@ -332,6 +341,7 @@ export class LoanForm {
             paymentMode: v.paymentMode,
             savedCents: v.paymentMode === 'lump' ? (toCentsOrNull(v.saved) ?? 0) : 0,
             extraMonthlyCents: v.paymentMode === 'lump' ? 0 : extraMonthlyCents,
+            extraFromMonth: v.paymentMode === 'lump' ? null : extraFromMonth,
           }
         : {
             ...common,
@@ -340,6 +350,7 @@ export class LoanForm {
             dueDay: v.dueDay,
             targetMonth: v.targetMonth || null,
             extraMonthlyCents,
+            extraFromMonth,
           },
     );
   }

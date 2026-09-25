@@ -106,6 +106,7 @@ export const importFileSchema = z
           paymentMode: null,
           savedCents: 0,
           extraMonthlyCents: 0,
+          extraFromMonth: null,
         })),
       },
     };

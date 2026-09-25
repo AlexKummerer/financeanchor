@@ -38,6 +38,8 @@ export class LoanCard {
   private readonly planner = inject(LoanPlanner);
   protected readonly f = inject(Formatter);
   protected readonly month = this.clock.month();
+  /** Monat, für den geplant wird (nächster, wenn der laufende schon ganz gebucht ist) */
+  protected readonly planMonth = computed(() => this.planner.adviceMonth());
 
   protected readonly isLump = computed(
     () => this.loan().kind === 'deadline' && this.loan().paymentMode === 'lump',
@@ -58,10 +60,12 @@ export class LoanCard {
   protected readonly neededMonthly = computed(() => {
     const l = this.loan();
     if (l.kind !== 'deadline' || this.isLump() || l.balanceCents <= 0) return null;
-    return requiredMonthly(l, this.month);
+    return requiredMonthly(l, this.planMonth());
   });
   /** Ratenkredit mit Ziel: fehlender Betrag pro Monat (0 = Ziel wird erreicht). */
-  protected readonly targetGap = computed(() => extraNeededForTarget(this.loan(), this.month));
+  protected readonly targetGap = computed(() =>
+    extraNeededForTarget(this.loan(), this.planMonth()),
+  );
   /** Übernehmen nur, wenn die Lücke ins übrige verfügbare Geld passt (oder nichts eingetragen ist). */
   protected readonly gapFits = computed(() => {
     const free = this.planner.advice().freeCents;
@@ -73,12 +77,12 @@ export class LoanCard {
     const d = this.deadline();
     if (!this.isLump() || !d || l.balanceCents <= 0) return null;
     const rest = Math.max(0, l.balanceCents - l.savedCents);
-    return Math.ceil(rest / monthsUntil(this.month, d));
+    return Math.ceil(rest / monthsUntil(this.planMonth(), d));
   });
 
   /** Beispielrechnung übernommen: Extra-Tilgung = Monatsbetrag minus Pflichtbetrag. */
   protected adoptScenario(monthlyCents: number) {
-    this.setExtra.emit(Math.max(0, monthlyCents - requiredMonthly(this.loan(), this.month)));
+    this.setExtra.emit(Math.max(0, monthlyCents - requiredMonthly(this.loan(), this.planMonth())));
   }
 
   protected adoptTargetGap() {
@@ -90,8 +94,8 @@ export class LoanCard {
     return due ? daysBetween(this.clock.today(), due) : null;
   });
   protected readonly thisMonth = computed(() => {
-    const m = this.plan()?.months[0];
-    if (!m || m.month !== this.month) return null;
+    const m = this.plan()?.months.find((x) => x.month === this.planMonth());
+    if (!m) return null;
     const x = m.loans.find((l) => l.id === this.loan().id);
     return x ? budgetUsed(x) : null;
   });

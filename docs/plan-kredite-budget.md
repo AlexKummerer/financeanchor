@@ -88,3 +88,10 @@ Rückmeldung: Bei 857,77 € übrig kamen nur Ziel-Vorschläge. Ursache: Der jew
 - Angezeigt werden je Kredit der Betrag und die Wirkung („diesen Monat abgelöst“ bzw. „fertig im …“), die dadurch wegfallenden Raten und die Zinsersparnis insgesamt.
 - Frei werdende Raten erscheinen im Folgemonat als zusätzlich übriges Geld und damit in neuen Vorschlägen; sie werden weiterhin nicht automatisch umverteilt.
 - Überschriften nennen den Monat („Geplant im …“, „Vorschläge für …“); jeder Vorschlag hat „Verlauf ansehen“ mit der Aufteilung pro Monat, als wäre er übernommen (`LoanPlanner.planWith`).
+
+## Nachtrag 5 (25.09.2026): Planungsmonat nach dem Buchen
+
+Rückmeldung: Ist der September schon gebucht, ergeben Vorschläge „für September“ keinen Sinn.
+
+- Sind im laufenden Monat alle Kreditzahlungen gebucht (Raten, Rücklagen, Extra-Tilgungen), plant und schlägt die App für den nächsten Monat vor (`LoanPlanner.adviceMonth`): „Geplant im …“, „Vorschläge für …“, Ziel-Lücken und nötige Raten auf der Kreditkarte beziehen sich dann darauf.
+- Neue Spalte `loans.extra_from_month` (Migration 0006): Eine übernommene oder im Formular geänderte Extra-Tilgung gilt erst ab dem Planungsmonat, damit sie im schon gebuchten Monat nicht nachträglich fällig wird. Die Kreditkarte zeigt dann „… ab Okt. 2026“.

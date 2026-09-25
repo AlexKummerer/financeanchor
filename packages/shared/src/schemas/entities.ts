@@ -160,6 +160,8 @@ const loanFields = z.object({
   savedCents: nonNegativeCentsSchema.default(0),
   /** Selbst festgelegte Extra-Tilgung pro Monat (nicht bei Einmalzahlungen) */
   extraMonthlyCents: nonNegativeCentsSchema.default(0),
+  /** Extra-Tilgung gilt erst ab diesem Monat (null = sofort) */
+  extraFromMonth: yearMonthSchema.nullable().default(null),
   ...meta,
 });
 
@@ -207,6 +209,7 @@ export const loanCreateSchema = z.discriminatedUnion('kind', [
     dueDay: dueDaySchema.default(1),
     targetMonth: yearMonthSchema.nullable().default(null),
     extraMonthlyCents: nonNegativeCentsSchema.default(0),
+    extraFromMonth: yearMonthSchema.nullable().default(null),
   }),
   z.object({
     ...loanCreateCommon,
@@ -215,6 +218,7 @@ export const loanCreateSchema = z.discriminatedUnion('kind', [
     paymentMode: paymentModeSchema,
     savedCents: nonNegativeCentsSchema.default(0),
     extraMonthlyCents: nonNegativeCentsSchema.default(0),
+    extraFromMonth: yearMonthSchema.nullable().default(null),
   }),
 ]);
 export type LoanCreate = z.infer<typeof loanCreateSchema>;
@@ -233,6 +237,7 @@ export const loanUpdateSchema = loanFields
     paymentMode: true,
     savedCents: true,
     extraMonthlyCents: true,
+    extraFromMonth: true,
   })
   .partial();
 

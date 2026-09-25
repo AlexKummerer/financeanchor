@@ -39,7 +39,10 @@ export const loanRoutes = new Hono<AppEnv>()
     }
     // Zurückgelegtes gibt es nur bei Einmalzahlungen, Extra-Tilgung nur ohne Einmalzahlung
     if (next.paymentMode !== 'lump') next.savedCents = 0;
-    else next.extraMonthlyCents = 0;
+    else {
+      next.extraMonthlyCents = 0;
+      next.extraFromMonth = null;
+    }
     const issues = loanShapeIssues(next);
     if (issues.length) throw new AppError(400, 'validation_failed', 'Invalid loan', issues);
     const { id: _id, userId: _u, createdAt: _c, updatedAt: _up, ...values } = next;
@@ -73,6 +76,7 @@ function toRow(body: LoanCreate) {
       dueDate: null,
       paymentMode: null,
       extraMonthlyCents: body.extraMonthlyCents,
+      extraFromMonth: body.extraFromMonth,
     };
   }
   return {
@@ -84,6 +88,7 @@ function toRow(body: LoanCreate) {
     paymentMode: body.paymentMode,
     savedCents: body.paymentMode === 'lump' ? body.savedCents : 0,
     extraMonthlyCents: body.paymentMode === 'lump' ? 0 : body.extraMonthlyCents,
+    extraFromMonth: body.paymentMode === 'lump' ? null : body.extraFromMonth,
   };
 }
 

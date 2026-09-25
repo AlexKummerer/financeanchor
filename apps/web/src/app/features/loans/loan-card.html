@@ -83,16 +83,36 @@
         <li class="ok">
           {{ 'loans.bookedThisMonth' | transloco
           }}{{
-            thisMonth()
+            planMonth() === month && thisMonth()
               ? ' · ' + ('loans.extraThisMonth' | transloco: { amount: (thisMonth()! | money) })
               : ''
           }}
         </li>
-      } @else if (thisMonth() !== null) {
-        <li>{{ 'loans.thisMonth' | transloco: { amount: (thisMonth()! | money) } }}</li>
+      }
+      @if (thisMonth() !== null && !(bookedThisMonth() && planMonth() === month)) {
+        <li>
+          {{
+            'loans.inMonth'
+              | transloco
+                : { month: (planMonth() | faMonth: 'short'), amount: (thisMonth()! | money) }
+          }}
+        </li>
       }
       @if (loan().extraMonthlyCents > 0 && !isLump()) {
-        <li>{{ 'loans.ownExtra' | transloco: { amount: (loan().extraMonthlyCents | money) } }}</li>
+        <li>
+          @if (loan().extraFromMonth && loan().extraFromMonth! > month) {
+            {{
+              'loans.ownExtraFrom'
+                | transloco
+                  : {
+                      amount: (loan().extraMonthlyCents | money),
+                      month: (loan().extraFromMonth | faMonth: 'short'),
+                    }
+            }}
+          } @else {
+            {{ 'loans.ownExtra' | transloco: { amount: (loan().extraMonthlyCents | money) } }}
+          }
+        </li>
       }
       @if (neededMonthly(); as need) {
         <li>
@@ -175,7 +195,7 @@
         <fa-scenario-table
           [loan]="loan()"
           [name]="loan().name"
-          [month]="month"
+          [month]="planMonth()"
           (adopt)="adoptScenario($event)"
         />
       </details>

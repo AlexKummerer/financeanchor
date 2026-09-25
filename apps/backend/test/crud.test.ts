@@ -407,6 +407,14 @@ describe('Eigene Extra-Tilgung', () => {
       (await api.patch(`/loans/${pb.body.id}`, { extraMonthlyCents: 0 })).body.extraMonthlyCents,
     ).toBe(0);
     expect((await api.patch(`/loans/${pb.body.id}`, { extraMonthlyCents: -1 })).status).toBe(400);
+    const from = await api.patch(`/loans/${pb.body.id}`, {
+      extraMonthlyCents: 5000,
+      extraFromMonth: '2026-10',
+    });
+    expect(from.body).toMatchObject({ extraMonthlyCents: 5000, extraFromMonth: '2026-10' });
+    expect((await api.patch(`/loans/${pb.body.id}`, { extraFromMonth: '2026-13' })).status).toBe(
+      400,
+    );
 
     const klarna = await api.post('/loans', {
       kind: 'deadline',
@@ -417,5 +425,6 @@ describe('Eigene Extra-Tilgung', () => {
       extraMonthlyCents: 5000,
     });
     expect(klarna.body.extraMonthlyCents).toBe(0);
+    expect(klarna.body.extraFromMonth).toBeNull();
   });
 });

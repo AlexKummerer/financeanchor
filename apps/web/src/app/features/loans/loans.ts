@@ -76,7 +76,10 @@ export class LoansPage {
   /** Vorschlag übernehmen: wird zur festen Extra-Tilgung des Kredits. */
   protected async setExtra(e: { loanId: string; extraMonthlyCents: number }) {
     try {
-      await this.store.loans.update(e.loanId, { extraMonthlyCents: e.extraMonthlyCents });
+      await this.store.loans.update(e.loanId, {
+        extraMonthlyCents: e.extraMonthlyCents,
+        extraFromMonth: this.planner.adviceMonth(),
+      });
       this.toast.show(
         this.t.translate('loans.advice.adopted', { amount: this.f.money(e.extraMonthlyCents) }),
       );
@@ -89,7 +92,10 @@ export class LoansPage {
   protected async adoptSuggestion(parts: { loanId: string; extraMonthlyCents: number }[]) {
     try {
       for (const p of parts) {
-        await this.store.loans.update(p.loanId, { extraMonthlyCents: p.extraMonthlyCents });
+        await this.store.loans.update(p.loanId, {
+          extraMonthlyCents: p.extraMonthlyCents,
+          extraFromMonth: this.planner.adviceMonth(),
+        });
       }
       this.toast.show(this.t.translate('loans.advice.adoptedMany', { n: parts.length }));
     } catch {

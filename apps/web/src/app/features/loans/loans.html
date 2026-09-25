@@ -18,7 +18,7 @@
 
   @if (planner.thisMonth(); as m) {
     <p class="small muted planned">
-      {{ 'loans.plannedThisMonth' | transloco: { month: (planner.month | faMonth) } }}
+      {{ 'loans.plannedThisMonth' | transloco: { month: (planner.adviceMonth() | faMonth) } }}
     </p>
     <dl class="split small">
       <div>
@@ -39,7 +39,7 @@
 
 @if (openLoans().length > 0) {
   <h2 id="advice-title">
-    {{ 'loans.advice.title' | transloco: { month: (planner.month | faMonth) } }}
+    {{ 'loans.advice.title' | transloco: { month: (planner.adviceMonth() | faMonth) } }}
   </h2>
   <section class="panel" aria-labelledby="advice-title">
     <fa-advice-panel (adopted)="adoptSuggestion($event)" />
@@ -51,6 +51,7 @@
     <summary>{{ (editing() ? 'loans.editTitle' : 'loans.add') | transloco }}</summary>
     <fa-loan-form
       [loan]="editing()"
+      [planMonth]="planner.adviceMonth()"
       [busy]="saving()"
       (saved)="save($event)"
       (cancelled)="editing.set(null)"

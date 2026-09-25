@@ -17,6 +17,7 @@ const loan: Loan = {
   paymentMode: null,
   savedCents: 0,
   extraMonthlyCents: 0,
+  extraFromMonth: null,
   createdAt: 0,
   updatedAt: 0,
 };
@@ -24,9 +25,10 @@ const loan: Loan = {
 describe('LoanForm', () => {
   beforeEach(() => TestBed.configureTestingModule({ imports: [LoanForm, translocoTesting()] }));
 
-  async function render(value: Loan | null) {
+  async function render(value: Loan | null, planMonth: string | null = null) {
     const fixture = TestBed.createComponent(LoanForm);
     fixture.componentRef.setInput('loan', value);
+    fixture.componentRef.setInput('planMonth', planMonth);
     const emitted: LoanFormValue[] = [];
     fixture.componentInstance.saved.subscribe((v) => emitted.push(v));
     await fixture.whenStable();
@@ -68,6 +70,7 @@ describe('LoanForm', () => {
         dueDay: 1,
         targetMonth: null,
         extraMonthlyCents: 0,
+        extraFromMonth: null,
       },
     ]);
   });
@@ -91,6 +94,7 @@ describe('LoanForm', () => {
         paymentMode: 'spread',
         savedCents: 0,
         extraMonthlyCents: 0,
+        extraFromMonth: null,
       },
     ]);
   });
@@ -115,5 +119,17 @@ describe('LoanForm', () => {
     await submit(fixture, el);
     expect(el.querySelector('#ln-rate-err')).not.toBeNull();
     expect(emitted).toEqual([]);
+  });
+
+  it('geänderte Extra-Tilgung gilt ab dem Planungsmonat, unveränderte behält ihren Start', async () => {
+    const withExtra = { ...loan, extraMonthlyCents: 5000, extraFromMonth: '2026-08' };
+    const first = await render(withExtra, '2026-10');
+    await submit(first.fixture, first.el);
+    expect(first.emitted[0]).toMatchObject({ extraMonthlyCents: 5000, extraFromMonth: '2026-08' });
+
+    const second = await render(withExtra, '2026-10');
+    set(second.el, '#ln-extra', '80');
+    await submit(second.fixture, second.el);
+    expect(second.emitted[0]).toMatchObject({ extraMonthlyCents: 8000, extraFromMonth: '2026-10' });
   });
 });

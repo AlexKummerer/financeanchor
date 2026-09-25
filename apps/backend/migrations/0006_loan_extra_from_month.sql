@@ -1,0 +1,1 @@
+ALTER TABLE `loans` ADD `extra_from_month` text;

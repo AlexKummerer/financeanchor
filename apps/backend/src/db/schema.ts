@@ -210,6 +210,7 @@ export const loans = sqliteTable(
     savedCents: integer('saved_cents').notNull().default(0),
     /** Selbst festgelegte Extra-Tilgung pro Monat */
     extraMonthlyCents: integer('extra_monthly_cents').notNull().default(0),
+    extraFromMonth: text('extra_from_month'),
   },
   (t) => [
     index('loans_user_idx').on(t.userId),

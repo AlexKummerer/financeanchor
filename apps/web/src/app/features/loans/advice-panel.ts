@@ -116,7 +116,7 @@ import { AllocationTable } from './allocation-table';
           }
         </ul>
         <p class="small muted">
-          {{ 'loans.advice.from' | transloco: { month: (planner.month | faMonth) } }}
+          {{ 'loans.advice.from' | transloco: { month: (planner.adviceMonth() | faMonth) } }}
         </p>
         @if (advice().baseline; as b) {
           <p class="small muted">
@@ -329,7 +329,11 @@ export class AdvicePanel {
 
   protected partEffect(p: SuggestionPart): string {
     if (!p.payoffMonth) return '';
-    if (p.payoffMonth === this.planner.month) return this.t.translate('loans.advice.partNow');
+    if (p.payoffMonth === this.planner.adviceMonth()) {
+      return this.t.translate('loans.advice.partNow', {
+        month: this.f.month(p.payoffMonth, 'short'),
+      });
+    }
     return this.t.translate(
       p.monthsSooner > 1
         ? 'loans.advice.part'
@@ -346,7 +350,7 @@ export class AdvicePanel {
   /** Raten, die schon nach diesem Monat wegfallen. */
   protected freedNow(s: LoanSuggestion): number {
     return s.parts
-      .filter((p) => p.payoffMonth === this.planner.month)
+      .filter((p) => p.payoffMonth === this.planner.adviceMonth())
       .reduce((sum, p) => sum + p.freedPaymentCents, 0);
   }
 

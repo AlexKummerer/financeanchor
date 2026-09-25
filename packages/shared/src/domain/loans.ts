@@ -18,6 +18,8 @@ export type PlanLoan = Pick<
   savedCents?: Cents;
   /** Selbst festgelegte Extra-Tilgung pro Monat (Standard 0) */
   extraMonthlyCents?: Cents;
+  /** Extra-Tilgung erst ab diesem Monat (fehlt/null = sofort) */
+  extraFromMonth?: YearMonth | null;
 };
 
 /** Abbruchgrenze der Simulation (50 Jahre), wie im Prototyp. */
@@ -163,7 +165,8 @@ export function allocateMonth(
         balance -= r.deadlineCents;
       }
     }
-    if (!isLump(loan) && !options.noExtra) {
+    const extraActive = !loan.extraFromMonth || m >= monthIndex(loan.extraFromMonth);
+    if (!isLump(loan) && !options.noExtra && extraActive) {
       r.extraCents = Math.min(loan.extraMonthlyCents ?? 0, balance);
       balance -= r.extraCents;
     }

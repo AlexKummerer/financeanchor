@@ -92,6 +92,17 @@ describe('Plan mit den tatsächlichen Zahlungen', () => {
     expect(a.loans[0]).toMatchObject({ regularCents: 36499, extraCents: 12154 });
   });
 
+  it('Extra-Tilgung mit Startmonat gilt erst ab diesem Monat', () => {
+    const pb = {
+      ...loan('pb', 23420.23, 11.1, 364.99, { extraEuro: 100 }),
+      extraFromMonth: '2026-11',
+    };
+    expect(allocateMonth([pb], START).loans[0]!.extraCents).toBe(0);
+    expect(allocateMonth([pb], '2026-11').loans[0]!.extraCents).toBe(10000);
+    const plan = planLoans([pb], { startMonth: START })!;
+    expect(plan.months.slice(0, 2).map((m) => m.loans[0]!.extraCents)).toEqual([0, 10000]);
+  });
+
   it('letzte Rate höchstens Restschuld plus Zins, Extra höchstens der Rest', () => {
     const a = allocateMonth([loan('a', 1000, 12, 800, { extraEuro: 500 })], START);
     expect(a.loans[0]).toMatchObject({

@@ -1,5 +1,12 @@
 import { Service, computed, inject, signal } from '@angular/core';
-import { loanAdvice, planLoans, type AllocateOptions, type LoanPlan } from '@financeanchor/shared';
+import {
+  addMonths,
+  loanAdvice,
+  planLoans,
+  type AllocateOptions,
+  type LoanPlan,
+  type YearMonth,
+} from '@financeanchor/shared';
 import { Clock } from '../clock';
 import { DueApi } from './due-api';
 import { FinanceStore } from './finance-store';
@@ -17,6 +24,16 @@ export class LoanPlanner {
 
   readonly month = this.clock.month();
   private readonly bookedThisMonth = signal<AllocateOptions>({});
+  /** Alle Kreditzahlungen des laufenden Monats sind gebucht */
+  private readonly monthDone = signal(false);
+
+  /**
+   * Monat, für den geplant und vorgeschlagen wird: der laufende, oder der nächste, sobald im
+   * laufenden alle Kreditzahlungen gebucht sind. Übernommene Extra-Tilgungen gelten ab hier.
+   */
+  readonly adviceMonth = computed<YearMonth>(() =>
+    this.monthDone() ? addMonths(this.month, 1) : this.month,
+  );
 
   /** Kredite, deren Monatsrate im laufenden Monat schon gebucht ist. */
   readonly settledIds = computed(() => this.bookedThisMonth().settled ?? new Set<string>());
@@ -31,19 +48,20 @@ export class LoanPlanner {
   /** Plan, als wären diese Extra-Tilgungen schon übernommen (Vorschau eines Vorschlags). */
   planWith(extras: readonly { loanId: string; extraMonthlyCents: number }[]): LoanPlan | null {
     const byId = new Map(extras.map((e) => [e.loanId, e.extraMonthlyCents]));
+    const from = this.adviceMonth();
     return planLoans(
       this.store.loans.items().map((l) => {
         const extra = byId.get(l.id);
-        return extra === undefined ? l : { ...l, extraMonthlyCents: extra };
+        return extra === undefined ? l : { ...l, extraMonthlyCents: extra, extraFromMonth: from };
       }),
       { startMonth: this.month, firstMonth: this.bookedThisMonth() },
     );
   }
 
-  /** Geplante Zahlungen des laufenden Monats nach Art. */
+  /** Geplante Zahlungen des Planungsmonats (siehe `adviceMonth`) nach Art. */
   readonly thisMonth = computed(() => {
-    const m = this.plan()?.months[0];
-    if (!m || m.month !== this.month) return null;
+    const m = this.plan()?.months.find((x) => x.month === this.adviceMonth());
+    if (!m) return null;
     const loans = m.loans;
     const sum = (f: (l: (typeof loans)[number]) => number) => loans.reduce((s, l) => s + f(l), 0);
     return {
@@ -57,7 +75,7 @@ export class LoanPlanner {
   readonly advice = computed(() => {
     const s = this.store.settings();
     return loanAdvice(this.store.loans.items(), {
-      month: this.month,
+      month: this.adviceMonth(),
       availableCents: s?.loanBudgetCents ?? null,
     });
   });
@@ -73,6 +91,10 @@ export class LoanPlanner {
       const booked = entries.filter(
         (e) => e.booked && (e.type === 'loan' || e.type === 'extra' || e.type === 'saving'),
       );
+      const loanEntries = entries.filter(
+        (e) => e.type === 'loan' || e.type === 'extra' || e.type === 'saving',
+      );
+      this.monthDone.set(loanEntries.length > 0 && loanEntries.every((e) => e.booked));
       this.bookedThisMonth.set({
         settled: new Set(
           booked.filter((e) => e.type === 'loan' || e.type === 'saving').map((e) => e.sourceId),
