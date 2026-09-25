@@ -30,3 +30,19 @@ li.edit {
 li.edit input {
   background: var(--surface);
 }
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+.search {
+  flex: 1 1 180px;
+}
+.tools .linkbtn {
+  margin-left: auto;
+  min-height: 44px;
+}

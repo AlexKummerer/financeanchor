@@ -77,7 +77,8 @@ export class DuePanel {
           (entry.linkedKey !== null && bookedKeys.has(entry.linkedKey)));
       const bookable = !entry.booked && date <= this.today;
       const ownChoice = choice.get(entry.key);
-      const selected = selectable && bookable && (ownChoice ?? true);
+      // Nichts vorausgewählt: gebucht wird nur, was bewusst angehakt ist
+      const selected = selectable && bookable && (ownChoice ?? false);
       const [tagKey, tagClass] = this.tag(entry);
       return {
         entry,
@@ -92,6 +93,26 @@ export class DuePanel {
       };
     });
   });
+
+  /** Suchbegriff: filtert die Liste nach Name und Art */
+  protected readonly query = signal('');
+  protected readonly visibleRows = computed(() => {
+    const q = this.query().trim().toLowerCase();
+    if (!q) return this.rows();
+    return this.rows().filter(
+      (r) =>
+        r.entry.name.toLowerCase().includes(q) ||
+        this.t.translate(r.tagKey).toLowerCase().includes(q),
+    );
+  });
+  /** Angezeigte Einträge, die sich jetzt buchen lassen */
+  private readonly choosable = computed(() =>
+    this.visibleRows().filter((r) => r.selectable && r.bookable),
+  );
+  protected readonly allChosen = computed(
+    () => this.choosable().length > 0 && this.choosable().every((r) => r.selected),
+  );
+  protected readonly canChoose = computed(() => this.choosable().length > 0);
 
   protected readonly selectedKeys = computed(() =>
     this.rows()
@@ -120,6 +141,16 @@ export class DuePanel {
     } catch {
       this.failed.set(true);
     }
+  }
+
+  /** Alle angezeigten buchbaren Einträge an- bzw. abwählen */
+  protected toggleAll() {
+    const value = !this.allChosen();
+    this.choice.update((m) => {
+      const next = new Map(m);
+      for (const r of this.choosable()) next.set(r.entry.key, value);
+      return next;
+    });
   }
 
   protected toggle(key: string, checked: boolean) {

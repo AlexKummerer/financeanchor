@@ -10,8 +10,26 @@
 } @else if (rows().length === 0) {
   <p class="empty">{{ 'due.nothing' | transloco }}</p>
 } @else {
+  <div class="tools">
+    @if (rows().length > 5) {
+      <input
+        class="search"
+        type="search"
+        [value]="query()"
+        (input)="query.set($any($event.target).value)"
+        [placeholder]="'due.search' | transloco"
+        [attr.aria-label]="'due.search' | transloco"
+        autocomplete="off"
+      />
+    }
+    @if (canChoose()) {
+      <button class="linkbtn" type="button" [disabled]="pending()" (click)="toggleAll()">
+        {{ (allChosen() ? 'due.selectNone' : 'due.selectAll') | transloco }}
+      </button>
+    }
+  </div>
   <ul class="list">
-    @for (row of rows(); track row.entry.key) {
+    @for (row of visibleRows(); track row.entry.key) {
       <li [class.booked]="row.entry.booked">
         <div class="check">
           @if (row.selectable) {
@@ -92,6 +110,8 @@
           </form>
         </li>
       }
+    } @empty {
+      <li class="muted small">{{ 'due.noMatch' | transloco }}</li>
     }
   </ul>
   @if (hasOpen()) {

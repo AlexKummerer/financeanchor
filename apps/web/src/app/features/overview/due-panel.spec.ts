@@ -1,3 +1,4 @@
+import type { WritableSignal } from '@angular/core';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { DueEntry } from '@financeanchor/shared';
@@ -85,14 +86,27 @@ describe('DuePanel', () => {
       .find((li) => li.textContent?.includes(name))!
       .querySelector<HTMLInputElement>('input[type=checkbox]');
 
-  it('wählt alles bis heute Fällige vor; Späteres ist gesperrt, Gebuchtes ohne Auswahl', async () => {
-    const { el } = await render();
-    expect(checkbox(el, 'Miete')!.checked).toBe(true);
+  const button = (el: HTMLElement, text: string) =>
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+      b.textContent?.includes(text),
+    )!;
+
+  it('wählt nichts vor; „Alle auswählen“ nimmt alles bis heute Fällige', async () => {
+    const { fixture, el } = await render();
+    expect(checkbox(el, 'Miete')!.checked).toBe(false);
     expect(checkbox(el, 'Gehalt')!.disabled).toBe(true);
     expect(checkbox(el, 'Umbuchung')).toBeNull();
     expect(checkbox(el, 'Strom')).toBeNull();
+    expect(button(el, 'als Buchungen übernehmen').disabled).toBe(true);
+
+    button(el, 'Alle auswählen').click();
+    await fixture.whenStable();
+    expect(checkbox(el, 'Miete')!.checked).toBe(true);
     // Miete und Versicherung, dazu deren Umbuchung
     expect(el.textContent).toContain('3 als Buchungen übernehmen');
+    button(el, 'Keine auswählen').click();
+    await fixture.whenStable();
+    expect(el.textContent).toContain('0 als Buchungen übernehmen');
   });
 
   it('vorgezogenes Datum macht einen späteren Posten buchbar und wird mitgeschickt', async () => {
@@ -105,7 +119,9 @@ describe('DuePanel', () => {
     el.querySelector<HTMLButtonElement>('li.edit button[type=submit]')!.click();
     await fixture.whenStable();
 
-    expect(checkbox(el, 'Gehalt')!.checked).toBe(true);
+    expect(checkbox(el, 'Gehalt')!.disabled).toBe(false);
+    button(el, 'Alle auswählen').click();
+    await fixture.whenStable();
     el.querySelector<HTMLButtonElement>('.btnrow .btn:not(.ghost)')!.click();
     await fixture.whenStable();
     expect(book).toHaveBeenCalledWith('2026-09', {
@@ -115,15 +131,27 @@ describe('DuePanel', () => {
     });
   });
 
-  it('abgewählte Einträge werden nicht gebucht', async () => {
+  it('gebucht wird nur, was angehakt ist', async () => {
     const { fixture, el } = await render();
-    const miete = checkbox(el, 'Miete')!;
-    miete.checked = false;
-    miete.dispatchEvent(new Event('change'));
+    const vers = [...el.querySelectorAll('li')]
+      .find(
+        (li) => li.textContent?.includes('Versicherung') && !li.textContent.includes('Umbuchung'),
+      )!
+      .querySelector<HTMLInputElement>('input[type=checkbox]')!;
+    vers.checked = true;
+    vers.dispatchEvent(new Event('change'));
     await fixture.whenStable();
     el.querySelector<HTMLButtonElement>('.btnrow .btn:not(.ghost)')!.click();
     await fixture.whenStable();
     expect(book.mock.calls[0]![1].keys).toEqual(['item:vers']);
+  });
+
+  it('Suche filtert die Liste nach Name', async () => {
+    const { fixture, el } = await render();
+    (fixture.componentInstance as unknown as { query: WritableSignal<string> }).query.set('miet');
+    await fixture.whenStable();
+    const names = [...el.querySelectorAll('ul.list > li label.name')].map((l) => l.textContent);
+    expect(names).toEqual(['Miete']);
   });
 
   it('lehnt Beträge über der offenen Restschuld ab', async () => {

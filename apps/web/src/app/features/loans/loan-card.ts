@@ -75,7 +75,7 @@ export class LoanCard {
   protected readonly savingMonthly = computed(() => {
     const l = this.loan();
     const d = this.deadline();
-    if (!this.isLump() || !d || l.balanceCents <= 0) return null;
+    if (!this.isLump() || !l.saveUp || !d || l.balanceCents <= 0) return null;
     const rest = Math.max(0, l.balanceCents - l.savedCents);
     return Math.ceil(rest / monthsUntil(this.planMonth(), d));
   });

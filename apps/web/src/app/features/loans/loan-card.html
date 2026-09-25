@@ -158,6 +158,9 @@
                 : { saved: (loan().savedCents | money), total: (loan().balanceCents | money) }
           }}
         </li>
+        @if (!loan().saveUp) {
+          <li>{{ 'loans.noSaveUp' | transloco: { date: (loan().dueDate | faDate) } }}</li>
+        }
         @if (savingMonthly(); as sm) {
           <li>
             {{

@@ -100,6 +100,20 @@ const requiredDate = (c: AbstractControl<string>) =>
         </div>
         @if (form.controls.paymentMode.value === 'lump') {
           <div>
+            <label class="check" for="ln-save-up">
+              <input
+                id="ln-save-up"
+                type="checkbox"
+                formControlName="saveUp"
+                aria-describedby="ln-save-up-hint"
+              />
+              {{ 'loans.saveUpField' | transloco }}
+            </label>
+            <p id="ln-save-up-hint" class="small muted hint">
+              {{ 'loans.saveUpHint' | transloco }}
+            </p>
+          </div>
+          <div>
             <label for="ln-saved">{{ 'loans.savedField' | transloco }}</label>
             <input
               id="ln-saved"
@@ -220,6 +234,18 @@ const requiredDate = (c: AbstractControl<string>) =>
     </form>
   `,
   styles: `
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      font-weight: 500;
+    }
+    .check input {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+    }
     .hint {
       margin-top: 6px;
     }
@@ -249,6 +275,7 @@ export class LoanForm {
     dueDate: ['', requiredDate],
     paymentMode: this.fb.control<PaymentMode>('spread'),
     saved: ['', euroAmount({ min: 0, required: false })],
+    saveUp: [true],
     extra: ['', euroAmount({ min: 0, required: false })],
   });
 
@@ -285,6 +312,7 @@ export class LoanForm {
         dueDate: l.dueDate ?? '',
         paymentMode: l.paymentMode ?? 'spread',
         saved: l.savedCents ? this.f.amountInput(l.savedCents) : '',
+        saveUp: l.saveUp,
         extra: l.extraMonthlyCents ? this.f.amountInput(l.extraMonthlyCents) : '',
       });
     });
@@ -340,6 +368,7 @@ export class LoanForm {
             dueDate: v.dueDate,
             paymentMode: v.paymentMode,
             savedCents: v.paymentMode === 'lump' ? (toCentsOrNull(v.saved) ?? 0) : 0,
+            saveUp: v.paymentMode === 'lump' ? v.saveUp : true,
             extraMonthlyCents: v.paymentMode === 'lump' ? 0 : extraMonthlyCents,
             extraFromMonth: v.paymentMode === 'lump' ? null : extraFromMonth,
           }

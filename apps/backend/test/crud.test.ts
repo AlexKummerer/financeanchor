@@ -426,5 +426,11 @@ describe('Eigene Extra-Tilgung', () => {
     });
     expect(klarna.body.extraMonthlyCents).toBe(0);
     expect(klarna.body.extraFromMonth).toBeNull();
+    expect(klarna.body.saveUp).toBe(true);
+    const off = await api.patch(`/loans/${klarna.body.id}`, { saveUp: false });
+    expect(off.body.saveUp).toBe(false);
+    // Wechsel auf Teilzahlungen: Ansparen gibt es dort nicht
+    const spread = await api.patch(`/loans/${klarna.body.id}`, { paymentMode: 'spread' });
+    expect(spread.body.saveUp).toBe(true);
   });
 });

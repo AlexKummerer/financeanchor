@@ -197,6 +197,15 @@ describe('„Tilgen bis Datum“', () => {
     expect(a.loans[0]).toMatchObject({ savingCents: 45000, extraCents: 0 });
   });
 
+  it('Einmalzahlung ohne Ansparen: nichts zurücklegen, bei Fälligkeit alles', () => {
+    const k = { ...deadline('k', 400, '2026-11-15', 'lump'), savedCents: 5000, saveUp: false };
+    expect(allocateMonth([k], START).loans[0]).toMatchObject({ savingCents: 0, deadlineCents: 0 });
+    expect(allocateMonth([k], '2026-11').loans[0]).toMatchObject({
+      fromSavingsCents: 5000,
+      deadlineCents: 40000 - 5000,
+    });
+  });
+
   it('überfällige Einmalzahlung bleibt voll fällig', () => {
     const a = allocateMonth([deadline('klarna', 300, '2026-09-20', 'lump')], START);
     expect(a.loans[0]!.deadlineCents).toBe(30000);

@@ -288,7 +288,10 @@
       "interestTotalHint": "laut Plan, ohne Vorschläge",
       "interestMonth": "Zinsen im {{month}}",
       "interestMonthHint": "so viel der Zahlungen geht an Zinsen"
-    }
+    },
+    "saveUpField": "Monatlich zurücklegen",
+    "saveUpHint": "Aus: keine monatliche Rücklage; der ganze Betrag wird erst bei Fälligkeit eingeplant.",
+    "noSaveUp": "Kein Ansparen – der Rest wird am {{date}} komplett gezahlt"
   },
   "due": {
     "nothing": "In diesem Monat ist nichts Wiederkehrendes fällig.",
@@ -319,7 +322,11 @@
     "bookSelected": "{{n}} als Buchungen übernehmen",
     "booked": "{{n}} Buchungen übernommen",
     "alreadyBooked": "Inzwischen wurde schon gebucht. Die Liste ist aktualisiert.",
-    "hint": "Gebucht wird, was bis heute fällig ist. Über ✎ lassen sich Tag und Betrag vorher anpassen."
+    "hint": "Hake an, was du buchen willst; gebucht werden kann, was bis heute fällig ist. Über ✎ lassen sich Tag und Betrag vorher anpassen.",
+    "search": "Suchen …",
+    "selectAll": "Alle auswählen",
+    "selectNone": "Keine auswählen",
+    "noMatch": "Keine Einträge zu dieser Suche."
   },
   "forms": {
     "required": "Bitte ausfüllen.",

@@ -1,0 +1,1 @@
+ALTER TABLE `loans` ADD `save_up` integer DEFAULT 1 NOT NULL;

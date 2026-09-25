@@ -6,6 +6,10 @@ test('Fällige übernehmen: bucht bis heute Fälliges genau einmal und passt die
   await login(page);
   const due = page.locator('fa-due-panel');
   const bookButton = due.getByRole('button', { name: /als Buchungen übernehmen/ });
+  // Nichts ist vorausgewählt
+  await expect(bookButton).toHaveText(/^\s*0 als Buchungen übernehmen/);
+  await expect(bookButton).toBeDisabled();
+  await due.getByRole('button', { name: 'Alle auswählen' }).click();
   await expect(bookButton).toBeEnabled();
   const label = (await bookButton.textContent()) ?? '';
   const count = Number(label.trim().split(' ')[0]);
@@ -26,9 +30,9 @@ test('Fällige übernehmen: bucht bis heute Fälliges genau einmal und passt die
 
   // Nach dem Neuladen bleibt alles gebucht – kein zweites Mal buchbar
   await page.reload();
-  await expect(
-    page.locator('fa-due-panel').getByRole('button', { name: '0 als Buchungen übernehmen' }),
-  ).toBeDisabled();
+  const reloaded = page.locator('fa-due-panel');
+  await expect(reloaded.getByText('gebucht').first()).toBeVisible();
+  await expect(reloaded.getByRole('button', { name: 'Alle auswählen' })).toHaveCount(0);
 
   // Die Buchungen stehen im Haushaltsbuch
   await page

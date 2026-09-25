@@ -100,3 +100,8 @@ Rückmeldung: Ist der September schon gebucht, ergeben Vorschläge „für Septe
 
 - Oben auf der Kredit-Seite: Nettoschulden (Restschuld minus Zurückgelegtes), getilgter Anteil (über die laufenden Kredite, `loanTotals`), Zinsen bis schuldenfrei laut Plan und Zinsen im Planungsmonat.
 - „Verlauf ansehen“ öffnet einen Dialog mit der Aufteilung pro Monat, als wäre der Vorschlag übernommen; dort lässt er sich auch direkt übernehmen.
+
+## Nachtrag 7 (25.09.2026): Ansparen abschaltbar, Fälliges nicht vorausgewählt
+
+- Einmalzahlungen haben den Schalter „Monatlich zurücklegen“ (`loans.save_up`, Migration 0007, Standard an). Aus: keine monatliche Rücklage; im Fälligkeitsmonat wird der Rest (abzüglich schon Zurückgelegtem) komplett eingeplant.
+- „Fällige übernehmen“ wählt nichts mehr vor; „Alle auswählen“/„Keine auswählen“ und ab sechs Einträgen ein Suchfeld (Name oder Art).

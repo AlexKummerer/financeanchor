@@ -38,8 +38,10 @@ export const loanRoutes = new Hono<AppEnv>()
       next.paymentMode = null;
     }
     // Zurückgelegtes gibt es nur bei Einmalzahlungen, Extra-Tilgung nur ohne Einmalzahlung
-    if (next.paymentMode !== 'lump') next.savedCents = 0;
-    else {
+    if (next.paymentMode !== 'lump') {
+      next.savedCents = 0;
+      next.saveUp = true;
+    } else {
       next.extraMonthlyCents = 0;
       next.extraFromMonth = null;
     }
@@ -87,6 +89,7 @@ function toRow(body: LoanCreate) {
     dueDate: body.dueDate,
     paymentMode: body.paymentMode,
     savedCents: body.paymentMode === 'lump' ? body.savedCents : 0,
+    saveUp: body.paymentMode === 'lump' ? body.saveUp : true,
     extraMonthlyCents: body.paymentMode === 'lump' ? 0 : body.extraMonthlyCents,
     extraFromMonth: body.paymentMode === 'lump' ? null : body.extraFromMonth,
   };

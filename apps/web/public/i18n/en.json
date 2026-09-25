@@ -288,7 +288,10 @@
       "interestTotalHint": "according to the plan, without suggestions",
       "interestMonth": "Interest in {{month}}",
       "interestMonthHint": "this much of the payments goes to interest"
-    }
+    },
+    "saveUpField": "Set aside monthly",
+    "saveUpHint": "Off: no monthly set-aside; the full amount is only planned when it is due.",
+    "noSaveUp": "No set-aside – the rest is paid in full on {{date}}"
   },
   "due": {
     "nothing": "Nothing recurring is due this month.",
@@ -319,7 +322,11 @@
     "bookSelected": "Book {{n}} as transactions",
     "booked": "{{n}} transactions booked",
     "alreadyBooked": "Something was booked in the meantime. The list has been updated.",
-    "hint": "Only what is due by today is booked. Use ✎ to adjust date and amount first."
+    "hint": "Tick what you want to book; anything due by today can be booked. Use ✎ to adjust day and amount first.",
+    "search": "Search …",
+    "selectAll": "Select all",
+    "selectNone": "Select none",
+    "noMatch": "No entries match this search."
   },
   "forms": {
     "required": "Please fill in.",
