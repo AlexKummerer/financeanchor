@@ -46,8 +46,6 @@ export class OverviewPage {
       items: this.store.items.items(),
       pots: this.store.pots.items(),
       loans: this.store.loans.items(),
-      loanBudgetCents: this.store.settings()?.loanBudgetCents ?? null,
-      strategy: this.store.settings()?.strategy ?? 'avalanche',
       month: this.month,
     }),
   );

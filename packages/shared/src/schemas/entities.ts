@@ -158,6 +158,8 @@ const loanFields = z.object({
   paymentMode: paymentModeSchema.nullable(),
   /** Für eine Einmalzahlung schon zurückgelegt */
   savedCents: nonNegativeCentsSchema.default(0),
+  /** Selbst festgelegte Extra-Tilgung pro Monat (nicht bei Einmalzahlungen) */
+  extraMonthlyCents: nonNegativeCentsSchema.default(0),
   ...meta,
 });
 
@@ -204,6 +206,7 @@ export const loanCreateSchema = z.discriminatedUnion('kind', [
     paymentCents: positiveCentsSchema,
     dueDay: dueDaySchema.default(1),
     targetMonth: yearMonthSchema.nullable().default(null),
+    extraMonthlyCents: nonNegativeCentsSchema.default(0),
   }),
   z.object({
     ...loanCreateCommon,
@@ -211,6 +214,7 @@ export const loanCreateSchema = z.discriminatedUnion('kind', [
     dueDate: isoDateSchema,
     paymentMode: paymentModeSchema,
     savedCents: nonNegativeCentsSchema.default(0),
+    extraMonthlyCents: nonNegativeCentsSchema.default(0),
   }),
 ]);
 export type LoanCreate = z.infer<typeof loanCreateSchema>;
@@ -228,6 +232,7 @@ export const loanUpdateSchema = loanFields
     dueDate: true,
     paymentMode: true,
     savedCents: true,
+    extraMonthlyCents: true,
   })
   .partial();
 
@@ -244,7 +249,10 @@ export type NetWorthSnapshot = z.infer<typeof netWorthSnapshotSchema>;
 
 // Einstellungen
 export const userSettingsSchema = z.object({
-  /** Gesamtbetrag pro Monat für alle Kredite; `null` = genau die fälligen Raten */
+  /**
+   * Monatlich für Kredite verfügbares Geld (optional). Ändert keinen Plan, sondern dient nur für
+   * Vorschläge zur Extra-Tilgung.
+   */
   loanBudgetCents: nonNegativeCentsSchema.nullable(),
   strategy: strategySchema,
   locale: localeSchema,

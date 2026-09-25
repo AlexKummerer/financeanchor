@@ -207,6 +207,8 @@ export const loans = sqliteTable(
     paymentMode: text('payment_mode', { enum: paymentModes }),
     /** Für eine Einmalzahlung schon zurückgelegt */
     savedCents: integer('saved_cents').notNull().default(0),
+    /** Selbst festgelegte Extra-Tilgung pro Monat */
+    extraMonthlyCents: integer('extra_monthly_cents').notNull().default(0),
   },
   (t) => [
     index('loans_user_idx').on(t.userId),
@@ -216,6 +218,7 @@ export const loans = sqliteTable(
     check('loans_due_day_ck', sql`due_day between 1 and 31`),
     check('loans_kind_ck', inList('kind', loanKinds)),
     check('loans_saved_ck', sql`saved_cents >= 0`),
+    check('loans_extra_ck', sql`extra_monthly_cents >= 0`),
     // Felder passend zur Art (wie loanShapeIssues in shared)
     check(
       'loans_shape_ck',
@@ -242,7 +245,7 @@ export const userSettings = sqliteTable(
   'user_settings',
   {
     ...base,
-    /** Gesamtbetrag pro Monat für Kredite; null = genau die fälligen Beträge */
+    /** Monatlich für Kredite verfügbares Geld (nur für Vorschläge, ändert keinen Plan) */
     loanBudgetCents: integer('loan_budget_cents'),
     strategy: text('strategy', { enum: strategies }).notNull().default('avalanche'),
     locale: text('locale', { enum: locales }).notNull().default('de'),

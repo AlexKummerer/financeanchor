@@ -1,32 +1,21 @@
 import { Component, DOCUMENT, computed, inject, signal, viewChild } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { monthsBetween, requiredThisMonth, type Loan, type Strategy } from '@financeanchor/shared';
+import { monthsBetween, type Loan } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { FinanceStore } from '../../core/data/finance-store';
 import { LoanPlanner } from '../../core/data/loan-planner';
-import { Segmented } from '../../core/forms/segmented';
-import { toCentsOrNull } from '../../core/forms/validators';
 import { formatDuration } from '../../core/format/duration';
 import { Formatter } from '../../core/format/formatter';
 import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
 import { Dialogs } from '../../core/ui/dialogs';
 import { ToastService } from '../../core/ui/toast.service';
+import { AdvicePanel } from './advice-panel';
 import { AllocationTable } from './allocation-table';
 import { LoanCard } from './loan-card';
 import { LoanForm, type LoanFormValue } from './loan-form';
 
 @Component({
   selector: 'fa-loans',
-  imports: [
-    ReactiveFormsModule,
-    TranslocoPipe,
-    MoneyPipe,
-    MonthPipe,
-    Segmented,
-    LoanForm,
-    LoanCard,
-    AllocationTable,
-  ],
+  imports: [TranslocoPipe, MoneyPipe, MonthPipe, LoanForm, LoanCard, AllocationTable, AdvicePanel],
   templateUrl: './loans.html',
   styleUrl: './loans.css',
 })
@@ -44,29 +33,6 @@ export class LoansPage {
   protected readonly editing = signal<Loan | null>(null);
   protected readonly formOpen = signal(false);
   protected readonly saving = signal(false);
-  protected readonly budgetError = signal(false);
-
-  protected readonly strategy = new FormControl<Strategy>(
-    this.store.settings()?.strategy ?? 'avalanche',
-    {
-      nonNullable: true,
-    },
-  );
-  protected readonly strategyOptions = computed(() => [
-    { value: 'avalanche' as const, label: this.t.translate('loans.avalanche') },
-    { value: 'snowball' as const, label: this.t.translate('loans.snowball') },
-  ]);
-
-  protected readonly budget = computed(() => this.store.settings()?.loanBudgetCents ?? null);
-  protected readonly budgetText = computed(() => {
-    const b = this.budget();
-    return b === null ? '' : this.f.amountInput(b);
-  });
-  /** Mindestbudget: Pflichtraten und Fristen in diesem Monat (ohne schon Gebuchtes zu berücksichtigen). */
-  protected readonly required = computed(() =>
-    requiredThisMonth(this.store.loans.items(), this.month),
-  );
-  protected readonly requiredText = computed(() => this.f.amountInput(this.required()));
 
   protected readonly payoff = computed(() => {
     const plan = this.planner.plan();
@@ -81,25 +47,6 @@ export class LoansPage {
     this.store.loans.items().filter((l) => l.balanceCents > 0),
   );
 
-  constructor() {
-    this.strategy.valueChanges.subscribe((strategy) => void this.saveSettings({ strategy }));
-  }
-
-  protected saveBudget(value: string) {
-    const cents = toCentsOrNull(value);
-    const invalid = value.trim() !== '' && (cents === null || cents < 0);
-    this.budgetError.set(invalid);
-    if (!invalid) void this.saveSettings({ loanBudgetCents: cents });
-  }
-
-  private async saveSettings(patch: { strategy?: Strategy; loanBudgetCents?: number | null }) {
-    try {
-      await this.store.updateSettings(patch);
-    } catch {
-      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
-    }
-  }
-
   protected edit(loan: Loan) {
     this.editing.set(loan);
     this.formOpen.set(true);
@@ -111,8 +58,7 @@ export class LoansPage {
     try {
       const current = this.editing();
       if (current) {
-        const { kind, ...rest } = v;
-        await this.store.loans.update(current.id, { kind, ...rest });
+        await this.store.loans.update(current.id, v);
         this.editing.set(null);
         this.toast.show(this.t.translate('loans.updated'));
       } else {
@@ -124,6 +70,18 @@ export class LoansPage {
       this.toast.show(this.t.translate('errors.saveFailed'), 'error');
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  /** Vorschlag übernehmen: wird zur festen Extra-Tilgung des Kredits. */
+  protected async setExtra(e: { loanId: string; extraMonthlyCents: number }) {
+    try {
+      await this.store.loans.update(e.loanId, { extraMonthlyCents: e.extraMonthlyCents });
+      this.toast.show(
+        this.t.translate('loans.advice.adopted', { amount: this.f.money(e.extraMonthlyCents) }),
+      );
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
     }
   }
 

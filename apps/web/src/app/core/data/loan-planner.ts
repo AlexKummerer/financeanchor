@@ -1,12 +1,13 @@
 import { Service, computed, inject, signal } from '@angular/core';
-import { planLoans, type AllocateOptions } from '@financeanchor/shared';
+import { loanAdvice, planLoans, type AllocateOptions } from '@financeanchor/shared';
 import { Clock } from '../clock';
 import { DueApi } from './due-api';
 import { FinanceStore } from './finance-store';
 
 /**
- * Gemeinsamer Tilgungsplan ab dem laufenden Monat. Was in diesem Monat schon gebucht ist,
- * steckt bereits in den Restschulden und wird nicht doppelt eingeplant.
+ * Tilgungsplan ab dem laufenden Monat mit genau den vereinbarten und selbst festgelegten Zahlungen,
+ * dazu Vorschläge aus dem verfügbaren Geld. Was diesen Monat schon gebucht ist, steckt bereits in
+ * den Restschulden und wird nicht doppelt eingeplant.
  */
 @Service()
 export class LoanPlanner {
@@ -20,17 +21,14 @@ export class LoanPlanner {
   /** Kredite, deren Monatsrate im laufenden Monat schon gebucht ist. */
   readonly settledIds = computed(() => this.bookedThisMonth().settled ?? new Set<string>());
 
-  readonly plan = computed(() => {
-    const s = this.store.settings();
-    return planLoans(this.store.loans.items(), {
-      budgetCents: s?.loanBudgetCents ?? null,
-      strategy: s?.strategy ?? 'avalanche',
+  readonly plan = computed(() =>
+    planLoans(this.store.loans.items(), {
       startMonth: this.month,
       firstMonth: this.bookedThisMonth(),
-    });
-  });
+    }),
+  );
 
-  /** Aufteilung des laufenden Monats nach Anteilen. */
+  /** Geplante Zahlungen des laufenden Monats nach Art. */
   readonly thisMonth = computed(() => {
     const m = this.plan()?.months[0];
     if (!m || m.month !== this.month) return null;
@@ -40,9 +38,17 @@ export class LoanPlanner {
       regularCents: sum((l) => l.regularCents),
       deadlineCents: sum((l) => l.deadlineCents + l.savingCents),
       extraCents: sum((l) => l.extraCents),
-      shortfallCents: m.shortfallCents,
-      byId: new Map(loans.map((l) => [l.id, l])),
     };
+  });
+
+  /** Vorschläge; ändern nichts am Plan, solange sie nicht übernommen werden. */
+  readonly advice = computed(() => {
+    const s = this.store.settings();
+    return loanAdvice(this.store.loans.items(), {
+      month: this.month,
+      availableCents: s?.loanBudgetCents ?? null,
+      strategy: s?.strategy ?? 'avalanche',
+    });
   });
 
   constructor() {
@@ -60,7 +66,6 @@ export class LoanPlanner {
         settled: new Set(
           booked.filter((e) => e.type === 'loan' || e.type === 'saving').map((e) => e.sourceId),
         ),
-        spentCents: booked.reduce((s, e) => s + Math.abs(e.amountCents), 0),
         noExtra: booked.some((e) => e.type === 'extra'),
       });
     } catch {

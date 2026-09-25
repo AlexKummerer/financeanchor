@@ -1,11 +1,6 @@
 import type { Cents } from '../money.js';
 import { dateInMonth, monthOfDate, type IsoDate, type YearMonth } from '../month.js';
-import type {
-  SourceType,
-  Strategy,
-  SystemCategoryKey,
-  TransactionKind,
-} from '../schemas/common.js';
+import type { SourceType, SystemCategoryKey, TransactionKind } from '../schemas/common.js';
 import { bookingKeys } from './bookingKeys.js';
 import { allocateMonth, type PlanLoan } from './loans.js';
 import { isDue, viaReserve } from './recurring.js';
@@ -74,9 +69,6 @@ export interface DueInput {
   pots: readonly (ReservePotLike & { accountId: string | null; dueDay: number })[];
   accounts: readonly { id: string; name: string }[];
   loans: readonly (PlanLoan & { name: string; dueDay: number })[];
-  /** Kreditbudget pro Monat; `null` = genau die fälligen Beträge */
-  loanBudgetCents: Cents | null;
-  strategy: Strategy;
   systemCategoryIds: Record<SystemCategoryKey, string>;
   /** Bereits gebuchte Schlüssel des Monats mit dem tatsächlich gebuchten Betrag und Datum */
   booked: ReadonlyMap<string, { amountCents: Cents; date: IsoDate }>;
@@ -165,9 +157,8 @@ export function planDue(input: DueInput): DueEntry[] {
     }
   }
 
-  // Kredite: Aufteilung des Monatsbudgets (Raten, Fristen, Ansparen, Extra). Schon gebuchte Raten
-  // stecken bereits in der Restschuld; gebuchte Beträge mindern das verbleibende Budget. Buchungen
-  // gelöschter Kredite zählen nicht.
+  // Kredite: Raten, Frist-Raten, Zurücklegen und die eigene Extra-Tilgung. Schon gebuchte Raten
+  // stecken bereits in der Restschuld. Buchungen gelöschter Kredite spielen keine Rolle.
   const loanIds = new Set(input.loans.map((l) => l.id));
   const loanKeys = [...input.booked.entries()].filter(([k]) => {
     const [prefix, id] = k.split(':');
@@ -182,9 +173,8 @@ export function planDue(input: DueInput): DueEntry[] {
       .filter(([k]) => k.startsWith('loan:') || k.startsWith('save:'))
       .map(([k]) => k.slice(k.indexOf(':') + 1)),
   );
-  const alloc = allocateMonth(input.loans, input.month, input.loanBudgetCents, input.strategy, {
+  const alloc = allocateMonth(input.loans, input.month, {
     settled,
-    spentCents: loanKeys.reduce((s, [, b]) => s + Math.abs(b.amountCents), 0),
     noExtra: loanKeys.some(([k]) => k.startsWith('extra:')),
   });
   input.loans.forEach((loan, i) => {
@@ -222,8 +212,8 @@ export function planDue(input: DueInput): DueEntry[] {
         savingDelta: r.fromSavingsCents ? { loanId: loan.id, cents: -r.fromSavingsCents } : null,
       },
     );
-    // Aufstockung für Ziele und Extra-Tilgung
-    const extra = installment ? r.deadlineCents + r.extraCents : r.extraCents;
+    // Eigene Extra-Tilgung
+    const extra = r.extraCents;
     push(bookingKeys.extra(loan.id), 'extra', labels.extra(loan.name), extra, {
       maxAmountCents: r.balanceAfterCents + extra,
     });

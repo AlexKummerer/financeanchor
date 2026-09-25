@@ -8,8 +8,6 @@ describe('Monatsübersicht', () => {
       items,
       pots,
       loans,
-      loanBudgetCents: null,
-      strategy: 'avalanche',
       month: MONTH,
     });
     expect(b).toEqual({
@@ -22,15 +20,13 @@ describe('Monatsübersicht', () => {
     });
   });
 
-  it('das Kreditbudget zählt als Kreditrate, abbezahlte Kredite zählen nicht', () => {
+  it('Kreditraten inkl. eigener Extra-Tilgung, abbezahlte Kredite zählen nicht', () => {
     const paid = [{ ...loans[1]!, balanceCents: 0 }];
     expect(
       monthlyBreakdown({
         items: [],
         pots,
-        loans: [loans[0]!, ...paid],
-        loanBudgetCents: 36000,
-        strategy: 'avalanche',
+        loans: [{ ...loans[0]!, extraMonthlyCents: 10000 }, ...paid],
         month: MONTH,
       }).loanCents,
     ).toBe(36000);
@@ -39,8 +35,6 @@ describe('Monatsübersicht', () => {
         items: [],
         pots,
         loans: paid,
-        loanBudgetCents: 36000,
-        strategy: 'avalanche',
         month: MONTH,
       }).loanCents,
     ).toBe(0);
@@ -53,8 +47,6 @@ describe('Monatsübersicht', () => {
         items: later,
         pots,
         loans: [],
-        loanBudgetCents: null,
-        strategy: 'avalanche',
         month: MONTH,
       }).fixedCents,
     ).toBe(0);
@@ -63,8 +55,6 @@ describe('Monatsübersicht', () => {
         items: later,
         pots,
         loans: [],
-        loanBudgetCents: null,
-        strategy: 'avalanche',
         month: '2026-12',
       }).fixedCents,
     ).toBe(85000);
@@ -85,8 +75,6 @@ describe('Monatsübersicht', () => {
       items: bonus,
       pots,
       loans: [],
-      loanBudgetCents: null,
-      strategy: 'avalanche',
       month: MONTH,
     });
     expect(b.incomeCents).toBe(10000);

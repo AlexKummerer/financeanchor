@@ -1,6 +1,5 @@
 import type { Cents } from '../money.js';
 import type { YearMonth } from '../month.js';
-import type { Strategy } from '../schemas/common.js';
 import { allocateMonth, type PlanLoan } from './loans.js';
 import { hasStarted, monthlyShareTimes12, viaReserve } from './recurring.js';
 import {
@@ -14,7 +13,7 @@ export interface MonthlyBreakdown {
   incomeCents: Cents;
   fixedCents: Cents;
   reserveCents: Cents;
-  /** Tilgung laut Aufteilung des Monats (Pflicht, Fristen, Extra) */
+  /** Kreditzahlungen des Monats (Raten, Fristen, Zurücklegen, eigene Extra-Tilgung) */
   loanCents: Cents;
   savingCents: Cents;
   /** Einnahmen minus alles andere; kann negativ sein */
@@ -25,9 +24,6 @@ export interface BreakdownInput {
   items: readonly ReserveItemLike[];
   pots: readonly ReservePotLike[];
   loans: readonly PlanLoan[];
-  /** Kreditbudget pro Monat; `null` = genau die fälligen Beträge */
-  loanBudgetCents: Cents | null;
-  strategy: Strategy;
   month: YearMonth;
 }
 
@@ -54,12 +50,7 @@ export function monthlyBreakdown(input: BreakdownInput): MonthlyBreakdown {
       sum + reserveMonthlyAmount(pot, reserveNeed(input.items, pot.id, defaultPot?.id ?? pot.id)),
     0,
   );
-  const loanCents = allocateMonth(
-    input.loans,
-    input.month,
-    input.loanBudgetCents,
-    input.strategy,
-  ).paidCents;
+  const loanCents = allocateMonth(input.loans, input.month).paidCents;
   const incomeCents = Math.round(income12 / 12);
   const fixedCents = Math.round(fixed12 / 12);
   const savingCents = Math.round(saving12 / 12);

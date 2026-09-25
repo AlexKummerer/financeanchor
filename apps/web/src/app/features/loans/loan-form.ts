@@ -180,6 +180,21 @@ const requiredDate = (c: AbstractControl<string>) =>
           <p id="ln-target-hint" class="small muted hint">{{ 'loans.targetHint' | transloco }}</p>
         </div>
       }
+      @if (!(isDeadline() && form.controls.paymentMode.value === 'lump')) {
+        <div>
+          <label for="ln-extra">{{ 'loans.extraField' | transloco }}</label>
+          <input
+            id="ln-extra"
+            formControlName="extra"
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="0"
+            [attr.aria-invalid]="invalid('extra')"
+            aria-describedby="ln-extra-hint"
+          />
+          <p id="ln-extra-hint" class="small muted hint">{{ 'loans.extraHint' | transloco }}</p>
+        </div>
+      }
       <div>
         <label for="ln-original">{{ 'loans.original' | transloco }}</label>
         <input
@@ -231,6 +246,7 @@ export class LoanForm {
     dueDate: ['', requiredDate],
     paymentMode: this.fb.control<PaymentMode>('spread'),
     saved: ['', euroAmount({ min: 0, required: false })],
+    extra: ['', euroAmount({ min: 0, required: false })],
   });
 
   private readonly kind = toSignal(this.form.controls.kind.valueChanges, {
@@ -266,6 +282,7 @@ export class LoanForm {
         dueDate: l.dueDate ?? '',
         paymentMode: l.paymentMode ?? 'spread',
         saved: l.savedCents ? this.f.amountInput(l.savedCents) : '',
+        extra: l.extraMonthlyCents ? this.f.amountInput(l.extraMonthlyCents) : '',
       });
     });
     // Felder der jeweils anderen Art zählen für die Gültigkeit nicht.
@@ -299,6 +316,7 @@ export class LoanForm {
     if (this.form.invalid) return;
     const v = this.form.getRawValue();
     const original = toCentsOrNull(v.original);
+    const extraMonthlyCents = toCentsOrNull(v.extra) ?? 0;
     const common = {
       name: v.name.trim(),
       balanceCents: toCents(v.balance),
@@ -313,6 +331,7 @@ export class LoanForm {
             dueDate: v.dueDate,
             paymentMode: v.paymentMode,
             savedCents: v.paymentMode === 'lump' ? (toCentsOrNull(v.saved) ?? 0) : 0,
+            extraMonthlyCents: v.paymentMode === 'lump' ? 0 : extraMonthlyCents,
           }
         : {
             ...common,
@@ -320,6 +339,7 @@ export class LoanForm {
             paymentCents: toCents(v.payment),
             dueDay: v.dueDay,
             targetMonth: v.targetMonth || null,
+            extraMonthlyCents,
           },
     );
   }

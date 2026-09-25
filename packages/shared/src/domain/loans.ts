@@ -16,6 +16,8 @@ export type PlanLoan = Pick<
 > & {
   /** Für eine Einmalzahlung schon zurückgelegt (Standard 0) */
   savedCents?: Cents;
+  /** Selbst festgelegte Extra-Tilgung pro Monat (Standard 0) */
+  extraMonthlyCents?: Cents;
 };
 
 /** Abbruchgrenze der Simulation (50 Jahre), wie im Prototyp. */
@@ -27,6 +29,10 @@ export function deadlineMonthOf(
 ): YearMonth | null {
   if (loan.kind === 'deadline') return loan.dueDate ? monthOfDate(loan.dueDate) : null;
   return loan.targetMonth;
+}
+
+export function isLump(loan: Pick<PlanLoan, 'kind' | 'paymentMode'>): boolean {
+  return loan.kind === 'deadline' && loan.paymentMode === 'lump';
 }
 
 /**
@@ -46,7 +52,7 @@ export function monthsUntil(month: YearMonth, deadline: YearMonth): number {
   return Math.max(1, monthIndex(deadline) - monthIndex(month) + 1);
 }
 
-/** Reihenfolge, in der Extra-Tilgung verteilt wird. Bei Gleichstand gilt die Eingabereihenfolge. */
+/** Reihenfolge für Extra-Tilgung nach Strategie. Bei Gleichstand gilt die Eingabereihenfolge. */
 export function extraPaymentOrder<T extends { balanceCents: Cents; rateBp: number }>(
   loans: readonly T[],
   strategy: Strategy,
@@ -67,11 +73,11 @@ export interface LoanMonth {
   id: string;
   balanceBeforeCents: Cents;
   interestCents: Cents;
-  /** Vereinbarte Rate eines Ratenkredits (Pflicht) */
+  /** Vereinbarte Rate eines Ratenkredits */
   regularCents: Cents;
-  /** Für Fristen: Teilzahlung, Aufstockung für ein Ziel oder Rest einer Einmalzahlung */
+  /** Bei „Tilgen bis Datum“: Teilzahlung bzw. Rest einer Einmalzahlung */
   deadlineCents: Cents;
-  /** Rest des Budgets nach Strategie, inkl. frei gewordener Raten */
+  /** Selbst festgelegte Extra-Tilgung */
   extraCents: Cents;
   /** Für eine spätere Einmalzahlung zurückgelegt (mindert die Schuld noch nicht) */
   savingCents: Cents;
@@ -79,24 +85,19 @@ export interface LoanMonth {
   fromSavingsCents: Cents;
   savedAfterCents: Cents;
   balanceAfterCents: Cents;
-  /** Was für Pflicht und Frist gefehlt hat */
-  shortfallCents: Cents;
 }
 
 export interface MonthAllocation {
   month: YearMonth;
   loans: LoanMonth[];
+  /** Was im Monat aus dem eigenen Geld fließt (Raten, Fristen, Zurücklegen, Extra) */
   paidCents: Cents;
-  /** Für Pflichtraten, Einmalzahlungen und Fristen fehlender Betrag */
-  shortfallCents: Cents;
 }
 
 export interface AllocateOptions {
-  /** Kredite, deren Monatsrate schon gebucht ist: kein Zins, keine Pflichtrate mehr in diesem Monat */
+  /** Kredite, deren Monatsrate schon gebucht ist: kein Zins, keine Rate mehr in diesem Monat */
   settled?: ReadonlySet<string>;
-  /** Bereits gebuchte Tilgung in diesem Monat (mindert das Budget) */
-  spentCents?: Cents;
-  /** Keine Extra-Tilgung verteilen (z. B. schon gebucht) */
+  /** Extra-Tilgung dieses Monats ist schon gebucht */
   noExtra?: boolean;
 }
 
@@ -105,63 +106,30 @@ export function paidToLoan(m: LoanMonth): Cents {
   return m.regularCents + m.deadlineCents + m.extraCents + m.fromSavingsCents;
 }
 
-/** Was dieser Monat vom Budget verbraucht (inkl. Zurückgelegtem). */
+/** Was dieser Monat aus dem eigenen Geld braucht (inkl. Zurückgelegtem). */
 export function budgetUsed(m: LoanMonth): Cents {
   return m.regularCents + m.deadlineCents + m.extraCents + m.savingCents;
 }
 
 /**
- * Verteilt das Monatsbudget auf die Kredite:
- * 1. vereinbarte Raten der Ratenkredite (fallen nie aus),
- * 2. Fristen, früheste zuerst: Teilzahlungen, Ansparen bzw. Rest einer Einmalzahlung,
- *    Aufstockung für Zieldaten,
- * 3. Rest nach Strategie (nie auf Einmalzahlungen).
- * `budgetCents = null` zahlt genau die Raten und Frist-Beträge, ohne Extra.
+ * Zahlungen eines Monats, so wie sie vereinbart bzw. selbst festgelegt sind:
+ * Rate beim Ratenkredit, bei „Tilgen bis Datum“ die nötige Teilzahlung bzw. das Zurücklegen und im
+ * Fälligkeitsmonat die Einmalzahlung, dazu die eigene Extra-Tilgung (nicht bei Einmalzahlungen).
  */
 export function allocateMonth(
   loans: readonly PlanLoan[],
   month: YearMonth,
-  budgetCents: Cents | null,
-  strategy: Strategy,
   options: AllocateOptions = {},
 ): MonthAllocation {
   const m = monthIndex(month);
-  const entries = loans.map((loan) => {
+  const results = loans.map((loan): LoanMonth => {
     const open = loan.balanceCents > 0;
     const settled = options.settled?.has(loan.id) ?? false;
     const interest = open && !settled ? monthlyInterest(loan.balanceCents, loan.rateBp) : 0;
-    const due = loan.balanceCents + interest;
+    let balance = loan.balanceCents + interest;
     const deadline = deadlineMonthOf(loan);
-    const saved = Math.min(loan.savedCents ?? 0, due);
-    const lump = loan.kind === 'deadline' && loan.paymentMode === 'lump';
-    let required = 0;
-    let deadlineNeed = 0;
-    let saveNeed = 0;
-    let fromSavings = 0;
-    if (open && !settled) {
-      if (loan.kind === 'installment') {
-        required = Math.min(loan.paymentCents ?? 0, due);
-        if (deadline) {
-          const need = Math.min(
-            due,
-            paymentToPayOff(loan.balanceCents, loan.rateBp, monthsUntil(month, deadline)),
-          );
-          deadlineNeed = Math.max(0, need - required);
-        }
-      } else if (lump) {
-        const remaining = due - saved;
-        if (deadline && m < monthIndex(deadline)) {
-          saveNeed = Math.min(remaining, Math.ceil(remaining / monthsUntil(month, deadline)));
-        } else {
-          fromSavings = saved;
-          deadlineNeed = remaining;
-        }
-      } else {
-        const n = deadline ? monthsUntil(month, deadline) : 1;
-        deadlineNeed = Math.min(due, paymentToPayOff(loan.balanceCents, loan.rateBp, n));
-      }
-    }
-    const result: LoanMonth = {
+    let saved = Math.min(loan.savedCents ?? 0, balance);
+    const r: LoanMonth = {
       id: loan.id,
       balanceBeforeCents: loan.balanceCents,
       interestCents: interest,
@@ -169,73 +137,44 @@ export function allocateMonth(
       deadlineCents: 0,
       extraCents: 0,
       savingCents: 0,
-      fromSavingsCents: fromSavings,
-      savedAfterCents: saved - fromSavings,
-      balanceAfterCents: due - fromSavings,
-      shortfallCents: 0,
+      fromSavingsCents: 0,
+      savedAfterCents: saved,
+      balanceAfterCents: balance,
     };
-    return { loan, result, required, deadlineNeed, saveNeed, lump, deadline };
+    if (!open) return r;
+    if (!settled) {
+      if (loan.kind === 'installment') {
+        r.regularCents = Math.min(loan.paymentCents ?? 0, balance);
+        balance -= r.regularCents;
+      } else if (isLump(loan)) {
+        if (deadline && m < monthIndex(deadline)) {
+          const rest = balance - saved;
+          r.savingCents = Math.min(rest, Math.ceil(rest / monthsUntil(month, deadline)));
+          saved += r.savingCents;
+        } else {
+          r.fromSavingsCents = saved;
+          r.deadlineCents = balance - saved;
+          saved = 0;
+          balance = 0;
+        }
+      } else {
+        const n = deadline ? monthsUntil(month, deadline) : 1;
+        r.deadlineCents = Math.min(balance, paymentToPayOff(loan.balanceCents, loan.rateBp, n));
+        balance -= r.deadlineCents;
+      }
+    }
+    if (!isLump(loan) && !options.noExtra) {
+      r.extraCents = Math.min(loan.extraMonthlyCents ?? 0, balance);
+      balance -= r.extraCents;
+    }
+    r.balanceAfterCents = balance;
+    r.savedAfterCents = saved;
+    return r;
   });
-
-  const obligations = entries.reduce((s, e) => s + e.required + e.deadlineNeed + e.saveNeed, 0);
-  let available =
-    budgetCents === null ? obligations : Math.max(0, budgetCents - (options.spentCents ?? 0));
-  const pay = (want: number) => {
-    const p = Math.min(available, want);
-    available -= p;
-    return p;
-  };
-
-  // 1. Vereinbarte Raten
-  for (const e of entries) {
-    if (!e.required) continue;
-    const p = pay(e.required);
-    e.result.regularCents = p;
-    e.result.shortfallCents += e.required - p;
-    e.result.balanceAfterCents -= p;
-  }
-  // 2. Fristen: früheste zuerst
-  const byDeadline = entries
-    .filter((e) => e.deadlineNeed > 0 || e.saveNeed > 0)
-    .sort((a, b) => monthIndex(a.deadline ?? month) - monthIndex(b.deadline ?? month));
-  for (const e of byDeadline) {
-    if (e.saveNeed > 0) {
-      const p = pay(e.saveNeed);
-      e.result.savingCents = p;
-      e.result.savedAfterCents += p;
-      e.result.shortfallCents += e.saveNeed - p;
-    } else {
-      const p = pay(e.deadlineNeed);
-      e.result.deadlineCents = p;
-      e.result.shortfallCents += e.deadlineNeed - p;
-      e.result.balanceAfterCents -= p;
-    }
-  }
-  // 3. Rest nach Strategie (Einmalzahlungen werden nicht vorzeitig getilgt)
-  if (budgetCents !== null && !options.noExtra && available > 0) {
-    const candidates = entries
-      .filter((e) => !e.lump && e.result.balanceAfterCents > 0)
-      .map((e) => ({ e, balanceCents: e.result.balanceAfterCents, rateBp: e.loan.rateBp }));
-    for (const { e } of extraPaymentOrder(candidates, strategy)) {
-      if (available <= 0) break;
-      const p = pay(e.result.balanceAfterCents);
-      e.result.extraCents = p;
-      e.result.balanceAfterCents -= p;
-    }
-  }
-
-  const results = entries.map((e) => e.result);
-  return {
-    month,
-    loans: results,
-    paidCents: results.reduce((s, r) => s + budgetUsed(r), 0),
-    shortfallCents: results.reduce((s, r) => s + r.shortfallCents, 0),
-  };
+  return { month, loans: results, paidCents: results.reduce((s, r) => s + budgetUsed(r), 0) };
 }
 
 export interface PlanOptions {
-  budgetCents: Cents | null;
-  strategy: Strategy;
   startMonth: YearMonth;
   /** Im Startmonat schon Gebuchtes (siehe `AllocateOptions`) */
   firstMonth?: AllocateOptions;
@@ -248,18 +187,15 @@ export interface LoanPlan {
   payoffMonthById: Record<string, YearMonth | null>;
   debtFreeMonth: YearMonth | null;
   totalInterestCents: Cents;
-  /** Budget reicht dauerhaft nicht, Schuldenfreiheit nicht absehbar */
+  /** Raten decken die Zinsen nicht, Schuldenfreiheit nicht absehbar */
   stuck: boolean;
-  /** Größte monatliche Unterdeckung für Pflicht und Fristen */
-  maxShortfallCents: Cents;
-  /** Je Kredit mit Frist: wird sie erreicht? */
+  /** Je Kredit mit Frist oder Ziel: wird es mit den geplanten Zahlungen erreicht? */
   deadlines: Record<string, { month: YearMonth; met: boolean }>;
 }
 
 /**
- * Gemeinsamer Tilgungsplan aller offenen Kredite ab `startMonth`. Mit eigenem Budget bleibt der
- * Monatsbetrag konstant und frei werdende Raten rollen weiter; ohne Budget werden genau die
- * Pflicht- und Frist-Beträge gezahlt. `null`, wenn keine offenen Kredite vorhanden sind.
+ * Tilgungsplan aller offenen Kredite ab `startMonth` mit genau den vereinbarten und selbst
+ * festgelegten Zahlungen. `null`, wenn keine offenen Kredite vorhanden sind.
  */
 export function planLoans(loans: readonly PlanLoan[], options: PlanOptions): LoanPlan | null {
   let state = loans.filter((l) => l.balanceCents > 0).map((l) => ({ ...l }));
@@ -270,18 +206,10 @@ export function planLoans(loans: readonly PlanLoan[], options: PlanOptions): Loa
   );
   const months: MonthAllocation[] = [];
   let totalInterestCents = 0;
-  let maxShortfallCents = 0;
   for (let k = 0; k < max && state.some((l) => l.balanceCents > 0); k++) {
     const month = addMonths(options.startMonth, k);
-    const alloc = allocateMonth(
-      state,
-      month,
-      options.budgetCents,
-      options.strategy,
-      k === 0 ? options.firstMonth : {},
-    );
+    const alloc = allocateMonth(state, month, k === 0 ? options.firstMonth : {});
     months.push(alloc);
-    maxShortfallCents = Math.max(maxShortfallCents, alloc.shortfallCents);
     state = state.map((l, i) => {
       const r = alloc.loans[i];
       if (!r) return l;
@@ -304,15 +232,27 @@ export function planLoans(loans: readonly PlanLoan[], options: PlanOptions): Loa
     debtFreeMonth: stuck ? null : (months.at(-1)?.month ?? null),
     totalInterestCents,
     stuck,
-    maxShortfallCents,
     deadlines,
   };
 }
 
-/** Summe der Pflicht- und Frist-Beträge im Startmonat – das Mindestbudget. */
-export function requiredThisMonth(loans: readonly PlanLoan[], month: YearMonth): Cents {
-  const a = allocateMonth(loans, month, null, 'avalanche');
-  return a.paidCents;
+/** Was im Monat für alle Kredite zusammen fließt (Raten, Fristen, Zurücklegen, eigene Extras). */
+export function committedThisMonth(loans: readonly PlanLoan[], month: YearMonth): Cents {
+  return allocateMonth(loans, month).paidCents;
+}
+
+/**
+ * Ratenkredit mit Ziel: wie viel pro Monat zusätzlich zur Rate und zur eigenen Extra-Tilgung nötig
+ * wäre, um das Ziel zu erreichen (0 = reicht schon). `null` ohne Ziel.
+ */
+export function extraNeededForTarget(loan: PlanLoan, month: YearMonth): Cents | null {
+  if (loan.kind !== 'installment' || !loan.targetMonth || loan.balanceCents <= 0) return null;
+  const need = paymentToPayOff(
+    loan.balanceCents,
+    loan.rateBp,
+    monthsUntil(month, loan.targetMonth),
+  );
+  return Math.max(0, need - (loan.paymentCents ?? 0) - (loan.extraMonthlyCents ?? 0));
 }
 
 export interface Scenario {
@@ -351,13 +291,17 @@ export function scenarioFor(loan: PlanLoan, monthlyCents: Cents, startMonth: Yea
   };
 }
 
-/** Ausgangsbetrag der Beispielrechnung: nötige Frist-Rate, sonst die vereinbarte Rate. */
-export function baseMonthlyAmount(loan: PlanLoan, month: YearMonth): Cents {
+/** Pflichtbetrag pro Monat ohne eigene Extra-Tilgung: Rate bzw. nötige Frist-Rate. */
+export function requiredMonthly(loan: PlanLoan, month: YearMonth): Cents {
+  if (loan.kind === 'installment') return loan.paymentCents ?? 0;
   const deadline = deadlineMonthOf(loan);
-  const own = loan.kind === 'installment' ? (loan.paymentCents ?? 0) : 0;
-  if (!deadline) return own;
-  const need = paymentToPayOff(loan.balanceCents, loan.rateBp, monthsUntil(month, deadline));
-  return Math.max(own, need);
+  if (!deadline) return 0;
+  return paymentToPayOff(loan.balanceCents, loan.rateBp, monthsUntil(month, deadline));
+}
+
+/** Ausgangsbetrag der Beispielrechnung: das, was aktuell geplant ist (Pflicht + eigene Extra). */
+export function baseMonthlyAmount(loan: PlanLoan, month: YearMonth): Cents {
+  return requiredMonthly(loan, month) + (isLump(loan) ? 0 : (loan.extraMonthlyCents ?? 0));
 }
 
 /** Auf einen „runden“ Betrag aufrunden (5 € bis 50 €-Schritte, je nach Größe). */
@@ -367,20 +311,19 @@ export function niceCeil(cents: Cents): Cents {
 }
 
 /**
- * Beispielrechnungen: die nötige bzw. aktuelle Rate, dann zwei bis drei höhere, runde Beträge.
- * Beträge, die den Kredit ohnehin im ersten Monat tilgen, werden auf einen reduziert.
+ * Beispielrechnungen: der aktuell geplante Betrag, bei einem Ziel der dafür nötige, dann zwei bis
+ * drei höhere, runde Beträge. Beträge, die im ersten Monat tilgen, werden auf einen reduziert.
  */
 export function suggestedScenarios(loan: PlanLoan, month: YearMonth): Scenario[] {
-  if (loan.balanceCents <= 0 || (loan.kind === 'deadline' && loan.paymentMode === 'lump'))
-    return [];
+  if (loan.balanceCents <= 0 || isLump(loan)) return [];
   const base = baseMonthlyAmount(loan, month);
   const fullPayoff = loan.balanceCents + monthlyInterest(loan.balanceCents, loan.rateBp);
-  const amounts: number[] = base > 0 ? [Math.min(base, fullPayoff)] : [];
-  for (const f of [1.25, 1.5, 2]) {
-    const a = Math.min(niceCeil(Math.max(base, 1) * f), fullPayoff);
-    const last = amounts.at(-1) ?? 0;
-    if (a > last) amounts.push(a);
-    if (a >= fullPayoff) break;
-  }
-  return amounts.map((a) => scenarioFor(loan, a, month));
+  const target = extraNeededForTarget(loan, month);
+  const candidates = [base, ...(target ? [base + target] : [])];
+  for (const f of [1.25, 1.5, 2]) candidates.push(niceCeil(Math.max(base, 1) * f));
+  const amounts = [...new Set(candidates.map((a) => Math.min(a, fullPayoff)))]
+    .filter((a) => a > 0)
+    .sort((a, b) => a - b);
+  const capped = amounts.filter((a, i) => a < fullPayoff || amounts.indexOf(fullPayoff) === i);
+  return capped.map((a) => scenarioFor(loan, a, month));
 }

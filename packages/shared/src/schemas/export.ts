@@ -96,6 +96,7 @@ export const importFileSchema = z
         settings: {
           ...settings,
           loanBudgetCents: extraPaymentCents > 0 ? openPayments + extraPaymentCents : null,
+          // (Version 1 kannte nur die Extra-Tilgung; sie wird als verfügbares Geld übernommen.)
         },
         loans: file.data.loans.map((l) => ({
           ...l,
@@ -104,6 +105,7 @@ export const importFileSchema = z
           dueDate: null,
           paymentMode: null,
           savedCents: 0,
+          extraMonthlyCents: 0,
         })),
       },
     };

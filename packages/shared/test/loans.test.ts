@@ -3,16 +3,17 @@ import {
   addMonths,
   allocateMonth,
   budgetUsed,
-  paidToLoan,
+  committedThisMonth,
+  extraNeededForTarget,
   extraPaymentOrder,
+  loanAdvice,
+  paidToLoan,
   paymentToPayOff,
   planLoans,
-  requiredThisMonth,
   scenarioFor,
   suggestedScenarios,
   type PlanLoan,
 } from '../src/index.js';
-import { loans as demoLoans } from './fixtures/demo.js';
 import { prototypeSimulate } from './reference/prototype.js';
 
 const START = '2026-10';
@@ -22,16 +23,17 @@ const loan = (
   euro: number,
   ratePct: number,
   paymentEuro: number,
-  targetMonth: string | null = null,
+  opts: { target?: string; extraEuro?: number } = {},
 ): PlanLoan => ({
   id,
   kind: 'installment',
   balanceCents: Math.round(euro * 100),
   rateBp: Math.round(ratePct * 100),
   paymentCents: Math.round(paymentEuro * 100),
-  targetMonth,
+  targetMonth: opts.target ?? null,
   dueDate: null,
   paymentMode: null,
+  extraMonthlyCents: Math.round((opts.extraEuro ?? 0) * 100),
 });
 
 const deadline = (
@@ -51,11 +53,7 @@ const deadline = (
   paymentMode: mode,
 });
 
-const plan = (
-  ls: PlanLoan[],
-  budgetCents: number | null,
-  strategy: 'avalanche' | 'snowball' = 'avalanche',
-) => planLoans(ls, { budgetCents, strategy, startMonth: START });
+const plan = (ls: PlanLoan[]) => planLoans(ls, { startMonth: START });
 
 describe('Rate bis zur Frist', () => {
   it('ohne Zins: Restschuld geteilt durch Monate, aufgerundet', () => {
@@ -65,157 +63,99 @@ describe('Rate bis zur Frist', () => {
   it('mit Zins: Annuität, tilgt genau in der Laufzeit', () => {
     const p = paymentToPayOff(840000, 590, 36);
     expect(p).toBe(25517);
-    const s = scenarioFor(loan('a', 8400, 5.9, 0), p, START);
-    expect(s.months).toBe(36);
+    expect(scenarioFor(loan('a', 8400, 5.9, 0), p, START).months).toBe(36);
   });
 });
 
-describe('Ratenkredite ohne Ziel (bisheriges Verhalten)', () => {
+describe('Plan mit den tatsächlichen Zahlungen', () => {
   it('ohne Kredite: kein Plan', () => {
-    expect(plan([], null)).toBeNull();
-    expect(plan([loan('a', 0, 5, 100)], null)).toBeNull();
+    expect(plan([])).toBeNull();
+    expect(plan([loan('a', 0, 5, 100)])).toBeNull();
   });
 
   it('zinsloser Kredit: 900 € zu 75 € sind zwölf Raten ab dem Startmonat', () => {
-    const p = plan([loan('a', 900, 0, 75)], null)!;
+    const p = plan([loan('a', 900, 0, 75)])!;
     expect(p.months).toHaveLength(12);
     expect(p.payoffMonthById.a).toBe('2027-09');
     expect(p.debtFreeMonth).toBe('2027-09');
-    expect(p.totalInterestCents).toBe(0);
   });
 
-  it('letzte Rate höchstens Restschuld plus Zins', () => {
-    const a = allocateMonth([loan('a', 1000, 12, 1500)], START, null, 'avalanche');
+  it('es wird genau die Rate gezahlt', () => {
+    const postbank = loan('pb', 23420.23, 11.1, 364.99, { target: '2031-12' });
+    const a = allocateMonth([postbank], START);
+    expect(a.loans[0]).toMatchObject({ regularCents: 36499, extraCents: 0, deadlineCents: 0 });
+    expect(a.paidCents).toBe(36499);
+  });
+
+  it('die eigene Extra-Tilgung kommt zur Rate dazu', () => {
+    const a = allocateMonth([loan('pb', 23420.23, 11.1, 364.99, { extraEuro: 121.54 })], START);
+    expect(a.loans[0]).toMatchObject({ regularCents: 36499, extraCents: 12154 });
+  });
+
+  it('letzte Rate höchstens Restschuld plus Zins, Extra höchstens der Rest', () => {
+    const a = allocateMonth([loan('a', 1000, 12, 800, { extraEuro: 500 })], START);
     expect(a.loans[0]).toMatchObject({
       interestCents: 1000,
-      regularCents: 101000,
+      regularCents: 80000,
+      extraCents: 21000,
       balanceAfterCents: 0,
     });
   });
 
-  it('„nicht absehbar“, wenn die Raten die Zinsen nicht decken; mehr Budget behebt das', () => {
-    const l = loan('a', 10000, 12, 50);
-    expect(plan([l], null)!.stuck).toBe(true);
-    expect(plan([l], null)!.payoffMonthById.a).toBeNull();
-    expect(plan([l], 25000)!.stuck).toBe(false);
+  it('„nicht absehbar“, wenn die Rate die Zinsen nicht deckt', () => {
+    const p = plan([loan('a', 10000, 12, 50)])!;
+    expect(p.stuck).toBe(true);
+    expect(p.payoffMonthById.a).toBeNull();
   });
 
-  it('mit Budget rollen frei werdende Raten weiter, ohne Budget nicht', () => {
-    const car = loan('auto', 8400, 5.9, 260);
-    const laptop = loan('laptop', 900, 0, 75);
-    const withBudget = plan([car, laptop], 33500)!;
-    const without = plan([car, laptop], null)!;
-    expect(withBudget.payoffMonthById.laptop).toBe('2027-09');
-    expect(withBudget.payoffMonthById.auto! < without.payoffMonthById.auto!).toBe(true);
+  it('ohne Extra entspricht ein einzelner Kredit dem Prototyp', () => {
+    const ours = plan([loan('auto', 8400, 5.9, 260)])!;
+    const proto = prototypeSimulate(
+      [{ id: 'auto', balance: 8400, rate: 5.9, payment: 260 }],
+      0,
+      'avalanche',
+    )!;
+    expect(ours.months).toHaveLength(proto.months);
+    expect(ours.payoffMonthById.auto).toBe(addMonths(START, proto.per.auto! - 1));
+    expect(Math.abs(ours.totalInterestCents - proto.interest * 100)).toBeLessThanOrEqual(
+      proto.months,
+    );
   });
 
-  describe('Strategien', () => {
-    const a = loan('teuer', 1000, 10, 50);
-    const b = loan('klein', 500, 2, 50);
-
-    it('Reihenfolge: höchster Zins bzw. kleinste Schuld zuerst, bei Gleichstand Eingabereihenfolge', () => {
-      expect(extraPaymentOrder([b, a], 'avalanche').map((l) => l.id)).toEqual(['teuer', 'klein']);
-      expect(extraPaymentOrder([a, b], 'snowball').map((l) => l.id)).toEqual(['klein', 'teuer']);
-    });
-
-    it('der Rest des Budgets geht an den Kredit, den die Strategie vorsieht', () => {
-      expect(
-        allocateMonth([a, b], START, 20000, 'avalanche').loans.map((l) => l.extraCents),
-      ).toEqual([10000, 0]);
-      expect(
-        allocateMonth([a, b], START, 20000, 'snowball').loans.map((l) => l.extraCents),
-      ).toEqual([0, 10000]);
-    });
-
-    it('avalanche spart Zinsen, snowball tilgt den kleinen Kredit früher', () => {
-      const av = plan([a, b], 20000, 'avalanche')!;
-      const sn = plan([a, b], 20000, 'snowball')!;
-      expect(av.totalInterestCents).toBeLessThan(sn.totalInterestCents);
-      expect(sn.payoffMonthById.klein! < av.payoffMonthById.klein!).toBe(true);
-    });
+  it('ein Ziel wird nur geprüft, nicht automatisch aufgestockt', () => {
+    const p = plan([loan('pb', 23420.23, 11.1, 364.99, { target: '2031-12' })])!;
+    expect(p.deadlines.pb!.met).toBe(false);
+    expect(p.months[0]!.loans[0]!.regularCents).toBe(36499);
   });
 
-  describe('Vergleich mit dem Prototyp (Budget = Raten + Extra)', () => {
-    const cases: [string, PlanLoan[], number][] = [
-      ['Beispieldaten', demoLoans, 0],
-      ['Beispieldaten mit 100 € extra', demoLoans, 10000],
-      [
-        'drei Kredite',
-        [loan('a', 12000, 7.5, 300), loan('b', 3000, 11.9, 90), loan('c', 450, 0, 45)],
-        5000,
-      ],
-    ];
-    for (const [name, ls, extra] of cases) {
-      for (const strategy of ['avalanche', 'snowball'] as const) {
-        it(`${name}, ${strategy}`, () => {
-          const budget = ls.reduce((s, l) => s + (l.paymentCents ?? 0), 0) + extra;
-          const ours = plan(ls, budget, strategy)!;
-          const proto = prototypeSimulate(
-            ls.map((l) => ({
-              id: l.id,
-              balance: l.balanceCents / 100,
-              rate: l.rateBp / 100,
-              payment: (l.paymentCents ?? 0) / 100,
-            })),
-            extra / 100,
-            strategy,
-          )!;
-          expect(ours.stuck).toBe(proto.stuck);
-          expect(ours.months).toHaveLength(proto.months);
-          for (const l of ls) {
-            const k = proto.per[l.id];
-            expect(ours.payoffMonthById[l.id]).toBe(k == null ? null : addMonths(START, k - 1));
-          }
-          expect(Math.abs(ours.totalInterestCents - proto.interest * 100)).toBeLessThanOrEqual(
-            ls.length * proto.months,
-          );
-        });
-      }
-    }
-  });
-});
-
-describe('Zieldatum bei Ratenkrediten', () => {
-  it('Aufstockung, damit der Kredit rechtzeitig weg ist', () => {
-    // 1.200 € zu 0 %, Rate 100 € (12 Monate), Ziel: März 2027 (6 Monate)
-    const p = plan([loan('a', 1200, 0, 100, '2027-03')], null)!;
-    expect(p.months[0]!.loans[0]).toMatchObject({ regularCents: 10000, deadlineCents: 10000 });
-    expect(p.payoffMonthById.a).toBe('2027-03');
-    expect(p.deadlines.a).toEqual({ month: '2027-03', met: true });
-  });
-
-  it('reicht das Budget nicht, wird die Unterdeckung ausgewiesen und das Ziel verfehlt', () => {
-    const p = plan([loan('a', 1200, 0, 100, '2027-03')], 15000)!;
-    expect(p.months[0]!.shortfallCents).toBe(5000);
-    expect(p.maxShortfallCents).toBeGreaterThanOrEqual(5000);
-    expect(p.deadlines.a!.met).toBe(false);
-  });
-
-  it('frühestes Ziel zuerst, wenn das Budget knapp ist', () => {
-    const early = loan('frueh', 600, 0, 50, '2027-01');
-    const late = loan('spaet', 600, 0, 50, '2027-06');
-    const a = allocateMonth([late, early], START, 21000, 'avalanche');
-    const byId = Object.fromEntries(a.loans.map((l) => [l.id, l]));
-    // Pflicht 2 × 50 €; frueh braucht 150 €/Monat (bis Jan.), also +100 €; spaet bräuchte +16,67 €,
-    // bekommt aber nur den Rest von 10 €
-    expect(byId.frueh!.deadlineCents).toBe(10000);
-    expect(byId.spaet!.deadlineCents).toBe(1000);
-    expect(a.shortfallCents).toBe(667);
+  it('mit genug eigener Extra-Tilgung wird das Ziel erreicht', () => {
+    const base = loan('pb', 23420.23, 11.1, 364.99, { target: '2031-12' });
+    const gap = extraNeededForTarget(base, START)!;
+    expect(gap).toBeGreaterThan(0);
+    const withExtra = { ...base, extraMonthlyCents: gap };
+    expect(plan([withExtra])!.deadlines.pb!.met).toBe(true);
+    expect(extraNeededForTarget(withExtra, START)).toBe(0);
   });
 });
 
 describe('„Tilgen bis Datum“', () => {
   it('Teilzahlungen: gleichmäßig bis zur Frist, im Fristmonat der Rest', () => {
-    const p = plan([deadline('kredit', 1000, '2027-03-31', 'spread')], null)!;
+    const p = plan([deadline('kredit', 1000, '2027-03-31', 'spread')])!;
     expect(p.months.map((m) => m.loans[0]!.deadlineCents)).toEqual([
       16667, 16667, 16667, 16667, 16666, 16666,
     ]);
-    expect(p.payoffMonthById.kredit).toBe('2027-03');
     expect(p.deadlines.kredit).toEqual({ month: '2027-03', met: true });
   });
 
+  it('Teilzahlungen plus eigene Extra-Tilgung: früher fertig', () => {
+    const p = plan([
+      { ...deadline('kredit', 1000, '2027-03-31', 'spread'), extraMonthlyCents: 10000 },
+    ])!;
+    expect(p.payoffMonthById.kredit! < '2027-03').toBe(true);
+  });
+
   it('Einmalzahlung: bis zur Fälligkeit wird angespart, dann der ganze Betrag gezahlt', () => {
-    const p = plan([deadline('klarna', 300, '2026-11-25', 'lump')], null)!;
+    const p = plan([deadline('klarna', 300, '2026-11-25', 'lump')])!;
     const [oct, nov] = p.months.map((m) => m.loans[0]!);
     expect(oct).toMatchObject({
       savingCents: 15000,
@@ -226,84 +166,123 @@ describe('„Tilgen bis Datum“', () => {
       deadlineCents: 15000,
       fromSavingsCents: 15000,
       balanceAfterCents: 0,
-      savedAfterCents: 0,
     });
     expect(paidToLoan(nov!)).toBe(30000);
     expect(budgetUsed(oct!)).toBe(15000);
-    expect(p.payoffMonthById.klarna).toBe('2026-11');
   });
 
-  it('schon Zurückgelegtes senkt den Monatsbetrag', () => {
+  it('schon Zurückgelegtes senkt den Monatsbetrag; keine Extra-Tilgung bei Einmalzahlung', () => {
     const a = allocateMonth(
-      [{ ...deadline('fc', 3200, '2027-03-01', 'lump'), savedCents: 50000 }],
+      [
+        {
+          ...deadline('fc', 3200, '2027-03-01', 'lump'),
+          savedCents: 50000,
+          extraMonthlyCents: 10000,
+        },
+      ],
       START,
-      null,
-      'avalanche',
     );
-    // (3.200 − 500) € auf sechs Monate (Okt. bis März)
-    expect(a.loans[0]!.savingCents).toBe(45000);
-  });
-
-  it('Einmalzahlungen werden nicht aus dem Extra-Budget vorzeitig getilgt', () => {
-    const a = allocateMonth(
-      [deadline('klarna', 300, '2027-01-10', 'lump'), loan('auto', 5000, 0, 200)],
-      START,
-      50000,
-      'snowball',
-    );
-    expect(a.loans[0]).toMatchObject({ savingCents: 7500, extraCents: 0 });
-    expect(a.loans[1]).toMatchObject({ regularCents: 20000, extraCents: 22500 });
-  });
-
-  it('Bankraten haben Vorrang vor Fristen, Unterdeckung wird gemeldet', () => {
-    const a = allocateMonth(
-      [deadline('klarna', 300, '2026-10-20', 'lump'), loan('auto', 5000, 0, 200)],
-      START,
-      35000,
-      'avalanche',
-    );
-    const byId = Object.fromEntries(a.loans.map((l) => [l.id, l]));
-    expect(byId.auto!.regularCents).toBe(20000);
-    expect(byId.klarna!.deadlineCents).toBe(15000);
-    expect(a.shortfallCents).toBe(15000);
-  });
-
-  it('Beispiel: Postbank-Rate fällt nie aus, auch wenn die Einmalzahlung das Budget übersteigt', () => {
-    const postbank = loan('postbank', 23420.23, 11.1, 364.99, '2031-12');
-    const fc = deadline('fc', 3200, '2027-03-01', 'lump');
-    const p = planLoans([fc, postbank], {
-      budgetCents: 60000,
-      strategy: 'avalanche',
-      startMonth: '2026-09',
-    })!;
-    for (const m of p.months) {
-      const pb = m.loans.find((l) => l.id === 'postbank')!;
-      if (pb.balanceBeforeCents > 0) expect(pb.regularCents).toBeGreaterThan(0);
-    }
-    expect(p.maxShortfallCents).toBeGreaterThan(0);
+    expect(a.loans[0]).toMatchObject({ savingCents: 45000, extraCents: 0 });
   });
 
   it('überfällige Einmalzahlung bleibt voll fällig', () => {
-    const a = allocateMonth(
-      [deadline('klarna', 300, '2026-09-20', 'lump')],
-      START,
-      null,
-      'avalanche',
-    );
+    const a = allocateMonth([deadline('klarna', 300, '2026-09-20', 'lump')], START);
     expect(a.loans[0]!.deadlineCents).toBe(30000);
   });
 
-  it('Mindestbudget im Monat = Raten + Fristen + Ansparen', () => {
+  it('im Monat geplant = Raten + Fristen + Zurücklegen + eigene Extras', () => {
     expect(
-      requiredThisMonth(
+      committedThisMonth(
         [
-          loan('auto', 5000, 0, 200),
+          loan('auto', 5000, 0, 200, { extraEuro: 50 }),
           deadline('kredit', 600, '2027-03-31', 'spread'),
           deadline('k', 400, '2026-11-15', 'lump'),
         ],
         START,
       ),
-    ).toBe(20000 + 10000 + 20000);
+    ).toBe(20000 + 5000 + 10000 + 20000);
+  });
+});
+
+describe('Vorschläge', () => {
+  const postbank = loan('pb', 23420.23, 11.1, 364.99, { target: '2031-12' });
+
+  it('Postbank: Ziel erreichen und alles Verfügbare nutzen, jeweils mit Wirkung', () => {
+    const advice = loanAdvice([postbank], {
+      month: '2026-09',
+      availableCents: 60000,
+      strategy: 'avalanche',
+    });
+    expect(advice.committedCents).toBe(36499);
+    expect(advice.freeCents).toBe(60000 - 36499);
+    const target = advice.suggestions.find((s) => s.kind === 'target')!;
+    expect(target).toMatchObject({ loanId: 'pb', fits: true });
+    expect(target.addCents).toBe(extraNeededForTarget(postbank, '2026-09'));
+    expect(target.payoffMonth! <= '2031-12').toBe(true);
+    expect(target.interestSavedCents).toBeGreaterThan(0);
+    expect(target.monthsSooner).toBeGreaterThan(0);
+
+    const all = advice.suggestions.find((s) => s.kind === 'all')!;
+    expect(all).toMatchObject({
+      loanId: 'pb',
+      addCents: 23501,
+      newExtraMonthlyCents: 23501,
+      fits: true,
+    });
+    expect(all.interestSavedCents).toBeGreaterThan(target.interestSavedCents);
+    // Der Plan selbst bleibt unverändert
+    expect(advice.baseline!.months[0]!.paidCents).toBe(36499);
+  });
+
+  it('ohne verfügbares Geld nur der Ziel-Vorschlag, ohne Aussage zur Machbarkeit', () => {
+    const advice = loanAdvice([postbank], {
+      month: '2026-09',
+      availableCents: null,
+      strategy: 'avalanche',
+    });
+    expect(advice.freeCents).toBeNull();
+    expect(advice.suggestions.map((s) => [s.kind, s.fits])).toEqual([['target', null]]);
+  });
+
+  it('reicht das Geld nicht für die Raten, gibt es keinen „alles nutzen“-Vorschlag', () => {
+    const advice = loanAdvice([postbank], {
+      month: '2026-09',
+      availableCents: 30000,
+      strategy: 'avalanche',
+    });
+    expect(advice.freeCents).toBe(30000 - 36499);
+    expect(advice.suggestions.some((s) => s.kind === 'all')).toBe(false);
+    expect(advice.suggestions.find((s) => s.kind === 'target')!.fits).toBe(false);
+  });
+
+  it('die Strategie bestimmt, welcher Kredit das Extra bekommt; Einmalzahlungen nie', () => {
+    const ls = [
+      loan('teuer', 1000, 10, 50),
+      loan('klein', 500, 2, 50),
+      deadline('klarna', 100, '2027-01-10', 'lump'),
+    ];
+    const av = loanAdvice(ls, { month: START, availableCents: 30000, strategy: 'avalanche' });
+    const sn = loanAdvice(ls, { month: START, availableCents: 30000, strategy: 'snowball' });
+    expect(av.suggestions[0]!.loanId).toBe('teuer');
+    expect(sn.suggestions[0]!.loanId).toBe('klein');
+    expect(extraPaymentOrder([ls[1]!, ls[0]!], 'avalanche').map((l) => l.id)).toEqual([
+      'teuer',
+      'klein',
+    ]);
+  });
+
+  it('bestehende Extra-Tilgung wird fortgeschrieben', () => {
+    const withExtra = { ...postbank, extraMonthlyCents: 5000 };
+    const advice = loanAdvice([withExtra], {
+      month: '2026-09',
+      availableCents: 60000,
+      strategy: 'avalanche',
+    });
+    const all = advice.suggestions.find((s) => s.kind === 'all')!;
+    expect(all).toMatchObject({
+      addCents: 60000 - 36499 - 5000,
+      newExtraMonthlyCents: 60000 - 36499,
+    });
   });
 });
 
@@ -311,26 +290,24 @@ describe('Beispielrechnungen', () => {
   it('Frist-Kredit: erste Zeile ist die nötige Rate, dann höhere runde Beträge mit früherem Ende', () => {
     const rows = suggestedScenarios(deadline('kredit', 1500, '2027-03-31', 'spread'), START);
     expect(rows.map((r) => r.monthlyCents)).toEqual([25000, 32000, 38000, 50000]);
-    expect(rows[0]).toMatchObject({
-      payoffMonth: '2027-03',
-      meetsDeadline: true,
-      totalInterestCents: 0,
-    });
-    expect(rows[3]).toMatchObject({ payoffMonth: '2026-12', meetsDeadline: true });
-    const months = rows.map((r) => r.months);
-    expect([...months].sort((a, b) => b - a)).toEqual(months);
+    expect(rows[0]).toMatchObject({ payoffMonth: '2027-03', meetsDeadline: true });
+    expect(rows[3]).toMatchObject({ payoffMonth: '2026-12' });
   });
 
-  it('Ratenkredit: ausgehend von der Rate, mit Zinsersparnis', () => {
-    const rows = suggestedScenarios(loan('auto', 8400, 5.9, 260), START);
-    expect(rows[0]!.monthlyCents).toBe(26000);
-    expect(rows.at(-1)!.totalInterestCents).toBeLessThan(rows[0]!.totalInterestCents);
-    expect(rows[0]!.meetsDeadline).toBeNull();
+  it('Ratenkredit mit Ziel: aktueller Betrag, der fürs Ziel nötige, dann höhere', () => {
+    const pb = loan('pb', 23420.23, 11.1, 364.99, { target: '2031-12' });
+    const rows = suggestedScenarios(pb, START);
+    expect(rows[0]).toMatchObject({ monthlyCents: 36499, meetsDeadline: false });
+    const forTarget = rows.find(
+      (r) => r.monthlyCents === 36499 + extraNeededForTarget(pb, START)!,
+    )!;
+    expect(forTarget.meetsDeadline).toBe(true);
   });
 
   it('höchstens ein Betrag, der sofort tilgt; keine Beispiele bei Einmalzahlung', () => {
-    const rows = suggestedScenarios(loan('rest', 120, 0, 100), START);
-    expect(rows.map((r) => r.monthlyCents)).toEqual([10000, 12000]);
+    expect(suggestedScenarios(loan('rest', 120, 0, 100), START).map((r) => r.monthlyCents)).toEqual(
+      [10000, 12000],
+    );
     expect(suggestedScenarios(deadline('k', 300, '2026-11-01', 'lump'), START)).toEqual([]);
   });
 

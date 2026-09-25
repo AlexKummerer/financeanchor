@@ -1,20 +1,11 @@
-.label {
-  font-size: 0.82rem;
-  color: var(--muted);
-  margin-bottom: 4px;
-}
-.budget,
-.strategy {
+.planned {
   margin-top: 14px;
-}
-.hint {
-  margin-top: 4px;
 }
 .split {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin: 12px 0 0;
+  margin: 6px 0 0;
 }
 .split div {
   background: var(--bg);

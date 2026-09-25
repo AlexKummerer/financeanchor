@@ -1,6 +1,6 @@
 import { expect, login, test } from './fixtures';
 
-test('„Tilgen bis Datum“: nötige Rate, Beispielrechnung und Budget', async ({ page }) => {
+test('„Tilgen bis Datum“, Beispielrechnung und Vorschläge zum Übernehmen', async ({ page }) => {
   await login(page);
   await page
     .getByRole('navigation', { name: 'Hauptnavigation' })
@@ -30,20 +30,30 @@ test('„Tilgen bis Datum“: nötige Rate, Beispielrechnung und Budget', async 
   await card.getByText('Beispielrechnung', { exact: true }).click();
   const rows = card.locator('fa-scenario-table tbody tr');
   await expect(rows.first()).toContainText('200,00 €');
-  await expect(rows.first()).toContainText('nötig für die Frist');
+  await expect(rows.first()).toContainText('aktuell geplant');
   await card.getByLabel('Eigenen Monatsbetrag durchspielen (€)').fill('400');
   await card.getByRole('button', { name: 'Rechnen' }).click();
   await expect(
     card.locator('fa-scenario-table tbody tr').filter({ hasText: 'dein Betrag' }),
   ).toContainText('3 Monate');
 
-  // Budget: die Aufschlüsselung erscheint, zu wenig Budget wird gemeldet
-  await page.getByLabel('Für Kredite pro Monat insgesamt (€)').fill('100');
-  await page.getByLabel('Für Kredite pro Monat insgesamt (€)').press('Tab');
-  await expect(page.locator('.warn').first()).toContainText('reicht diesen Monat nicht');
-  await page.getByLabel('Für Kredite pro Monat insgesamt (€)').fill('');
-  await page.getByLabel('Für Kredite pro Monat insgesamt (€)').press('Tab');
-  await expect(page.locator('.warn')).toHaveCount(0);
+  // Verfügbares Geld ändert nichts am Plan, erzeugt aber Vorschläge zum Übernehmen
+  const planned = page.locator('dl.split');
+  const before = await planned.textContent();
+  await page.getByLabel('Verfügbar für Kredite pro Monat (€)').fill('2.000');
+  await page.getByLabel('Verfügbar für Kredite pro Monat (€)').press('Tab');
+  await expect(page.getByText(/mehr als geplant/)).toBeVisible();
+  await expect(planned).toHaveText(before ?? '');
+
+  const suggestion = page
+    .locator('fa-advice-panel li')
+    .filter({ hasText: 'Alles Verfügbare zusätzlich in Autokredit' });
+  await suggestion.getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'übernommen' })).toBeVisible();
+  await expect(page.locator('fa-loan-card').filter({ hasText: 'Autokredit' })).toContainText(
+    'Eigene Extra-Tilgung',
+  );
+  await expect(page.locator('dl.split')).toContainText('Eigene Extra-Tilgung');
 
   await expect(page.getByRole('heading', { name: 'Aufteilung pro Monat' })).toBeVisible();
 });

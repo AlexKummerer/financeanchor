@@ -61,3 +61,12 @@ Ergebnis der Simulation: je Monat und Kredit Zins, Mindestrate, Frist-Anteil, Ex
 - **Reihenfolge geändert:** Die vereinbarten Raten der Bank werden immer zuerst eingeplant; Einmalzahlungen haben keinen Vorrang mehr davor.
 - **Ansparen für Einmalzahlungen:** Bis zur Fälligkeit wird monatlich zurückgelegt (Buchung „Rücklage für …“, Stand im Kredit als `saved_cents`, Migration 0003); im Fälligkeitsmonat wird der ganze Betrag gezahlt und das Angesparte verbraucht. Schon Zurückgelegtes lässt sich im Formular eintragen.
 - **Anzeige Zieldatum:** „Für dein Ziel …: X €/Monat (Rate Y + Z)“ statt „Nötig“.
+
+## Nachtrag 2 (25.09.2026): Plan = tatsächliche Zahlungen, Budget nur für Vorschläge
+
+Rückmeldung: Ein Budget, das automatisch verteilt wird („Diesen Monat 600 €“ bei 364,99 € Rate), ist irritierend.
+
+- Der Plan enthält nur, was tatsächlich gezahlt wird: Raten, bei „Tilgen bis Datum“ die nötige Teilzahlung bzw. das Zurücklegen, und die **selbst festgelegte Extra-Tilgung je Kredit** (`extra_monthly_cents`, Migration 0004).
+- Ein **Zieldatum** beim Ratenkredit wird nur geprüft („Ziel wird erreicht“ bzw. „es fehlen X €/Monat“), nicht automatisch aufgestockt.
+- **„Verfügbar für Kredite“** (bisher „Budget“, gleiche Spalte `loan_budget_cents`) ändert keinen Plan, sondern erzeugt Vorschläge: Ziel erreichen, alles Verfügbare nutzen (Kredit nach Strategie) – jeweils mit Tilgungsmonat und Zinsersparnis. **„Übernehmen“** setzt die Extra-Tilgung des Kredits; ändern oder auf 0 setzen im Formular. Auch Zeilen der Beispielrechnung lassen sich übernehmen.
+- Frei werdende Raten rollen nicht mehr automatisch weiter; das bleibt eine bewusste Entscheidung.

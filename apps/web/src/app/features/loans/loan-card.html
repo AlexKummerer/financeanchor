@@ -91,26 +91,38 @@
       } @else if (thisMonth() !== null) {
         <li>{{ 'loans.thisMonth' | transloco: { amount: (thisMonth()! | money) } }}</li>
       }
+      @if (loan().extraMonthlyCents > 0 && !isLump()) {
+        <li>{{ 'loans.ownExtra' | transloco: { amount: (loan().extraMonthlyCents | money) } }}</li>
+      }
       @if (neededMonthly(); as need) {
-        @if (targetTopUp() !== null) {
-          <li>
+        <li>
+          {{
+            'loans.needed'
+              | transloco: { amount: (need | money), month: (deadline() | faMonth: 'short') }
+          }}
+        </li>
+      }
+      @if (targetGap() !== null) {
+        @if (targetGap() === 0) {
+          <li class="ok">
             {{
-              (targetTopUp()! > 0 ? 'loans.targetNeed' : 'loans.targetEnough')
-                | transloco
-                  : {
-                      amount: (need | money),
-                      month: (deadline() | faMonth: 'short'),
-                      rate: (loan().paymentCents | money),
-                      extra: (targetTopUp()! | money),
-                    }
+              'loans.targetReached' | transloco: { month: (loan().targetMonth | faMonth: 'short') }
             }}
           </li>
         } @else {
-          <li>
+          <li class="gap">
             {{
-              'loans.needed'
-                | transloco: { amount: (need | money), month: (deadline() | faMonth: 'short') }
+              'loans.targetGap'
+                | transloco
+                  : {
+                      payoff: (payoffMonth() | faMonth: 'short'),
+                      month: (loan().targetMonth | faMonth: 'short'),
+                      gap: (targetGap()! | money),
+                    }
             }}
+            <button class="linkbtn adopt" type="button" (click)="adoptTargetGap()">
+              {{ 'loans.advice.adopt' | transloco }}
+            </button>
           </li>
         }
       }
@@ -143,7 +155,7 @@
           }}
         </li>
       }
-      @if (deadlineStatus(); as ds) {
+      @if (loan().kind === 'deadline' && deadlineStatus(); as ds) {
         <li [class.ok]="ds.met" [class.neg]="!ds.met">
           {{
             (ds.met ? 'loans.deadlineMet' : 'loans.deadlineMissed')
@@ -156,7 +168,12 @@
     @if (!isLump()) {
       <details class="more">
         <summary>{{ 'loans.scenario.title' | transloco }}</summary>
-        <fa-scenario-table [loan]="loan()" [name]="loan().name" [month]="month" />
+        <fa-scenario-table
+          [loan]="loan()"
+          [name]="loan().name"
+          [month]="month"
+          (adopt)="adoptScenario($event)"
+        />
       </details>
     }
     <details class="more">

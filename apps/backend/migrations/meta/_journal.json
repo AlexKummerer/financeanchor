@@ -29,6 +29,13 @@
       "when": 1790346561620,
       "tag": "0003_loan_savings",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790347710464,
+      "tag": "0004_loan_extra_monthly",
+      "breakpoints": true
     }
   ]
 }

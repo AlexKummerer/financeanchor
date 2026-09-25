@@ -28,7 +28,7 @@ const FIRST = 12;
         </thead>
         <tbody>
           @for (r of visible(); track r.month) {
-            <tr [class.short]="r.shortfall > 0">
+            <tr>
               <th scope="row">{{ r.month | faMonth: 'short' }}</th>
               @for (c of r.cells; track $index) {
                 <td>
@@ -45,9 +45,6 @@ const FIRST = 12;
         </tbody>
       </table>
     </div>
-    @if (rows().some((r) => r.shortfall > 0)) {
-      <p class="small warn-text">{{ 'loans.allocation.shortfallHint' | transloco }}</p>
-    }
     @if (rows().length > first) {
       <button class="linkbtn" type="button" (click)="all.set(!all())" [attr.aria-expanded]="all()">
         {{
@@ -91,9 +88,6 @@ const FIRST = 12;
     .total {
       font-weight: 600;
     }
-    tr.short td {
-      color: var(--debt);
-    }
     .booked {
       color: var(--pine);
       font-size: 0.8rem;
@@ -123,7 +117,7 @@ export class AllocationTable {
         const paid = budgetUsed(x);
         return i === 0 && paid === 0 && this.settled().has(l.id) ? 'booked' : paid;
       });
-      return { month: m.month, cells, total: m.paidCents, shortfall: m.shortfallCents };
+      return { month: m.month, cells, total: m.paidCents };
     });
   });
   protected readonly visible = computed(() =>

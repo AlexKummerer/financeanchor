@@ -1,4 +1,4 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import {
   parseEuroToCents,
   scenarioFor,
@@ -27,6 +27,9 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
             <th scope="col">{{ 'loans.scenario.monthly' | transloco }}</th>
             <th scope="col">{{ 'loans.scenario.payoff' | transloco }}</th>
             <th scope="col">{{ 'loans.scenario.interest' | transloco }}</th>
+            <th scope="col">
+              <span class="visually-hidden">{{ 'loans.advice.adopt' | transloco }}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -34,8 +37,8 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
             <tr [class.custom]="s === custom()">
               <th scope="row">
                 {{ s.monthlyCents | money }}
-                @if (first && hasDeadline()) {
-                  <span class="note">{{ 'loans.scenario.needed' | transloco }}</span>
+                @if (first) {
+                  <span class="note">{{ 'loans.scenario.current' | transloco }}</span>
                 }
                 @if (s === custom()) {
                   <span class="note">{{ 'loans.scenario.own' | transloco }}</span>
@@ -52,6 +55,20 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
                 }
               </td>
               <td>{{ s.stuck ? '–' : (s.totalInterestCents | money: true) }}</td>
+              <td>
+                @if (!first) {
+                  <button
+                    class="linkbtn"
+                    type="button"
+                    (click)="adopt.emit(s.monthlyCents)"
+                    [attr.aria-label]="
+                      'loans.scenario.adoptNamed' | transloco: { amount: (s.monthlyCents | money) }
+                    "
+                  >
+                    {{ 'loans.advice.adopt' | transloco }}
+                  </button>
+                }
+              </td>
             </tr>
           }
         </tbody>
@@ -128,13 +145,12 @@ export class ScenarioTable {
   readonly loan = input.required<PlanLoan>();
   readonly name = input.required<string>();
   readonly month = input.required<YearMonth>();
+  /** Monatsbetrag einer Zeile als feste Zahlung übernehmen */
+  readonly adopt = output<number>();
 
   protected readonly custom = signal<Scenario | null>(null);
   protected readonly error = signal(false);
   protected readonly id = computed(() => this.loan().id);
-  protected readonly hasDeadline = computed(
-    () => this.loan().kind === 'deadline' || this.loan().targetMonth !== null,
-  );
   protected readonly rows = computed(() => {
     const base = suggestedScenarios(this.loan(), this.month());
     const own = this.custom();

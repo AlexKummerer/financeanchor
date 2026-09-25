@@ -16,6 +16,7 @@ const loan: Loan = {
   dueDate: null,
   paymentMode: null,
   savedCents: 0,
+  extraMonthlyCents: 0,
   createdAt: 0,
   updatedAt: 0,
 };
@@ -66,6 +67,7 @@ describe('LoanForm', () => {
         paymentCents: 7500,
         dueDay: 1,
         targetMonth: null,
+        extraMonthlyCents: 0,
       },
     ]);
   });
@@ -88,6 +90,7 @@ describe('LoanForm', () => {
         dueDate: '2027-03-31',
         paymentMode: 'spread',
         savedCents: 0,
+        extraMonthlyCents: 0,
       },
     ]);
   });

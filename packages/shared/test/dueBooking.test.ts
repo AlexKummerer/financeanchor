@@ -45,8 +45,6 @@ const base: DueInput = {
     { ...demoLoans[0]!, name: 'Autokredit', dueDay: 15 },
     { ...demoLoans[1]!, name: 'Ratenkauf Laptop', dueDay: 1 },
   ],
-  loanBudgetCents: null,
-  strategy: 'avalanche',
   systemCategoryIds: { reserve: 'sys-reserve', transfer: 'sys-transfer', loans: 'sys-loans' },
   booked: new Map(),
 };
@@ -149,36 +147,25 @@ describe('Fällige eines Monats planen', () => {
   });
 });
 
-describe('Extra-Tilgung', () => {
-  it('geht nach Strategie an einen Kredit und senkt dessen Restschuld vollständig', () => {
-    const av = planDue({ ...base, loanBudgetCents: 43500 });
-    expect(byKey(av, 'extra:Autokredit')).toMatchObject({
+describe('Eigene Extra-Tilgung', () => {
+  it('erscheint als eigener Eintrag und senkt die Restschuld vollständig', () => {
+    const p = planDue({
+      ...base,
+      loans: [{ ...base.loans[0]!, extraMonthlyCents: 10000 }, base.loans[1]!],
+    });
+    expect(byKey(p, 'extra:Autokredit')).toMatchObject({
       name: 'Extra-Tilgung Autokredit',
       amountCents: -10000,
       loanDelta: { cents: -10000 },
       date: '2026-09-15',
     });
-    const sn = planDue({ ...base, loanBudgetCents: 43500, strategy: 'snowball' });
-    expect(byKey(sn, 'extra:Ratenkauf Laptop').amountCents).toBe(-10000);
-  });
-
-  it('verteilt einen Rest auf den nächsten Kredit', () => {
-    const p = planDue({
-      ...base,
-      strategy: 'snowball',
-      loanBudgetCents: 43500,
-      loans: [base.loans[0]!, { ...base.loans[1]!, balanceCents: 9000 }],
-    });
-    // Laptop: 90 − 75 Rate = 15 € übrig, der Rest geht an den Autokredit
-    expect(byKey(p, 'extra:Ratenkauf Laptop').amountCents).toBe(-1500);
-    expect(byKey(p, 'extra:Autokredit').amountCents).toBe(-8500);
+    expect(p.some((e) => e.key === 'extra:Ratenkauf Laptop')).toBe(false);
   });
 
   it('ist die Rate schon gebucht, wird der Zins nicht erneut angesetzt', () => {
     const p = planDue({
       ...base,
-      loanBudgetCents: 1_026_000,
-      loans: [{ ...base.loans[0]!, balanceCents: 5000 }],
+      loans: [{ ...base.loans[0]!, balanceCents: 5000, extraMonthlyCents: 1_000_000 }],
       booked: new Map([['loan:Autokredit', { amountCents: -26000, date: '2026-09-15' }]]),
     });
     expect(byKey(p, 'extra:Autokredit').amountCents).toBe(-5000);
@@ -205,7 +192,7 @@ describe('Idempotenz', () => {
   it('Extra-Tilgung wird pro Monat nur einmal gebucht', () => {
     const p = planDue({
       ...base,
-      loanBudgetCents: 43500,
+      loans: [{ ...base.loans[0]!, extraMonthlyCents: 10000 }, base.loans[1]!],
       booked: new Map([['extra:Autokredit', { amountCents: -10000, date: '2026-09-15' }]]),
     });
     const extras = p.filter((e) => e.type === 'extra');
@@ -412,7 +399,7 @@ describe('Kredite mit Frist und Ansparen', () => {
     expect(effects.loanDeltas.get('fc')).toBe(-320000);
   });
 
-  it('Buchungen gelöschter Kredite mindern das Budget nicht', () => {
+  it('Buchungen gelöschter Kredite spielen keine Rolle', () => {
     const postbank = {
       id: 'pb',
       name: 'Postbank',
@@ -428,13 +415,13 @@ describe('Kredite mit Frist und Ansparen', () => {
     const p = planDue({
       ...base,
       loans: [postbank],
-      loanBudgetCents: 60000,
       booked: new Map([
         ['loan:geloescht1', { amountCents: -26000, date: '2026-09-15' }],
-        ['loan:geloescht2', { amountCents: -7500, date: '2026-09-01' }],
+        ['extra:geloescht1', { amountCents: -10000, date: '2026-09-15' }],
       ]),
     });
-    expect(p.find((e) => e.key === 'loan:pb')!.amountCents).toBe(-36499);
-    expect(p.find((e) => e.key === 'extra:pb')!.amountCents).toBe(-(60000 - 36499));
+    expect(p.filter((e) => e.sourceType === 'loan').map((e) => [e.key, e.amountCents])).toEqual([
+      ['loan:pb', -36499],
+    ]);
   });
 });

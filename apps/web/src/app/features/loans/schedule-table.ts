@@ -35,7 +35,7 @@ const FIRST = 12;
           </thead>
           <tbody>
             @for (r of visible(); track r.month) {
-              <tr [class.short]="r.shortfall > 0">
+              <tr>
                 <th scope="row">{{ r.month | faMonth: 'short' }}</th>
                 <td>{{ r.paid | money }}</td>
                 @if (saving()) {
@@ -113,7 +113,6 @@ export class ScheduleTable {
       interest: number;
       saved: number;
       balance: number;
-      shortfall: number;
     }[] = [];
     for (const m of plan.months) {
       const l = m.loans.find((x) => x.id === this.loanId());
@@ -124,7 +123,6 @@ export class ScheduleTable {
         interest: l.interestCents,
         saved: l.savedAfterCents,
         balance: l.balanceAfterCents,
-        shortfall: l.shortfallCents,
       });
       if (l.balanceAfterCents === 0) break;
     }

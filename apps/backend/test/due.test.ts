@@ -48,7 +48,7 @@ async function household(api: Api) {
       dueDay: 1,
     })
   ).body;
-  await api.patch('/settings', { loanBudgetCents: 36000 });
+  await api.patch(`/loans/${loan.id}`, { extraMonthlyCents: 10000 });
   return { reserveAccount, pot, loan };
 }
 

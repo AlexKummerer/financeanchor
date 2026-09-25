@@ -383,3 +383,33 @@ describe('Kredite „Tilgen bis Datum“', () => {
     ).toBe(400);
   });
 });
+
+describe('Eigene Extra-Tilgung', () => {
+  it('lässt sich anlegen und ändern; bei Einmalzahlungen gibt es keine', async () => {
+    const { api } = await newUser();
+    const pb = await api.post('/loans', {
+      kind: 'installment',
+      name: 'Postbank',
+      balanceCents: 2342023,
+      rateBp: 1110,
+      paymentCents: 36499,
+      targetMonth: '2031-12',
+      extraMonthlyCents: 12154,
+    });
+    expect(pb.body).toMatchObject({ extraMonthlyCents: 12154 });
+    expect(
+      (await api.patch(`/loans/${pb.body.id}`, { extraMonthlyCents: 0 })).body.extraMonthlyCents,
+    ).toBe(0);
+    expect((await api.patch(`/loans/${pb.body.id}`, { extraMonthlyCents: -1 })).status).toBe(400);
+
+    const klarna = await api.post('/loans', {
+      kind: 'deadline',
+      name: 'Klarna',
+      balanceCents: 30000,
+      dueDate: '2026-12-01',
+      paymentMode: 'lump',
+      extraMonthlyCents: 5000,
+    });
+    expect(klarna.body.extraMonthlyCents).toBe(0);
+  });
+});

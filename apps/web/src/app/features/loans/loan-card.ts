@@ -3,8 +3,9 @@ import {
   budgetUsed,
   daysBetween,
   deadlineMonthOf,
+  extraNeededForTarget,
   monthsUntil,
-  paymentToPayOff,
+  requiredMonthly,
   type Loan,
   type LoanPlan,
 } from '@financeanchor/shared';
@@ -29,6 +30,8 @@ export class LoanCard {
   readonly bookedThisMonth = input(false);
   readonly edit = output<void>();
   readonly remove = output<void>();
+  /** Neue feste Extra-Tilgung pro Monat */
+  readonly setExtra = output<number>();
 
   private readonly clock = inject(Clock);
   protected readonly f = inject(Formatter);
@@ -49,21 +52,14 @@ export class LoanCard {
   protected readonly deadlineStatus = computed(
     () => this.plan()?.deadlines[this.loan().id] ?? null,
   );
-  /** Rate, die für die Frist nötig ist (für sich allein betrachtet). */
+  /** Bei „Tilgen bis Datum“ mit Teilzahlungen: nötige Rate bis zur Frist. */
   protected readonly neededMonthly = computed(() => {
     const l = this.loan();
-    const d = this.deadline();
-    if (!d || this.isLump() || l.balanceCents <= 0) return null;
-    return paymentToPayOff(l.balanceCents, l.rateBp, monthsUntil(this.month, d));
+    if (l.kind !== 'deadline' || this.isLump() || l.balanceCents <= 0) return null;
+    return requiredMonthly(l, this.month);
   });
-  /** Beim Ratenkredit mit Ziel: Aufstockung über die Bankrate hinaus. */
-  protected readonly targetTopUp = computed(() => {
-    const need = this.neededMonthly();
-    const rate = this.loan().paymentCents;
-    return this.loan().kind === 'installment' && need !== null && rate !== null
-      ? need - rate
-      : null;
-  });
+  /** Ratenkredit mit Ziel: fehlender Betrag pro Monat (0 = Ziel wird erreicht). */
+  protected readonly targetGap = computed(() => extraNeededForTarget(this.loan(), this.month));
   /** Einmalzahlung: pro Monat zurückzulegen bis zur Fälligkeit. */
   protected readonly savingMonthly = computed(() => {
     const l = this.loan();
@@ -72,6 +68,16 @@ export class LoanCard {
     const rest = Math.max(0, l.balanceCents - l.savedCents);
     return Math.ceil(rest / monthsUntil(this.month, d));
   });
+
+  /** Beispielrechnung übernommen: Extra-Tilgung = Monatsbetrag minus Pflichtbetrag. */
+  protected adoptScenario(monthlyCents: number) {
+    this.setExtra.emit(Math.max(0, monthlyCents - requiredMonthly(this.loan(), this.month)));
+  }
+
+  protected adoptTargetGap() {
+    this.setExtra.emit(this.loan().extraMonthlyCents + (this.targetGap() ?? 0));
+  }
+
   protected readonly daysLeft = computed(() => {
     const due = this.loan().dueDate;
     return due ? daysBetween(this.clock.today(), due) : null;
