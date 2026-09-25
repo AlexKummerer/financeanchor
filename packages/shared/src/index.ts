@@ -9,3 +9,4 @@ export * from './domain/recurring.js';
 export * from './domain/reserve.js';
 export * from './domain/overview.js';
 export * from './domain/transactions.js';
+export * from './domain/loans.js';
