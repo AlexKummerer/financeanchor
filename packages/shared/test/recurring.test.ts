@@ -22,6 +22,14 @@ describe('Fälligkeit', () => {
     expect(isDue(yearly, '2027-04')).toBe(false);
   });
 
+  it('alle 4 Monate: dreimal im Jahr, auch über den Jahreswechsel', () => {
+    const every4 = { intervalMonths: 4 as const, startMonth: '2026-02', amountCents: 12000 };
+    expect(['2026-02', '2026-06', '2026-10', '2027-02'].every((m) => isDue(every4, m))).toBe(true);
+    expect(isDue(every4, '2026-12')).toBe(false);
+    expect(nextDueMonth(every4, '2026-11')).toBe('2027-02');
+    expect(monthlyShare(every4)).toBe(3000);
+  });
+
   it('nächste Fälligkeit', () => {
     expect(nextDueMonth(quarterly, '2026-10')).toBe('2026-12');
     expect(nextDueMonth(quarterly, '2026-12')).toBe('2026-12');

@@ -73,7 +73,7 @@ describe('RecurringForm', () => {
     const { fixture, el, emitted } = await render(null);
     set(el, '#rc-name', 'Kfz-Versicherung');
     set(el, '#rc-amount', '420');
-    set(el, '#rc-interval', '4: 12');
+    set(el, '#rc-interval', '5: 12');
     set(el, '#rc-cat', 'Mobilität');
     el.querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     await fixture.whenStable();

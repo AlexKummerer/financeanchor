@@ -170,7 +170,13 @@ describe('Wiederkehrende Posten', () => {
     };
     const res = await api.post('/recurring-items', base);
     expect(res.body).toMatchObject({ dueDay: 1, reservePotId: null });
-    expect((await api.post('/recurring-items', { ...base, intervalMonths: 4 })).status).toBe(400);
+    expect((await api.post('/recurring-items', { ...base, intervalMonths: 5 })).status).toBe(400);
+    const every4 = await api.post('/recurring-items', {
+      ...base,
+      name: 'Wasser',
+      intervalMonths: 4,
+    });
+    expect(every4.body).toMatchObject({ intervalMonths: 4 });
     const upd = await api.patch(`/recurring-items/${res.body.id}`, {
       dueDay: 3,
       amountCents: 87000,

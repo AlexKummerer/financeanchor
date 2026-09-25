@@ -36,6 +36,13 @@
       "when": 1790347710464,
       "tag": "0004_loan_extra_monthly",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790351279543,
+      "tag": "0005_recurring_interval_4",
+      "breakpoints": true
     }
   ]
 }

@@ -43,7 +43,7 @@ describe('Schemas', () => {
       kind: 'fixed',
       categoryId,
     };
-    expect(recurringItemCreateSchema.safeParse({ ...base, intervalMonths: 4 }).success).toBe(false);
+    expect(recurringItemCreateSchema.safeParse({ ...base, intervalMonths: 5 }).success).toBe(false);
     expect(recurringItemCreateSchema.safeParse({ ...base, amountCents: 1.5 }).success).toBe(false);
     expect(recurringItemCreateSchema.safeParse({ ...base, amountCents: 0 }).success).toBe(false);
     expect(recurringItemCreateSchema.safeParse({ ...base, name: '   ' }).success).toBe(false);

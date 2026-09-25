@@ -324,8 +324,9 @@
     "intervals": {
       "1": "monatlich",
       "2": "alle 2 Monate",
-      "3": "vierteljährlich",
-      "6": "halbjährlich",
+      "3": "vierteljährlich (alle 3 Monate)",
+      "4": "alle 4 Monate",
+      "6": "halbjährlich (alle 6 Monate)",
       "12": "jährlich"
     },
     "kind": "Art",

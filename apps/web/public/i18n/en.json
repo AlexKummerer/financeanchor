@@ -324,8 +324,9 @@
     "intervals": {
       "1": "monthly",
       "2": "every 2 months",
-      "3": "quarterly",
-      "6": "half-yearly",
+      "3": "quarterly (every 3 months)",
+      "4": "every 4 months",
+      "6": "half-yearly (every 6 months)",
       "12": "yearly"
     },
     "kind": "Type",

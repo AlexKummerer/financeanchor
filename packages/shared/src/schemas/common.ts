@@ -26,7 +26,7 @@ export const recurringKinds = ['fixed', 'saving', 'income'] as const;
 export const recurringKindSchema = z.enum(recurringKinds);
 export type RecurringKind = z.infer<typeof recurringKindSchema>;
 
-export const intervals = [1, 2, 3, 6, 12] as const;
+export const intervals = [1, 2, 3, 4, 6, 12] as const;
 export const intervalSchema = z.literal(intervals);
 export type IntervalMonths = z.infer<typeof intervalSchema>;
 

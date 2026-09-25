@@ -57,7 +57,7 @@ describe('Datenbankschema', () => {
     await expect(insertTransaction('tx-0', 'dave', 'c-dave', 0)).rejects.toThrow(/CHECK/);
     await expect(
       env.DB.prepare(
-        "insert into recurring_items (id, user_id, name, amount_cents, interval_months, start_month, kind, category_id, created_at, updated_at) values ('r', 'dave', 'X', 100, 4, '2026-01', 'fixed', 'c-dave', 0, 0)",
+        "insert into recurring_items (id, user_id, name, amount_cents, interval_months, start_month, kind, category_id, created_at, updated_at) values ('r', 'dave', 'X', 100, 5, '2026-01', 'fixed', 'c-dave', 0, 0)",
       ).run(),
     ).rejects.toThrow(/CHECK/);
   });
