@@ -17,8 +17,8 @@
     {
       "binding": "DB",
       "database_name": "financeanchor",
-      // Wird beim ersten Deployment ersetzt (siehe README); lokal genügt ein Platzhalter.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // D1 in der EU (--jurisdiction eu); lokal wird eine eigene Datenbank unter .wrangler genutzt.
+      "database_id": "651a0b78-1710-418a-aec0-f098059f624a",
       "migrations_dir": "migrations",
     },
   ],
