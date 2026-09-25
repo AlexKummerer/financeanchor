@@ -1,0 +1,123 @@
+<section class="panel">
+  <p class="muted small">{{ 'loans.payoffLabel' | transloco }}</p>
+  @if (!sim()) {
+    <p class="big-number">–</p>
+    <p class="small muted">{{ 'loans.addToSee' | transloco }}</p>
+  } @else if (sim()?.stuck) {
+    <p class="big-number neg">{{ 'loans.notForeseeable' | transloco }}</p>
+    <p class="small muted">{{ 'loans.stuckHint' | transloco }}</p>
+  } @else if (payoff(); as p) {
+    <p class="big-number">{{ p.month | faMonth }}</p>
+    <p class="small muted">
+      {{
+        'loans.payoffDetail'
+          | transloco: { duration: p.duration, interest: (p.interest | money: true) }
+      }}
+    </p>
+  }
+  <div style="margin-top: 14px">
+    <p class="label" aria-hidden="true">{{ 'loans.strategy' | transloco }}</p>
+    <fa-segmented
+      [formControl]="strategy"
+      [options]="strategyOptions()"
+      [label]="'loans.strategy' | transloco"
+    />
+  </div>
+  <div style="margin-top: 10px">
+    <label for="ln-extra">{{ 'loans.extra' | transloco }}</label>
+    <input
+      id="ln-extra"
+      inputmode="decimal"
+      placeholder="0"
+      autocomplete="off"
+      [value]="extraText()"
+      [attr.aria-invalid]="extraError()"
+      (change)="saveExtra($any($event.target).value)"
+    />
+    @if (extraError()) {
+      <p class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
+    }
+  </div>
+</section>
+
+<section class="panel" style="margin-top: 12px">
+  <details [open]="formOpen() || !!editing()" (toggle)="formOpen.set($any($event.target).open)">
+    <summary>{{ (editing() ? 'loans.editTitle' : 'loans.add') | transloco }}</summary>
+    <fa-loan-form
+      [loan]="editing()"
+      [busy]="saving()"
+      (saved)="save($event)"
+      (cancelled)="editing.set(null)"
+    />
+  </details>
+</section>
+
+<h2 id="loans-title">{{ 'loans.listTitle' | transloco }}</h2>
+<section class="panel" aria-labelledby="loans-title">
+  @for (r of rows(); track r.loan.id) {
+    <article class="loan" [attr.aria-label]="r.loan.name">
+      <div class="loan-top">
+        <div>
+          <h3 class="name">{{ r.loan.name }}</h3>
+          <span class="small muted">
+            {{
+              'loans.terms'
+                | transloco
+                  : { rate: f.percent(r.loan.rateBp), payment: (r.loan.paymentCents | money) }
+            }}
+          </span>
+        </div>
+        <div class="actions">
+          <button
+            class="iconbtn"
+            type="button"
+            (click)="edit(r.loan)"
+            [attr.aria-label]="'loans.editNamed' | transloco: { name: r.loan.name }"
+          >
+            ✎
+          </button>
+          <button
+            class="iconbtn"
+            type="button"
+            (click)="remove(r.loan)"
+            [attr.aria-label]="'loans.deleteNamed' | transloco: { name: r.loan.name }"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+      <div
+        class="progress"
+        role="progressbar"
+        [attr.aria-valuenow]="r.paidRounded"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        [attr.aria-label]="'loans.paidShare' | transloco"
+      >
+        <span [style.width.%]="r.paidPct"></span>
+      </div>
+      <div class="loan-top small">
+        <span>
+          <b>{{ r.loan.balanceCents | money }}</b>
+          <span class="muted">
+            {{ 'loans.open' | transloco }}
+            @if (r.showPaid) {
+              , {{ 'loans.paidPct' | transloco: { pct: r.paidRounded } }}
+            }
+          </span>
+        </span>
+        <span class="muted">
+          @if (r.loan.balanceCents === 0) {
+            {{ 'loans.paidOff' | transloco }}
+          } @else if (r.payoffMonth) {
+            {{ 'loans.goneIn' | transloco: { month: (r.payoffMonth | faMonth: 'short') } }}
+          } @else {
+            –
+          }
+        </span>
+      </div>
+    </article>
+  } @empty {
+    <p class="empty">{{ 'loans.none' | transloco }}</p>
+  }
+</section>

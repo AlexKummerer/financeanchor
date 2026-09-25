@@ -1,0 +1,33 @@
+.label {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.loan {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.loan:first-child {
+  padding-top: 0;
+}
+.loan:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.loan-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.loan h3 {
+  font-size: 1rem;
+  margin: 0;
+  font-weight: 700;
+}
+.actions {
+  display: flex;
+}
+.progress {
+  margin: 10px 0 6px;
+}
