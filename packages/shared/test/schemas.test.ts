@@ -6,6 +6,9 @@ import {
   newId,
   recurringItemCreateSchema,
   transactionCreateSchema,
+  loanUpdateSchema,
+  transactionUpdateSchema,
+  accountUpdateSchema,
 } from '../src/index.js';
 
 const categoryId = newId();
@@ -120,5 +123,13 @@ describe('Schemas', () => {
         paymentMode: 'lump',
       }),
     ).toEqual([]);
+  });
+});
+
+describe('Teiländerungen', () => {
+  it('setzen fehlende Felder nicht auf Standardwerte zurück', () => {
+    expect(loanUpdateSchema.parse({ name: 'Auto' })).toEqual({ name: 'Auto' });
+    expect(transactionUpdateSchema.parse({ name: 'x' })).toEqual({ name: 'x' });
+    expect(accountUpdateSchema.parse({ debitDay: 4 })).toEqual({ debitDay: 4 });
   });
 });

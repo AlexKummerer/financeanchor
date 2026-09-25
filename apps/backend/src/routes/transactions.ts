@@ -11,6 +11,7 @@ import { accounts, bookedItems, loans, transactions } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { strip } from '../mappers.js';
 import type { AppEnv } from '../middleware/context.js';
+import { assertCardAccount } from '../services/cards.js';
 import { validate } from '../validation.js';
 import { found, idParam, one, scopedFrom } from './util.js';
 
@@ -51,8 +52,10 @@ export const transactionRoutes = new Hono<AppEnv>()
     return c.json([...seen].slice(0, 100).map(([name, categoryId]) => ({ name, categoryId })));
   })
   .post('/', validate('json', transactionCreateSchema), async (c) => {
+    const s = scopedFrom(c);
+    await assertCardAccount(s, c.req.valid('json').accountId);
     const row = one(
-      await scopedFrom(c).insert(transactions, {
+      await s.insert(transactions, {
         ...c.req.valid('json'),
         kind: 'normal',
         sourceType: null,
@@ -70,6 +73,14 @@ export const transactionRoutes = new Hono<AppEnv>()
       const s = scopedFrom(c);
       const { id } = c.req.valid('param');
       const patch = c.req.valid('json');
+      if (patch.accountId !== undefined) {
+        const current = found(await s.get(transactions, id), 'transaction');
+        // „Bezahlt mit“ gibt es nur bei selbst erfassten Buchungen
+        if (current.kind !== 'normal' && patch.accountId !== current.accountId) {
+          throw new AppError(409, 'managed_transaction', 'Account can only be set on own entries');
+        }
+        await assertCardAccount(s, patch.accountId);
+      }
       if (patch.amountCents !== undefined) {
         const effects = await bookingEffectsOf(s.db, s.userId, id);
         if (

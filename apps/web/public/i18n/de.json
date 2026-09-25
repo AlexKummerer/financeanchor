@@ -309,7 +309,8 @@
       "fromReserve": "aus Rücklage",
       "saving": "Sparen",
       "fixed": "Fixkosten",
-      "loanSaving": "Rücklage Kredit"
+      "loanSaving": "Rücklage Kredit",
+      "card": "Kreditkarte"
     },
     "adjust": "{{name}} anpassen",
     "date": "Datum",

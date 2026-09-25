@@ -309,7 +309,8 @@
       "fromReserve": "from reserve",
       "saving": "Savings",
       "fixed": "Fixed costs",
-      "loanSaving": "Loan set-aside"
+      "loanSaving": "Loan set-aside",
+      "card": "Credit card"
     },
     "adjust": "Adjust {{name}}",
     "date": "Date",

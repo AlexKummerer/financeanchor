@@ -55,10 +55,23 @@ export const accounts = sqliteTable(
     kind: text('kind', { enum: accountKinds }).notNull(),
     balanceCents: integer('balance_cents').notNull(),
     sortOrder: integer('sort_order').notNull().default(0),
+    // Nur Kreditkarten: Abrechnungsstichtag, Abbuchungstag und Konto der Abbuchung
+    statementDay: integer('statement_day'),
+    debitDay: integer('debit_day'),
+    debitAccountId: text('debit_account_id'),
   },
   (t) => [
     uniqueIndex('accounts_user_id_id_uq').on(t.userId, t.id),
+    foreignKey({
+      name: 'accounts_debit_account_fk',
+      columns: [t.userId, t.debitAccountId],
+      foreignColumns: [t.userId, t.id],
+    }),
     check('accounts_kind_ck', inList('kind', accountKinds)),
+    check(
+      'accounts_card_days_ck',
+      sql`(statement_day is null or statement_day between 1 and 31) and (debit_day is null or debit_day between 1 and 31)`,
+    ),
   ],
 );
 
@@ -148,9 +161,17 @@ export const transactions = sqliteTable(
     kind: text('kind', { enum: transactionKinds }).notNull().default('normal'),
     sourceType: text('source_type', { enum: sourceTypes }),
     sourceId: text('source_id'),
+    /** Bezahlt mit (Kreditkarte) */
+    accountId: text('account_id'),
   },
   (t) => [
     uniqueIndex('transactions_user_id_id_uq').on(t.userId, t.id),
+    index('transactions_user_account_idx').on(t.userId, t.accountId),
+    foreignKey({
+      name: 'transactions_account_fk',
+      columns: [t.userId, t.accountId],
+      foreignColumns: [accounts.userId, accounts.id],
+    }),
     index('transactions_user_date_idx').on(t.userId, t.date),
     foreignKey({
       name: 'transactions_category_fk',

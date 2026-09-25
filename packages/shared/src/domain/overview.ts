@@ -106,7 +106,8 @@ export function bookedBreakdown(
     otherCents: 0,
   };
   for (const t of transactions) {
-    if (monthOfDate(t.date) !== month) continue;
+    // Kartenabbuchung ist eine Umbuchung; die Käufe zählen schon mit ihrem Kaufdatum
+    if (monthOfDate(t.date) !== month || t.kind === 'card_payment') continue;
     const out = -t.amountCents;
     if (t.kind === 'loan_payment') r.loanCents += out;
     else if (t.kind === 'reserve' || t.kind === 'transfer') r.reserveCents += out;

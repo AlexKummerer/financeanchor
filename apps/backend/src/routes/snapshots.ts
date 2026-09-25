@@ -2,9 +2,10 @@ import { isoDateSchema, netWorth } from '@financeanchor/shared';
 import { asc } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { accounts, loans, netWorthSnapshots } from '../db/schema.js';
+import { loans, netWorthSnapshots } from '../db/schema.js';
 import { strip } from '../mappers.js';
 import type { AppEnv } from '../middleware/context.js';
+import { accountsWithBalances } from '../services/cards.js';
 import { validate } from '../validation.js';
 import { found, idParam, one, scopedFrom } from './util.js';
 
@@ -25,8 +26,9 @@ export const snapshotRoutes = new Hono<AppEnv>()
   .post('/', validate('json', createBody), async (c) => {
     const s = scopedFrom(c);
     const { date } = c.req.valid('json');
-    const [accs, ls] = await s.db.batch([
-      s.db.select({ balanceCents: accounts.balanceCents }).from(accounts).where(s.own(accounts)),
+    const [accs, ls] = await Promise.all([
+      // Kreditkarten mit aktuellem Stand (aus den Buchungen)
+      accountsWithBalances(s),
       s.db.select({ balanceCents: loans.balanceCents }).from(loans).where(s.own(loans)),
     ]);
     const nw = netWorth(accs, ls);

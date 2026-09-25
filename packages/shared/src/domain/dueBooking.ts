@@ -1,7 +1,9 @@
 import type { Cents } from '../money.js';
 import { dateInMonth, monthOfDate, type IsoDate, type YearMonth } from '../month.js';
 import type { SourceType, SystemCategoryKey, TransactionKind } from '../schemas/common.js';
+import type { Account } from '../schemas/entities.js';
 import { bookingKeys } from './bookingKeys.js';
+import { statementDebitedIn, statementTotal, type CardLike } from './cards.js';
 import { allocateMonth, type PlanLoan } from './loans.js';
 import { isDue, viaReserve } from './recurring.js';
 import {
@@ -12,7 +14,7 @@ import {
   type ReservePotLike,
 } from './reserve.js';
 
-export type DueEntryType = 'reserve' | 'item' | 'transfer' | 'loan' | 'extra' | 'saving';
+export type DueEntryType = 'reserve' | 'item' | 'transfer' | 'loan' | 'extra' | 'saving' | 'card';
 
 export interface DueEntry {
   key: string;
@@ -51,6 +53,8 @@ export interface DueLabels {
   /** Zurücklegen für eine Einmalzahlung */
   saving: (loanName: string) => string;
   extra: (loanName: string) => string;
+  /** Abbuchung einer Kreditkarte */
+  card: (cardName: string) => string;
 }
 
 export const germanDueLabels: DueLabels = {
@@ -60,6 +64,7 @@ export const germanDueLabels: DueLabels = {
   payment: (name) => `Zahlung ${name}`,
   saving: (name) => `Rücklage für ${name}`,
   extra: (name) => `Extra-Tilgung ${name}`,
+  card: (name) => `Abbuchung ${name}`,
 };
 
 export interface DueInput {
@@ -67,7 +72,10 @@ export interface DueInput {
   today: IsoDate;
   items: readonly (ReserveItemLike & { name: string; categoryId: string; dueDay: number })[];
   pots: readonly (ReservePotLike & { accountId: string | null; dueDay: number })[];
-  accounts: readonly { id: string; name: string }[];
+  accounts: readonly (Pick<Account, 'id' | 'name'> &
+    Partial<Pick<Account, 'kind' | 'statementDay' | 'debitDay' | 'debitAccountId'>>)[];
+  /** Buchungen der Kreditkarten (für die Summe der Abrechnung) */
+  cardTransactions?: readonly Parameters<typeof statementTotal>[0][number][];
   loans: readonly (PlanLoan & { name: string; dueDay: number })[];
   systemCategoryIds: Record<SystemCategoryKey, string>;
   /** Bereits gebuchte Schlüssel des Monats mit dem tatsächlich gebuchten Betrag und Datum */
@@ -226,6 +234,32 @@ export function planDue(input: DueInput): DueEntry[] {
       maxAmountCents: r.balanceBeforeCents + r.interestCents - (r.savedAfterCents - r.savingCents),
     });
   });
+
+  // Kreditkarten: Abbuchung der Abrechnung, die in diesem Monat vom Konto geht – eine Umbuchung
+  for (const card of input.accounts) {
+    if (card.kind !== 'credit_card' || !card.statementDay || !card.debitDay) continue;
+    const statement = statementDebitedIn(card as CardLike, input.month);
+    const total = statementTotal(input.cardTransactions ?? [], card.id, statement).amountCents;
+    const key = bookingKeys.card(card.id);
+    if (total <= 0 && !input.booked.has(key)) continue;
+    drafts.push({
+      key,
+      type: 'card',
+      name: labels.card(card.name),
+      categoryId: sys.transfer,
+      amountCents: -total,
+      date: statement.debitDate,
+      transactionKind: 'card_payment',
+      sourceType: 'account',
+      sourceId: card.id,
+      accountDelta: card.debitAccountId ? { accountId: card.debitAccountId, cents: -total } : null,
+      loanDelta: null,
+      savingDelta: null,
+      interestCents: 0,
+      maxAmountCents: null,
+      linkedKey: null,
+    });
+  }
 
   return drafts.map((d) => {
     const booked = input.booked.get(d.key);

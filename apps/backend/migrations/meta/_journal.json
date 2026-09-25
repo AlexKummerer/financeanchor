@@ -57,6 +57,13 @@
       "when": 1790371314574,
       "tag": "0007_loan_save_up",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790372500207,
+      "tag": "0008_credit_cards",
+      "breakpoints": true
     }
   ]
 }

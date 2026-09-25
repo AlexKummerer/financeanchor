@@ -1,4 +1,5 @@
 import {
+  addMonths,
   applyDueOverrides,
   bookingEffects,
   DueBookingError,
@@ -12,7 +13,7 @@ import {
   type SystemCategoryKey,
   type YearMonth,
 } from '@financeanchor/shared';
-import { eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, sql } from 'drizzle-orm';
 import { chunkedInsert, runBatch } from '../db/client.js';
 import {
   accounts,
@@ -40,10 +41,20 @@ export async function loadDuePlan(
   today: IsoDate,
 ): Promise<DueEntry[]> {
   const { db } = s;
-  const [items, pots, accs, ls, settings, sysCats, booked] = await db.batch([
+  const [items, pots, accs, ls, settings, sysCats, booked, cardTransactions] = await db.batch([
     db.select().from(recurringItems).where(s.own(recurringItems)),
     db.select().from(reservePots).where(s.own(reservePots)),
-    db.select({ id: accounts.id, name: accounts.name }).from(accounts).where(s.own(accounts)),
+    db
+      .select({
+        id: accounts.id,
+        name: accounts.name,
+        kind: accounts.kind,
+        statementDay: accounts.statementDay,
+        debitDay: accounts.debitDay,
+        debitAccountId: accounts.debitAccountId,
+      })
+      .from(accounts)
+      .where(s.own(accounts)),
     db.select().from(loans).where(s.own(loans)),
     db.select().from(userSettings).where(eq(userSettings.userId, s.userId)),
     db
@@ -59,6 +70,26 @@ export async function loadDuePlan(
       .from(bookedItems)
       .innerJoin(transactions, eq(transactions.id, bookedItems.transactionId))
       .where(s.own(bookedItems, eq(bookedItems.month, month))),
+    // Kartenbuchungen der letzten Monate (Abrechnungszeitraum der Abbuchung dieses Monats)
+    db
+      .select({
+        date: transactions.date,
+        amountCents: transactions.amountCents,
+        kind: transactions.kind,
+        accountId: transactions.accountId,
+        sourceType: transactions.sourceType,
+        sourceId: transactions.sourceId,
+      })
+      .from(transactions)
+      .where(
+        s.own(
+          transactions,
+          and(
+            isNotNull(transactions.accountId),
+            gte(transactions.date, `${addMonths(month, -2)}-01`),
+          ),
+        ),
+      ),
   ]);
   const setting = settings[0];
   const systemCategoryIds = Object.fromEntries(sysCats.map((c) => [c.systemKey, c.id])) as Record<
@@ -79,6 +110,7 @@ export async function loadDuePlan(
     items,
     pots,
     accounts: accs,
+    cardTransactions,
     loans: ls,
     systemCategoryIds,
     booked: new Map(booked.map((b) => [b.key, { amountCents: b.amountCents, date: b.date }])),

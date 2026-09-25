@@ -21,6 +21,24 @@ import {
   yearMonthSchema,
 } from './common.js';
 
+type NoDefaults<S extends z.ZodRawShape> = {
+  [K in keyof S]: S[K] extends z.ZodDefault<infer T> ? T : S[K];
+};
+
+/**
+ * Teiländerung (PATCH): alle Felder optional und **ohne Standardwerte**. Mit `.partial()` allein
+ * setzt Zod fehlende Felder mit Standardwert auf diesen – eine Änderung des Namens würde so z. B.
+ * die Extra-Tilgung eines Kredits zurücksetzen.
+ */
+export function patchSchema<S extends z.ZodRawShape>(schema: z.ZodObject<S>) {
+  const shape: Record<string, z.ZodType> = {};
+  for (const [key, field] of Object.entries(schema.shape)) {
+    shape[key] =
+      field instanceof z.ZodDefault ? (field.unwrap() as z.ZodType) : (field as z.ZodType);
+  }
+  return z.object(shape as unknown as NoDefaults<S>).partial();
+}
+
 const meta = { createdAt: timestampSchema, updatedAt: timestampSchema };
 
 // Konten und Depots
@@ -28,15 +46,58 @@ export const accountSchema = z.object({
   id: idSchema,
   name: nameSchema,
   kind: accountKindSchema,
+  /** Kreditkarte: Startstand; der angezeigte Stand kommt aus den Buchungen dazu (siehe `cardBalance`) */
   balanceCents: centsSchema,
   sortOrder: z.int(),
+  /** Kreditkarte: Abrechnungsstichtag (Käufe bis einschließlich diesem Tag) */
+  statementDay: dueDaySchema.nullable().default(null),
+  /** Kreditkarte: Tag der Abbuchung (vor dem Stichtag = im Folgemonat) */
+  debitDay: dueDaySchema.nullable().default(null),
+  /** Kreditkarte: Konto, von dem abgebucht wird */
+  debitAccountId: idSchema.nullable().default(null),
   ...meta,
 });
 export type Account = z.infer<typeof accountSchema>;
+
+/** Kreditkarten brauchen Stichtag und Abbuchungstag. */
+export function accountShapeIssues(a: {
+  kind: string;
+  statementDay: number | null;
+  debitDay: number | null;
+}): { path: string; message: string }[] {
+  if (a.kind !== 'credit_card') return [];
+  const issues: { path: string; message: string }[] = [];
+  if (a.statementDay === null) issues.push({ path: 'statementDay', message: 'Stichtag fehlt' });
+  if (a.debitDay === null) issues.push({ path: 'debitDay', message: 'Abbuchungstag fehlt' });
+  return issues;
+}
+
 export const accountCreateSchema = accountSchema
-  .pick({ name: true, kind: true, balanceCents: true })
-  .extend({ id: idSchema.optional(), sortOrder: z.int().optional() });
-export const accountUpdateSchema = accountCreateSchema.omit({ id: true }).partial();
+  .pick({
+    name: true,
+    kind: true,
+    balanceCents: true,
+    statementDay: true,
+    debitDay: true,
+    debitAccountId: true,
+  })
+  .extend({ id: idSchema.optional(), sortOrder: z.int().optional() })
+  .superRefine((a, ctx) => {
+    for (const i of accountShapeIssues(a))
+      ctx.addIssue({ code: 'custom', path: [i.path], message: i.message });
+  });
+/** Teiländerung; der Server prüft danach den Gesamtstand mit `accountShapeIssues`. */
+export const accountUpdateSchema = patchSchema(
+  accountSchema.pick({
+    name: true,
+    kind: true,
+    balanceCents: true,
+    sortOrder: true,
+    statementDay: true,
+    debitDay: true,
+    debitAccountId: true,
+  }),
+);
 
 // Rücklagentöpfe
 export const reservePotSchema = z.object({
@@ -54,9 +115,9 @@ export type ReservePot = z.infer<typeof reservePotSchema>;
 export const reservePotCreateSchema = reservePotSchema
   .pick({ name: true, accountId: true, monthlyAmountCents: true })
   .extend({ id: idSchema.optional(), dueDay: dueDaySchema.default(1) });
-export const reservePotUpdateSchema = reservePotSchema
-  .pick({ name: true, accountId: true, monthlyAmountCents: true, dueDay: true })
-  .partial();
+export const reservePotUpdateSchema = patchSchema(
+  reservePotSchema.pick({ name: true, accountId: true, monthlyAmountCents: true, dueDay: true }),
+);
 
 // Kategorien
 export const categorySchema = z.object({
@@ -91,9 +152,9 @@ export const recurringItemCreateSchema = recurringItemSchema
     reservePotId: idSchema.nullable().optional(),
     dueDay: dueDaySchema.default(1),
   });
-export const recurringItemUpdateSchema = recurringItemSchema
-  .omit({ id: true, createdAt: true, updatedAt: true })
-  .partial();
+export const recurringItemUpdateSchema = patchSchema(
+  recurringItemSchema.omit({ id: true, createdAt: true, updatedAt: true }),
+);
 
 // Buchungen
 export const transactionSchema = z.object({
@@ -105,14 +166,24 @@ export const transactionSchema = z.object({
   kind: transactionKindSchema,
   sourceType: sourceTypeSchema.nullable(),
   sourceId: idSchema.nullable(),
+  /** Bezahlt mit (Kreditkarte); ohne Angabe wie bisher */
+  accountId: idSchema.nullable().default(null),
   ...meta,
 });
 export type Transaction = z.infer<typeof transactionSchema>;
 /** Manuell erfasste Buchungen sind immer `normal`; die anderen Arten entstehen nur über „Fällige übernehmen“. */
 export const transactionCreateSchema = transactionSchema
-  .pick({ date: true, name: true, categoryId: true, amountCents: true })
+  .pick({ date: true, name: true, categoryId: true, amountCents: true, accountId: true })
   .extend({ id: idSchema.optional() });
-export const transactionUpdateSchema = transactionCreateSchema.omit({ id: true }).partial();
+export const transactionUpdateSchema = patchSchema(
+  transactionSchema.pick({
+    date: true,
+    name: true,
+    categoryId: true,
+    amountCents: true,
+    accountId: true,
+  }),
+);
 
 // Bereits gebuchte Fälligkeiten
 export const bookedItemSchema = z.object({
@@ -226,8 +297,8 @@ export const loanCreateSchema = z.discriminatedUnion('kind', [
 ]);
 export type LoanCreate = z.infer<typeof loanCreateSchema>;
 /** Teiländerung; der Server prüft danach den Gesamtstand mit `loanShapeIssues`. */
-export const loanUpdateSchema = loanFields
-  .pick({
+export const loanUpdateSchema = patchSchema(
+  loanFields.pick({
     name: true,
     kind: true,
     balanceCents: true,
@@ -242,8 +313,8 @@ export const loanUpdateSchema = loanFields
     extraMonthlyCents: true,
     extraFromMonth: true,
     saveUp: true,
-  })
-  .partial();
+  }),
+);
 
 // Vermögensstände
 export const netWorthSnapshotSchema = z.object({
@@ -268,7 +339,7 @@ export const userSettingsSchema = z.object({
   currency: currencySchema,
 });
 export type UserSettings = z.infer<typeof userSettingsSchema>;
-export const userSettingsUpdateSchema = userSettingsSchema.partial();
+export const userSettingsUpdateSchema = patchSchema(userSettingsSchema);
 export const defaultUserSettings: UserSettings = {
   loanBudgetCents: null,
   strategy: 'avalanche',

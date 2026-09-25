@@ -18,7 +18,7 @@ export const dueDaySchema = z.int().min(1).max(31);
 
 export const nameSchema = z.string().trim().min(1).max(100);
 
-export const accountKinds = ['checking', 'savings', 'depot', 'other'] as const;
+export const accountKinds = ['checking', 'savings', 'depot', 'other', 'credit_card'] as const;
 export const accountKindSchema = z.enum(accountKinds);
 export type AccountKind = z.infer<typeof accountKindSchema>;
 
@@ -30,11 +30,18 @@ export const intervals = [1, 2, 3, 4, 6, 12] as const;
 export const intervalSchema = z.literal(intervals);
 export type IntervalMonths = z.infer<typeof intervalSchema>;
 
-export const transactionKinds = ['normal', 'reserve', 'transfer', 'loan_payment'] as const;
+/** `card_payment`: Abbuchung einer Kreditkarte vom Konto – Umbuchung, keine Ausgabe */
+export const transactionKinds = [
+  'normal',
+  'reserve',
+  'transfer',
+  'loan_payment',
+  'card_payment',
+] as const;
 export const transactionKindSchema = z.enum(transactionKinds);
 export type TransactionKind = z.infer<typeof transactionKindSchema>;
 
-export const sourceTypes = ['recurring_item', 'loan', 'reserve_pot'] as const;
+export const sourceTypes = ['recurring_item', 'loan', 'reserve_pot', 'account'] as const;
 export const sourceTypeSchema = z.enum(sourceTypes);
 export type SourceType = z.infer<typeof sourceTypeSchema>;
 

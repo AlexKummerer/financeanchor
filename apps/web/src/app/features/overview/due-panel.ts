@@ -239,6 +239,8 @@ export class DuePanel {
         return ['due.tag.extra', 'debt'];
       case 'saving':
         return ['due.tag.loanSaving', 'res'];
+      case 'card':
+        return ['due.tag.card', 'res'];
       case 'item': {
         const item = this.store.items.byId().get(e.sourceId);
         if (e.amountCents > 0) return ['due.tag.income', 'inc'];

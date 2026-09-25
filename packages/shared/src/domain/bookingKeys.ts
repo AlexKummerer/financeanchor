@@ -7,4 +7,6 @@ export const bookingKeys = {
   extra: (loanId: string) => `extra:${loanId}`,
   /** Ansparen für eine Einmalzahlung */
   save: (loanId: string) => `save:${loanId}`,
+  /** Abbuchung einer Kreditkarte */
+  card: (accountId: string) => `card:${accountId}`,
 } as const;

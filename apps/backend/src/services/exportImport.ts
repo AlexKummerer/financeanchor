@@ -113,7 +113,12 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
     if (new Set(rows.map((r) => r.id)).size !== rows.length) problems.add(`${label}: doppelte IDs`);
   }
 
-  const sourceMap = { recurring_item: maps.item, loan: maps.loan, reserve_pot: maps.pot } as const;
+  const sourceMap = {
+    recurring_item: maps.item,
+    loan: maps.loan,
+    reserve_pot: maps.pot,
+    account: maps.account,
+  } as const;
   const keyMap: Record<string, Map<string, string>> = {
     reserve: maps.pot,
     item: maps.item,
@@ -121,10 +126,19 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
     loan: maps.loan,
     extra: maps.loan,
     save: maps.loan,
+    card: maps.account,
   };
 
   const rows = {
-    accounts: d.accounts.map((a) => ({ ...a, ...meta, id: ref(maps.account, a.id, 'Konto') })),
+    // Konten, auf die eine Karte verweist, zuerst einfügen (Fremdschlüssel innerhalb der Tabelle)
+    accounts: [...d.accounts]
+      .sort((a, b) => Number(a.kind === 'credit_card') - Number(b.kind === 'credit_card'))
+      .map((a) => ({
+        ...a,
+        ...meta,
+        id: ref(maps.account, a.id, 'Konto'),
+        debitAccountId: optRef(maps.account, a.debitAccountId, 'Karte → Abbuchungskonto'),
+      })),
     reservePots: d.reservePots.map((p) => ({
       ...p,
       ...meta,
@@ -149,6 +163,7 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
       ...meta,
       id: ref(maps.transaction, t.id, 'Buchung'),
       categoryId: ref(maps.category, t.categoryId, 'Buchung → Kategorie'),
+      accountId: optRef(maps.account, t.accountId, 'Buchung → Karte'),
       // Herkunft darf gelöscht sein; dann bleibt der Verweis leer.
       sourceId:
         t.sourceType && t.sourceId ? (sourceMap[t.sourceType].get(t.sourceId) ?? null) : null,

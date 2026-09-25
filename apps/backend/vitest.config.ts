@@ -14,8 +14,8 @@ export default defineConfig(async () => {
       cloudflareTest({
         wrangler: { configPath: './wrangler.jsonc' },
         miniflare: {
-          // Zweite, leere D1 für den Migrationstest
-          d1Databases: { DB_MIGRATION: 'migration-test' },
+          // Leere D1s für die Migrationstests
+          d1Databases: { DB_MIGRATION: 'migration-test', DB_MIGRATION_CARDS: 'migration-cards' },
           bindings: {
             TEST_MIGRATIONS: migrations,
             BETTER_AUTH_SECRET: 'test-secret-mindestens-32-zeichen-lang-0123456789',
