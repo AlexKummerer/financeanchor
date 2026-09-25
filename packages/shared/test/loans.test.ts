@@ -207,78 +207,99 @@ describe('„Tilgen bis Datum“', () => {
 describe('Vorschläge', () => {
   const postbank = loan('pb', 23420.23, 11.1, 364.99, { target: '2031-12' });
 
-  it('Postbank: Ziel erreichen und alles Verfügbare nutzen, jeweils mit Wirkung', () => {
-    const advice = loanAdvice([postbank], {
-      month: '2026-09',
-      availableCents: 60000,
-      strategy: 'avalanche',
-    });
+  it('Postbank: Ziel erreichen und alles Übrige nutzen, jeweils mit Wirkung', () => {
+    const advice = loanAdvice([postbank], { month: '2026-09', availableCents: 60000 });
     expect(advice.committedCents).toBe(36499);
+    expect(advice.committed).toEqual([
+      { loanId: 'pb', kind: 'rate', amountCents: 36499, untilMonth: null },
+    ]);
     expect(advice.freeCents).toBe(60000 - 36499);
     const target = advice.suggestions.find((s) => s.kind === 'target')!;
-    expect(target).toMatchObject({ loanId: 'pb', fits: true });
+    expect(target.loanId).toBe('pb');
     expect(target.addCents).toBe(extraNeededForTarget(postbank, '2026-09'));
     expect(target.payoffMonth! <= '2031-12').toBe(true);
     expect(target.interestSavedCents).toBeGreaterThan(0);
     expect(target.monthsSooner).toBeGreaterThan(0);
 
-    const all = advice.suggestions.find((s) => s.kind === 'all')!;
-    expect(all).toMatchObject({
+    // Nur ein Kredit: beide Strategien wählen ihn, also nur ein Vorschlag
+    const rest = advice.suggestions.filter((s) => s.kind !== 'target');
+    expect(rest).toHaveLength(1);
+    expect(rest[0]).toMatchObject({
+      kind: 'interest',
       loanId: 'pb',
       addCents: 23501,
       newExtraMonthlyCents: 23501,
-      fits: true,
     });
-    expect(all.interestSavedCents).toBeGreaterThan(target.interestSavedCents);
+    expect(rest[0]!.interestSavedCents).toBeGreaterThan(target.interestSavedCents);
     // Der Plan selbst bleibt unverändert
     expect(advice.baseline!.months[0]!.paidCents).toBe(36499);
   });
 
-  it('ohne verfügbares Geld nur der Ziel-Vorschlag, ohne Aussage zur Machbarkeit', () => {
-    const advice = loanAdvice([postbank], {
-      month: '2026-09',
-      availableCents: null,
-      strategy: 'avalanche',
-    });
+  it('ohne verfügbares Geld keine Vorschläge', () => {
+    const advice = loanAdvice([postbank], { month: '2026-09', availableCents: null });
     expect(advice.freeCents).toBeNull();
-    expect(advice.suggestions.map((s) => [s.kind, s.fits])).toEqual([['target', null]]);
+    expect(advice.suggestions).toEqual([]);
   });
 
-  it('reicht das Geld nicht für die Raten, gibt es keinen „alles nutzen“-Vorschlag', () => {
+  it('reicht das Geld nicht, gibt es keine Vorschläge, aber die Aufstellung', () => {
+    const ls = [
+      postbank,
+      deadline('sond', 3200, '2027-03-01', 'lump'),
+      deadline('kredit', 600, '2027-03-31', 'spread'),
+    ];
+    const advice = loanAdvice(ls, { month: START, availableCents: 30000 });
+    expect(advice.freeCents).toBeLessThan(0);
+    expect(advice.suggestions).toEqual([]);
+    expect(advice.committed.map((c) => [c.loanId, c.kind, c.untilMonth])).toEqual([
+      ['sond', 'saving', '2027-03'],
+      ['pb', 'rate', null],
+      ['kredit', 'deadline', '2027-03'],
+    ]);
+    expect(advice.committed.reduce((s, c) => s + c.amountCents, 0)).toBe(advice.committedCents);
+  });
+
+  it('Ziel-Vorschläge nur, wenn sie ins Übrige passen', () => {
+    const gap = extraNeededForTarget(postbank, '2026-09')!;
     const advice = loanAdvice([postbank], {
       month: '2026-09',
-      availableCents: 30000,
-      strategy: 'avalanche',
+      availableCents: 36499 + gap - 1,
     });
-    expect(advice.freeCents).toBe(30000 - 36499);
-    expect(advice.suggestions.some((s) => s.kind === 'all')).toBe(false);
-    expect(advice.suggestions.find((s) => s.kind === 'target')!.fits).toBe(false);
+    expect(advice.suggestions.map((s) => s.kind)).toEqual(['interest']);
   });
 
-  it('die Strategie bestimmt, welcher Kredit das Extra bekommt; Einmalzahlungen nie', () => {
+  it('zwei Wege: meiste Zinsersparnis und schnellste Entlastung; Einmalzahlungen nie', () => {
     const ls = [
       loan('teuer', 1000, 10, 50),
       loan('klein', 500, 2, 50),
       deadline('klarna', 100, '2027-01-10', 'lump'),
     ];
-    const av = loanAdvice(ls, { month: START, availableCents: 30000, strategy: 'avalanche' });
-    const sn = loanAdvice(ls, { month: START, availableCents: 30000, strategy: 'snowball' });
-    expect(av.suggestions[0]!.loanId).toBe('teuer');
-    expect(sn.suggestions[0]!.loanId).toBe('klein');
+    const advice = loanAdvice(ls, { month: START, availableCents: 30000 });
+    expect(advice.suggestions.map((s) => [s.kind, s.loanId])).toEqual([
+      ['interest', 'teuer'],
+      ['relief', 'klein'],
+    ]);
+    const relief = advice.suggestions[1]!;
+    expect(relief.freedPaymentCents).toBe(5000);
+    expect(relief.monthsSooner).toBeGreaterThan(0);
     expect(extraPaymentOrder([ls[1]!, ls[0]!], 'avalanche').map((l) => l.id)).toEqual([
       'teuer',
       'klein',
     ]);
   });
 
+  it('schlägt nie mehr vor, als den Kredit ablöst', () => {
+    const advice = loanAdvice([loan('laptop', 300, 0, 75)], {
+      month: START,
+      availableCents: 400000,
+    });
+    expect(advice.suggestions).toHaveLength(1);
+    expect(advice.suggestions[0]).toMatchObject({ addCents: 30000 - 7500, payoffMonth: START });
+  });
+
   it('bestehende Extra-Tilgung wird fortgeschrieben', () => {
     const withExtra = { ...postbank, extraMonthlyCents: 5000 };
-    const advice = loanAdvice([withExtra], {
-      month: '2026-09',
-      availableCents: 60000,
-      strategy: 'avalanche',
-    });
-    const all = advice.suggestions.find((s) => s.kind === 'all')!;
+    const advice = loanAdvice([withExtra], { month: '2026-09', availableCents: 60000 });
+    const all = advice.suggestions.find((s) => s.kind === 'interest')!;
     expect(all).toMatchObject({
       addCents: 60000 - 36499 - 5000,
       newExtraMonthlyCents: 60000 - 36499,

@@ -70,3 +70,12 @@ Rückmeldung: Ein Budget, das automatisch verteilt wird („Diesen Monat 600 €
 - Ein **Zieldatum** beim Ratenkredit wird nur geprüft („Ziel wird erreicht“ bzw. „es fehlen X €/Monat“), nicht automatisch aufgestockt.
 - **„Verfügbar für Kredite“** (bisher „Budget“, gleiche Spalte `loan_budget_cents`) ändert keinen Plan, sondern erzeugt Vorschläge: Ziel erreichen, alles Verfügbare nutzen (Kredit nach Strategie) – jeweils mit Tilgungsmonat und Zinsersparnis. **„Übernehmen“** setzt die Extra-Tilgung des Kredits; ändern oder auf 0 setzen im Formular. Auch Zeilen der Beispielrechnung lassen sich übernehmen.
 - Frei werdende Raten rollen nicht mehr automatisch weiter; das bleibt eine bewusste Entscheidung.
+
+## Nachtrag 3 (25.09.2026): Vorschläge ohne Strategie-Auswahl
+
+Rückmeldung: Die Auswahl „Welcher Kredit bekommt im Vorschlag das Extra?“ war unverständlich, und die Vorschläge passten nicht zur Lage (z. B. Ziel-Vorschläge „mehr als verfügbar“).
+
+- **Reicht das Geld nicht:** keine Vorschläge für zusätzliche Tilgung, sondern die Aufstellung der geplanten Zahlungen (Rate, Frist-Rate, Zurücklegen, eigene Extra-Tilgung je Kredit) und wie viel fehlt.
+- **Ist Geld übrig:** zwei fertige Vorschläge nebeneinander – „Spart am meisten Zinsen“ (höchster Zins zuerst) und „Schnellste Entlastung“ (kleinste Schuld zuerst, danach fällt die Rate weg), je mit Tilgungsmonat, Monaten früher, Zinsersparnis und „Übernehmen“. Wählen beide denselben Kredit, erscheint er nur einmal. Ein Vorschlag ist nie höher als das, was den Kredit ablöst.
+- **Ziel-Vorschläge** nur, wenn sie ins Übrige passen; sonst bleibt der Hinweis auf der Kreditkarte.
+- Die Strategie-Auswahl ist entfallen (die Einstellung `strategy` bleibt im Schema und im Export, wird aber nicht mehr genutzt).

@@ -47,7 +47,6 @@ export class LoanPlanner {
     return loanAdvice(this.store.loans.items(), {
       month: this.month,
       availableCents: s?.loanBudgetCents ?? null,
-      strategy: s?.strategy ?? 'avalanche',
     });
   });
 

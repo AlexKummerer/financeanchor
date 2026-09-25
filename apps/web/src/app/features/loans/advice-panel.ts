@@ -1,21 +1,21 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, output, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import type { LoanSuggestion, Strategy } from '@financeanchor/shared';
+import type { LoanSuggestion } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { FinanceStore } from '../../core/data/finance-store';
 import { LoanPlanner } from '../../core/data/loan-planner';
-import { Segmented } from '../../core/forms/segmented';
 import { toCentsOrNull } from '../../core/forms/validators';
 import { Formatter } from '../../core/format/formatter';
 import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
 
 /**
- * Vorschläge für zusätzliche Tilgung aus dem verfügbaren Geld. Nichts ändert sich am Plan, bis ein
- * Vorschlag übernommen wird – dann wird er zur festen Extra-Tilgung des Kredits.
+ * Vorschläge für zusätzliche Tilgung aus dem verfügbaren Geld. Reicht es nicht, zeigt das Panel,
+ * woraus sich die geplanten Zahlungen zusammensetzen. Nichts ändert sich am Plan, bis ein Vorschlag
+ * übernommen wird – dann wird er zur festen Extra-Tilgung des Kredits.
  */
 @Component({
   selector: 'fa-advice-panel',
-  imports: [ReactiveFormsModule, TranslocoPipe, MoneyPipe, MonthPipe, Segmented],
+  imports: [NgTemplateOutlet, TranslocoPipe, MoneyPipe, MonthPipe],
   template: `
     <div>
       <label for="ln-available">{{ 'loans.advice.available' | transloco }}</label>
@@ -37,19 +37,24 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
       </p>
     </div>
 
-    @if (advice().freeCents !== null) {
-      @if (advice().freeCents! < 0) {
-        <p class="warn" role="status">
-          {{
-            'loans.advice.overCommitted'
-              | transloco
-                : {
-                    planned: (advice().committedCents | money),
-                    available: (advice().availableCents | money),
-                  }
-          }}
-        </p>
-      } @else if (advice().freeCents! > 0) {
+    @if (advice().availableCents === null) {
+      <p class="small muted">{{ 'loans.advice.enterAvailable' | transloco }}</p>
+    } @else if (advice().freeCents! < 0) {
+      <p class="warn" role="status">
+        {{
+          'loans.advice.overCommitted'
+            | transloco
+              : {
+                  planned: (advice().committedCents | money),
+                  available: (advice().availableCents | money),
+                  missing: (-advice().freeCents! | money),
+                }
+        }}
+      </p>
+      <p class="small muted hint">{{ 'loans.advice.overHint' | transloco }}</p>
+      <ng-container *ngTemplateOutlet="breakdown" />
+    } @else {
+      @if (advice().freeCents! > 0) {
         <p class="free">
           {{
             'loans.advice.free'
@@ -60,68 +65,101 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
                   }
           }}
         </p>
+      } @else {
+        <p class="small muted free">{{ 'loans.advice.nothingFree' | transloco }}</p>
       }
-    }
 
-    @if (advice().suggestions.length) {
-      <ul class="suggestions">
-        @for (s of advice().suggestions; track s.kind + s.loanId) {
-          <li>
-            <p class="title">{{ title(s) }}</p>
-            <p class="amount">
-              +{{ s.addCents | money
-              }}<span class="muted small"> {{ 'common.perMonth' | transloco }}</span>
-            </p>
-            <p class="small muted">
+      @if (advice().suggestions.length) {
+        <ul class="suggestions">
+          @for (s of advice().suggestions; track s.kind + s.loanId) {
+            <li>
+              <p class="title">{{ title(s) }}</p>
+              <p class="small">{{ why(s) }}</p>
+              <p class="amount">
+                +{{ s.addCents | money
+                }}<span class="muted small"> {{ 'common.perMonth' | transloco }}</span>
+              </p>
               @if (s.payoffMonth) {
-                {{
-                  'loans.advice.effect'
-                    | transloco
-                      : {
-                          month: (s.payoffMonth | faMonth: 'short'),
-                          n: s.monthsSooner,
-                          interest: (s.interestSavedCents | money: true),
-                        }
-                }}
+                <p class="small muted">
+                  {{
+                    (s.interestSavedCents > 0
+                      ? 'loans.advice.effect'
+                      : 'loans.advice.effectNoInterest'
+                    )
+                      | transloco
+                        : {
+                            month: (s.payoffMonth | faMonth: 'short'),
+                            n: s.monthsSooner,
+                            interest: (s.interestSavedCents | money: true),
+                          }
+                  }}
+                </p>
               }
-              @if (s.fits === false) {
-                <span class="neg"> · {{ 'loans.advice.notFitting' | transloco }}</span>
-              }
-            </p>
-            <button class="btn ghost" type="button" [disabled]="busy()" (click)="adopt(s)">
-              {{ 'loans.advice.adopt' | transloco }}
-            </button>
-          </li>
+              <button class="btn ghost" type="button" [disabled]="busy()" (click)="adopt(s)">
+                {{ 'loans.advice.adopt' | transloco }}
+              </button>
+            </li>
+          }
+        </ul>
+        @if (advice().baseline; as b) {
+          <p class="small muted">
+            {{
+              (b.debtFreeMonth ? 'loans.advice.baseline' : 'loans.advice.baselineStuck')
+                | transloco
+                  : {
+                      month: (b.debtFreeMonth | faMonth: 'short'),
+                      interest: (b.totalInterestCents | money: true),
+                    }
+            }}
+          </p>
         }
-      </ul>
-      @if (advice().baseline; as b) {
-        <p class="small muted">
-          {{
-            (b.debtFreeMonth ? 'loans.advice.baseline' : 'loans.advice.baselineStuck')
-              | transloco
-                : {
-                    month: (b.debtFreeMonth | faMonth: 'short'),
-                    interest: (b.totalInterestCents | money: true),
-                  }
-          }}
-        </p>
       }
-    } @else if (advice().availableCents === null) {
-      <p class="small muted">{{ 'loans.advice.enterAvailable' | transloco }}</p>
-    } @else if ((advice().freeCents ?? 0) === 0) {
-      <p class="small muted">{{ 'loans.advice.nothingFree' | transloco }}</p>
+
+      @if (advice().committed.length) {
+        <details class="more">
+          <summary>
+            {{
+              'loans.advice.breakdown' | transloco: { planned: (advice().committedCents | money) }
+            }}
+          </summary>
+          <ng-container *ngTemplateOutlet="breakdown" />
+        </details>
+      }
     }
 
-    @if (loanCount() > 1) {
-      <div class="strategy">
-        <p class="label" aria-hidden="true">{{ 'loans.strategy' | transloco }}</p>
-        <fa-segmented
-          [formControl]="strategy"
-          [options]="strategyOptions()"
-          [label]="'loans.strategy' | transloco"
-        />
-      </div>
-    }
+    <ng-template #breakdown>
+      <table class="breakdown small">
+        <tbody>
+          @for (c of advice().committed; track c.loanId + c.kind) {
+            <tr>
+              <td>
+                {{ loanName(c.loanId) }}
+                <span class="muted">
+                  ·
+                  {{
+                    'loans.advice.item.' + c.kind
+                      | transloco: { month: (c.untilMonth | faMonth: 'short') }
+                  }}
+                </span>
+              </td>
+              <td class="num">{{ c.amountCents | money }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">{{ 'loans.advice.plannedTotal' | transloco }}</th>
+            <td class="num">{{ advice().committedCents | money }}</td>
+          </tr>
+          @if (advice().freeCents! < 0) {
+            <tr class="neg">
+              <th scope="row">{{ 'loans.advice.missing' | transloco }}</th>
+              <td class="num">{{ -advice().freeCents! | money }}</td>
+            </tr>
+          }
+        </tfoot>
+      </table>
+    </ng-template>
   `,
   styles: `
     .hint {
@@ -135,7 +173,16 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
       padding: 0;
       margin: 12px 0;
       display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 10px;
+    }
+    .suggestions li {
+      display: flex;
+      flex-direction: column;
+    }
+    .suggestions li .btn {
+      margin-top: auto;
+      align-self: flex-start;
     }
     .suggestions li {
       background: var(--bg);
@@ -151,16 +198,34 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
       margin: 2px 0;
     }
     .suggestions .btn {
-      margin-top: 8px;
       background: var(--surface);
     }
-    .strategy {
-      margin-top: 14px;
+    .amount + .small {
+      margin-bottom: 8px;
     }
-    .label {
-      font-size: 0.82rem;
-      color: var(--muted);
-      margin-bottom: 4px;
+    .breakdown {
+      width: 100%;
+      margin-top: 8px;
+      border-collapse: collapse;
+    }
+    .breakdown td,
+    .breakdown th {
+      padding: 4px 0;
+      text-align: left;
+      font-weight: normal;
+    }
+    .breakdown tfoot th,
+    .breakdown tfoot td {
+      font-weight: 600;
+      border-top: 1px solid var(--line);
+    }
+    .num {
+      text-align: right !important;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .more {
+      margin-top: 12px;
     }
   `,
 })
@@ -176,41 +241,51 @@ export class AdvicePanel {
   protected readonly advice = this.planner.advice;
   protected readonly error = signal(false);
   protected readonly busy = signal(false);
-  /** Strategie nur, wenn es mehrere Kredite gibt, die Extra bekommen können. */
-  protected readonly loanCount = computed(
-    () =>
-      this.store.loans.items().filter((l) => l.balanceCents > 0 && l.paymentMode !== 'lump').length,
-  );
   protected readonly availableText = computed(() => {
     const v = this.store.settings()?.loanBudgetCents ?? null;
     return v === null ? '' : this.f.amountInput(v);
   });
-  protected readonly strategy = new FormControl<Strategy>(
-    this.store.settings()?.strategy ?? 'avalanche',
-    {
-      nonNullable: true,
-    },
-  );
-  protected readonly strategyOptions = computed(() => [
-    { value: 'avalanche' as const, label: this.t.translate('loans.avalanche') },
-    { value: 'snowball' as const, label: this.t.translate('loans.snowball') },
-  ]);
 
-  constructor() {
-    this.strategy.valueChanges.subscribe(
-      (strategy) => void this.store.updateSettings({ strategy }),
-    );
+  protected loanName(id: string): string {
+    return this.store.loans.byId().get(id)?.name ?? '';
   }
 
   protected title(s: LoanSuggestion): string {
     const loan = this.store.loans.byId().get(s.loanId);
+    switch (s.kind) {
+      case 'target':
+        return this.t.translate('loans.advice.targetTitle', {
+          month: loan?.targetMonth ? this.f.month(loan.targetMonth, 'short') : '',
+        });
+      case 'interest':
+        return this.t.translate('loans.advice.interestTitle');
+      case 'relief':
+        return this.t.translate('loans.advice.reliefTitle');
+    }
+  }
+
+  protected why(s: LoanSuggestion): string {
+    const loan = this.store.loans.byId().get(s.loanId);
     const name = loan?.name ?? '';
-    return s.kind === 'target'
-      ? this.t.translate('loans.advice.targetTitle', {
+    switch (s.kind) {
+      case 'target':
+        return this.t.translate('loans.advice.targetWhy', {
           name,
           month: loan?.targetMonth ? this.f.month(loan.targetMonth, 'short') : '',
-        })
-      : this.t.translate('loans.advice.allTitle', { name });
+        });
+      case 'interest':
+        return this.t.translate('loans.advice.interestWhy', {
+          name,
+          rate: this.f.percent(loan?.rateBp ?? 0),
+        });
+      case 'relief':
+        return s.freedPaymentCents > 0
+          ? this.t.translate('loans.advice.reliefWhy', {
+              name,
+              payment: this.f.money(s.freedPaymentCents),
+            })
+          : this.t.translate('loans.advice.reliefWhyNoRate', { name });
+    }
   }
 
   protected saveAvailable(value: string) {

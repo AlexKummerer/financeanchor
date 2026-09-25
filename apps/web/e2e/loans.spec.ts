@@ -37,22 +37,26 @@ test('„Tilgen bis Datum“, Beispielrechnung und Vorschläge zum Übernehmen',
     card.locator('fa-scenario-table tbody tr').filter({ hasText: 'dein Betrag' }),
   ).toContainText('3 Monate');
 
-  // Verfügbares Geld ändert nichts am Plan, erzeugt aber Vorschläge zum Übernehmen
+  // Verfügbares Geld ändert nichts am Plan; reicht es nicht, zeigt die App die Aufstellung
   const planned = page.locator('dl.split');
   const before = await planned.textContent();
-  await page.getByLabel('Verfügbar für Kredite pro Monat (€)').fill('2.000');
-  await page.getByLabel('Verfügbar für Kredite pro Monat (€)').press('Tab');
-  await expect(page.getByText(/mehr als geplant/)).toBeVisible();
+  const available = page.getByLabel('Verfügbar für Kredite pro Monat (€)');
+  const panel = page.locator('fa-advice-panel');
+  await available.fill('1');
+  await available.press('Tab');
+  await expect(panel.getByText(/es fehlen/)).toBeVisible();
+  await expect(panel.locator('table.breakdown')).toContainText('Privatkredit E2E');
+  await expect(panel.locator('li')).toHaveCount(0);
+
+  // Ist Geld übrig, gibt es fertige Vorschläge zum Übernehmen
+  await available.fill('2.000');
+  await available.press('Tab');
+  await expect(page.getByText(/bleiben .* übrig/)).toBeVisible();
   await expect(planned).toHaveText(before ?? '');
 
-  const suggestion = page
-    .locator('fa-advice-panel li')
-    .filter({ hasText: 'Alles Verfügbare zusätzlich in Autokredit' });
+  const suggestion = panel.locator('li').filter({ hasText: 'Spart am meisten Zinsen' });
   await suggestion.getByRole('button', { name: 'Übernehmen' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'übernommen' })).toBeVisible();
-  await expect(page.locator('fa-loan-card').filter({ hasText: 'Autokredit' })).toContainText(
-    'Eigene Extra-Tilgung',
-  );
   await expect(page.locator('dl.split')).toContainText('Eigene Extra-Tilgung');
 
   await expect(page.getByRole('heading', { name: 'Aufteilung pro Monat' })).toBeVisible();
