@@ -355,7 +355,9 @@
     "deleteNamed": "Buchung {{name}} löschen",
     "deleted": "Gelöscht",
     "deleteManagedTitle": "Automatisch gebuchte Buchung löschen?",
-    "deleteManagedText": "Änderungen am Rücklagenkonto bzw. an der Restschuld werden rückgängig gemacht und der Posten ist in diesem Monat wieder offen."
+    "deleteManagedText": "Änderungen am Rücklagenkonto bzw. an der Restschuld werden rückgängig gemacht und der Posten ist in diesem Monat wieder offen.",
+    "paidWith": "Bezahlt mit",
+    "paidAccount": "Konto / bar"
   },
   "categories": {
     "title": "Kategorien",
@@ -463,7 +465,8 @@
       "checking": "Konto",
       "savings": "Tagesgeld",
       "depot": "Depot",
-      "other": "Sonstiges"
+      "other": "Sonstiges",
+      "credit_card": "Kreditkarte"
     },
     "value": "Aktueller Wert (€)",
     "saved": "Gespeichert",
@@ -490,5 +493,33 @@
     "importConfirm": "Ersetzen",
     "imported": "Sicherung eingelesen",
     "importInvalid": "Die Datei ist keine gültige Sicherung."
+  },
+  "cards": {
+    "title": "Kreditkarten",
+    "hint": "Käufe mit Karte trägst du unter Buchungen mit „Bezahlt mit“ und dem Kaufdatum ein. Die Abbuchung vom Konto erscheint unter „Fällige übernehmen“ und zählt nicht als Ausgabe.",
+    "open": "offen auf der Karte",
+    "debitFrom": "abgebucht von {{account}}",
+    "previous": "Letzte Abrechnung",
+    "current": "Laufende Abrechnung",
+    "entries": "{{n}} Buchungen",
+    "debitOn": "Abbuchung am {{date}}",
+    "debited": "am {{date}} abgebucht (gebucht)",
+    "bankAmount": "Betrag laut Abrechnung der Bank (€)",
+    "bankPlaceholder": "zum Abgleich eintragen",
+    "matches": "Stimmt überein – alle Posten sind gebucht.",
+    "missing": "Laut Bank {{amount}} mehr – fehlt eine Buchung?",
+    "tooMuch": "{{amount}} mehr gebucht als abgerechnet – doppelt oder falscher Zeitraum?",
+    "noEntries": "Keine Buchungen in diesem Zeitraum.",
+    "openNow": "Aktuell offen auf der Karte (€)",
+    "statementDay": "Abrechnungsstichtag",
+    "statementHint": "Käufe bis einschließlich diesem Tag kommen auf die Abrechnung.",
+    "monthEnd": "Monatsende",
+    "debitDay": "Abbuchungstag",
+    "debitHint": "Liegt er vor dem Stichtag, wird im Folgemonat abgebucht (z. B. Amex am 4.).",
+    "debitAccount": "Abgebucht von",
+    "noDebitAccount": "– kein Konto –",
+    "settings": "Einstellungen",
+    "settingsNamed": "Einstellungen von {{name}}",
+    "entry": "1 Buchung"
   }
 }

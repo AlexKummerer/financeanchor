@@ -355,7 +355,9 @@
     "deleteNamed": "Delete transaction {{name}}",
     "deleted": "Deleted",
     "deleteManagedTitle": "Delete automatically booked transaction?",
-    "deleteManagedText": "Changes to the reserve account or loan balance are reverted and the item is open again this month."
+    "deleteManagedText": "Changes to the reserve account or loan balance are reverted and the item is open again this month.",
+    "paidWith": "Paid with",
+    "paidAccount": "Account / cash"
   },
   "categories": {
     "title": "Categories",
@@ -463,7 +465,8 @@
       "checking": "Account",
       "savings": "Savings",
       "depot": "Investments",
-      "other": "Other"
+      "other": "Other",
+      "credit_card": "Credit card"
     },
     "value": "Current value (€)",
     "saved": "Saved",
@@ -490,5 +493,33 @@
     "importConfirm": "Replace",
     "imported": "Backup imported",
     "importInvalid": "This file is not a valid backup."
+  },
+  "cards": {
+    "title": "Credit cards",
+    "hint": "Enter card purchases under Transactions with “Paid with” and the purchase date. The debit from your account appears under “Book due items” and does not count as an expense.",
+    "open": "outstanding on the card",
+    "debitFrom": "debited from {{account}}",
+    "previous": "Last statement",
+    "current": "Current statement",
+    "entries": "{{n}} entries",
+    "debitOn": "Debit on {{date}}",
+    "debited": "debited on {{date}} (booked)",
+    "bankAmount": "Amount on the bank statement (€)",
+    "bankPlaceholder": "enter to reconcile",
+    "matches": "Matches – every entry is booked.",
+    "missing": "Bank shows {{amount}} more – is an entry missing?",
+    "tooMuch": "{{amount}} more booked than billed – duplicate or wrong period?",
+    "noEntries": "No entries in this period.",
+    "openNow": "Currently outstanding on the card (€)",
+    "statementDay": "Statement closing day",
+    "statementHint": "Purchases up to and including this day go on the statement.",
+    "monthEnd": "End of month",
+    "debitDay": "Debit day",
+    "debitHint": "If it is before the closing day, the debit happens the following month (e.g. Amex on the 4th).",
+    "debitAccount": "Debited from",
+    "noDebitAccount": "– no account –",
+    "settings": "Settings",
+    "settingsNamed": "Settings of {{name}}",
+    "entry": "1 entry"
   }
 }

@@ -43,7 +43,9 @@
         </select>
       </div>
       <div>
-        <label for="as-balance">{{ 'assets.value' | transloco }}</label>
+        <label for="as-balance">
+          {{ (isCard() ? 'cards.openNow' : 'assets.value') | transloco }}
+        </label>
         <input
           id="as-balance"
           formControlName="balance"
@@ -56,6 +58,41 @@
           <p id="as-balance-err" class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
         }
       </div>
+      @if (isCard()) {
+        <div>
+          <label for="as-statement">{{ 'cards.statementDay' | transloco }}</label>
+          <select
+            id="as-statement"
+            formControlName="statementDay"
+            aria-describedby="as-statement-hint"
+          >
+            @for (d of days; track d) {
+              <option [ngValue]="d">
+                {{ d === 31 ? ('cards.monthEnd' | transloco) : d + '.' }}
+              </option>
+            }
+          </select>
+          <p id="as-statement-hint" class="small muted">{{ 'cards.statementHint' | transloco }}</p>
+        </div>
+        <div>
+          <label for="as-debit">{{ 'cards.debitDay' | transloco }}</label>
+          <select id="as-debit" formControlName="debitDay" aria-describedby="as-debit-hint">
+            @for (d of days; track d) {
+              <option [ngValue]="d">{{ d + '.' }}</option>
+            }
+          </select>
+          <p id="as-debit-hint" class="small muted">{{ 'cards.debitHint' | transloco }}</p>
+        </div>
+        <div class="full">
+          <label for="as-debit-account">{{ 'cards.debitAccount' | transloco }}</label>
+          <select id="as-debit-account" formControlName="debitAccountId">
+            <option [ngValue]="null">{{ 'cards.noDebitAccount' | transloco }}</option>
+            @for (a of debitAccounts(); track a.id) {
+              <option [ngValue]="a.id">{{ a.name }}</option>
+            }
+          </select>
+        </div>
+      }
       <div class="full">
         <button class="btn" type="submit">{{ 'common.save' | transloco }}</button>
       </div>
@@ -79,6 +116,16 @@
             {{ a.name }}
           </button>
           <span class="tag">{{ 'assets.kinds.' + a.kind | transloco }}</span>
+          @if (a.kind === 'credit_card') {
+            <button
+              type="button"
+              class="linkbtn card-settings"
+              (click)="editCard(a)"
+              [attr.aria-label]="'cards.settingsNamed' | transloco: { name: a.name }"
+            >
+              {{ 'cards.settings' | transloco }}
+            </button>
+          }
         </div>
         <button
           type="button"
@@ -116,6 +163,20 @@
     }
   </ul>
 </section>
+
+@if (cards().length) {
+  <h2 id="cards-title">{{ 'cards.title' | transloco }}</h2>
+  <p class="small muted" style="margin-bottom: 8px">{{ 'cards.hint' | transloco }}</p>
+  @for (c of cards(); track c.id) {
+    <section class="panel" style="margin-bottom: 12px" [attr.aria-label]="c.name">
+      @if (statementOf(c.id); as st) {
+        <fa-card-statements [card]="c" [data]="st" [accounts]="store.accounts.items()" />
+      } @else {
+        <p class="muted small">{{ 'common.loading' | transloco }}</p>
+      }
+    </section>
+  }
+}
 
 <h2 id="data-title">{{ 'assets.dataTitle' | transloco }}</h2>
 <section class="panel stack" aria-labelledby="data-title">

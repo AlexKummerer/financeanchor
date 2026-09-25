@@ -79,7 +79,15 @@ export class TransactionsPage {
     date: [this.clock.today(), Validators.required],
     name: ['', [Validators.required, Validators.maxLength(100)]],
     category: ['', [Validators.required, Validators.maxLength(100)]],
+    /** Bezahlt mit (Kreditkarte); `null` = Konto/bar. Bleibt nach dem Speichern stehen. */
+    paidWith: this.fb.control<string | null>(null),
   });
+  protected readonly cards = computed(() =>
+    this.store.accounts.items().filter((a) => a.kind === 'credit_card'),
+  );
+  protected cardName(id: string | null): string | null {
+    return id ? (this.store.accounts.byId().get(id)?.name ?? null) : null;
+  }
   protected readonly kindOptions = computed(() => [
     { value: 'out' as const, label: this.t.translate('tx.expense') },
     { value: 'in' as const, label: this.t.translate('tx.income') },
@@ -115,8 +123,11 @@ export class TransactionsPage {
           name: v.name.trim(),
           categoryId: category.id,
           amountCents: v.kind === 'in' ? cents : -cents,
+          accountId: v.paidWith,
         }),
       );
+      // Kartenstand kommt aus den Buchungen
+      if (v.paidWith) await this.store.reloadBalances();
       this.month.set(monthOfDate(v.date));
       this.transactions.reload();
       this.monthsWithData.reload();
@@ -156,7 +167,7 @@ export class TransactionsPage {
       this.transactions.reload();
       this.monthsWithData.reload();
       this.categoriesManager()?.refresh();
-      if (tx.kind !== 'normal') {
+      if (tx.kind !== 'normal' || tx.accountId) {
         await this.store.reloadBalances();
         void this.planner.refresh();
       }

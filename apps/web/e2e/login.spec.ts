@@ -13,7 +13,7 @@ test.describe('Login', () => {
   });
 
   test('anmelden, Übersicht sehen und wieder abmelden', async ({ page }) => {
-    await login(page);
+    await login(page, { fresh: true });
     await expect(page.getByText(/Voraussichtlich frei im/)).toBeVisible();
     const compare = page.locator('table.compare');
     await expect(compare.getByRole('columnheader', { name: 'Voraussichtlich' })).toBeVisible();

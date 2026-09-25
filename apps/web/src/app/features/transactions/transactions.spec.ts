@@ -36,6 +36,7 @@ describe('TransactionsPage', () => {
               create,
               byId: signal(new Map(cats.map((c) => [c.id, c]))),
             },
+            accounts: { items: signal([]), byId: signal(new Map()) },
             userCategories: signal(cats),
             categoryName: (id: string) => cats.find((c) => c.id === id)?.name ?? '–',
             reloadBalances: vi.fn(),
@@ -83,6 +84,7 @@ describe('TransactionsPage', () => {
       name: 'Edeka',
       categoryId: 'c-food',
       amountCents: -6430,
+      accountId: null,
     });
     expect(create).not.toHaveBeenCalled();
     req.flush({});

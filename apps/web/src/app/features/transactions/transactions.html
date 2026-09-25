@@ -65,6 +65,17 @@
         }
         <p id="tx-cat-hint" class="visually-hidden">{{ 'tx.categoryHint' | transloco }}</p>
       </div>
+      @if (cards().length) {
+        <div class="full">
+          <label for="tx-paid">{{ 'tx.paidWith' | transloco }}</label>
+          <select id="tx-paid" formControlName="paidWith">
+            <option [ngValue]="null">{{ 'tx.paidAccount' | transloco }}</option>
+            @for (c of cards(); track c.id) {
+              <option [ngValue]="c.id">{{ c.name }}</option>
+            }
+          </select>
+        </div>
+      }
       <div class="full">
         <button class="btn" type="submit" [disabled]="saving()">{{ 'tx.save' | transloco }}</button>
       </div>
@@ -114,6 +125,9 @@
             <div class="name">{{ tx.name }}</div>
             <span class="small muted">{{ tx.date | faDate: 'dayMonth' }}</span>
             <span class="tag">{{ store.categoryName(tx.categoryId) }}</span>
+            @if (cardName(tx.accountId); as card) {
+              <span class="tag card">{{ card }}</span>
+            }
           </div>
           <div class="amt" [class.pos]="tx.amountCents > 0">{{ tx.amountCents | money }}</div>
           <button

@@ -142,4 +142,34 @@ describe('Kreditkarten', () => {
     const giro = accs.find((a) => a.kind === 'checking')!;
     expect(card).toMatchObject({ debitAccountId: giro.id, balanceCents: -4550 });
   });
+
+  it('Abrechnungen zum Abgleich: laufende und letzte mit Summe, Buchungen und Status', async () => {
+    const { api } = await newUser();
+    const { amex, buy } = await setup(api);
+    await buy(`${lastMonth}-05`, -4550);
+    await buy(`${lastMonth}-06`, -1000);
+    await buy(`${thisMonth}-01`, -700);
+    const [st] = (await api.get(`/accounts/card-statements?today=${today}`)).body as {
+      cardId: string;
+      current: { from: string; to: string; amountCents: number; count: number; paid: boolean };
+      previous: {
+        from: string;
+        debitDate: string;
+        amountCents: number;
+        count: number;
+        paid: boolean;
+        transactions: { name: string; amountCents: number }[];
+      };
+    }[];
+    expect(st!.cardId).toBe(amex.id);
+    expect(st!.current).toMatchObject({ from: `${thisMonth}-01`, amountCents: 700, count: 1 });
+    expect(st!.previous).toMatchObject({
+      from: `${lastMonth}-01`,
+      debitDate: `${thisMonth}-04`,
+      amountCents: 5550,
+      count: 2,
+    });
+    expect(st!.previous.transactions.map((t) => t.amountCents)).toEqual([-4550, -1000]);
+    expect((await api.get('/accounts/card-statements')).status).toBe(400);
+  });
 });

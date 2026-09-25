@@ -34,3 +34,9 @@ Wunsch (25.09.2026): Zwei Kreditkarten – eine rechnet bis zum 24. ab und wird 
 1. Fachlogik (`shared`): Konto-Felder, Buchungsart, Abrechnungszeiträume, Kartenstand, Fälligkeit, Ausschluss aus Summen – mit Tests.
 2. Backend: Migration (+ Test), Konten-API mit berechnetem Kartenstand, Buchungen mit `accountId`, Fälligkeit, Export/Import.
 3. Oberfläche: Karte anlegen/bearbeiten, „bezahlt mit“ bei Buchungen, Kartenübersicht mit Abgleich.
+
+## Umgesetzt (26.09.2026)
+
+- Alle drei Schritte. Zusätzlich: `/api/accounts/card-statements?today=` liefert laufende und letzte Abrechnung je Karte mit Buchungen und ob die Abbuchung gebucht ist; der Abgleich-Betrag der Bank wird nur im Browser verglichen, nicht gespeichert.
+- Nebenbei behoben: Teiländerungen (PATCH) setzten fehlende Felder mit Standardwert zurück (`patchSchema` in `shared`).
+- E2E-Tests nutzen eine Sitzung weiter (`login()` in `e2e/fixtures.ts`), damit die Login-Sperre (10/Minute) nicht greift.

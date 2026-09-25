@@ -18,3 +18,8 @@
   width: 44px;
   flex: none;
 }
+
+.card-settings {
+  margin-left: 8px;
+  font-size: 0.82rem;
+}

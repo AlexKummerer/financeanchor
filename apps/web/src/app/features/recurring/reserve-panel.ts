@@ -155,7 +155,7 @@ export class ReservePanel {
   private readonly bookedKeys = signal<ReadonlySet<string>>(new Set());
 
   protected readonly accounts = computed(() =>
-    this.store.accounts.items().filter((a) => a.kind !== 'depot'),
+    this.store.accounts.items().filter((a) => a.kind !== 'depot' && a.kind !== 'credit_card'),
   );
   protected readonly balance = computed(() => {
     const id = this.pot()?.accountId;

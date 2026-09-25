@@ -1,4 +1,5 @@
-import { HttpClient } from '@angular/common/http';
+import { Dialog } from '@angular/cdk/dialog';
+import { HttpClient, httpResource } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
@@ -21,11 +22,13 @@ import { ApiError, toApiError } from '../../core/http/api-error';
 import { FileSaver } from '../../core/platform/file-saver';
 import { Dialogs } from '../../core/ui/dialogs';
 import { ToastService } from '../../core/ui/toast.service';
+import { CardSettingsDialog, DAYS, type CardSettings } from './card-settings';
+import { CardStatements, type CardStatementsView } from './card-statements';
 import { NetWorthChart } from './net-worth-chart';
 
 @Component({
   selector: 'fa-assets',
-  imports: [ReactiveFormsModule, TranslocoPipe, MoneyPipe, DatePipe, NetWorthChart],
+  imports: [ReactiveFormsModule, TranslocoPipe, MoneyPipe, DatePipe, NetWorthChart, CardStatements],
   templateUrl: './assets.html',
   styleUrl: './assets.css',
 })
@@ -38,8 +41,25 @@ export class AssetsPage {
   private readonly dialogs = inject(Dialogs);
   private readonly toast = inject(ToastService);
   private readonly files = inject(FileSaver);
+  private readonly dialog = inject(Dialog);
 
   protected readonly kinds = accountKinds;
+  protected readonly days = DAYS;
+  /** Konten, von denen eine Karte abgebucht werden kann */
+  protected readonly debitAccounts = computed(() =>
+    this.store.accounts.items().filter((a) => a.kind !== 'credit_card'),
+  );
+  protected readonly cards = computed(() =>
+    this.store.accounts.items().filter((a) => a.kind === 'credit_card'),
+  );
+  protected readonly statements = httpResource<CardStatementsView[]>(
+    () =>
+      this.cards().length ? `/api/accounts/card-statements?today=${this.clock.today()}` : undefined,
+    { defaultValue: [] },
+  );
+  protected statementOf(cardId: string) {
+    return this.statements.value().find((s) => s.cardId === cardId) ?? null;
+  }
   protected readonly worth = computed(() =>
     netWorth(this.store.accounts.items(), this.store.loans.items()),
   );
@@ -56,7 +76,15 @@ export class AssetsPage {
     name: ['', [Validators.required, Validators.maxLength(100)]],
     kind: this.fb.control<AccountKind>('checking'),
     balance: ['', euroAmount({ min: -100_000_000_000 })],
+    statementDay: [31],
+    debitDay: [4],
+    debitAccountId: this.fb.control<string | null>(null),
   });
+  protected readonly isCard = signal(false);
+
+  constructor() {
+    this.form.controls.kind.valueChanges.subscribe((k) => this.isCard.set(k === 'credit_card'));
+  }
 
   protected invalid(name: 'name' | 'balance') {
     const c = this.form.controls[name];
@@ -68,12 +96,18 @@ export class AssetsPage {
     if (this.form.invalid) return;
     const v = this.form.getRawValue();
     try {
+      const card = v.kind === 'credit_card';
       await this.store.accounts.create({
         name: v.name.trim(),
         kind: v.kind,
-        balanceCents: toCents(v.balance),
+        // Bei Karten wird „offen“ als positiver Betrag eingegeben; gespeichert wird er negativ.
+        balanceCents: card ? -Math.abs(toCents(v.balance)) : toCents(v.balance),
+        statementDay: card ? v.statementDay : null,
+        debitDay: card ? v.debitDay : null,
+        debitAccountId: card ? v.debitAccountId : null,
       });
       this.form.reset({ kind: 'checking' });
+      if (card) this.statements.reload();
       this.submitted.set(false);
       this.toast.show(this.t.translate('assets.saved'));
     } catch {
@@ -98,6 +132,26 @@ export class AssetsPage {
     }
     try {
       await this.store.accounts.update(a.id, { balanceCents: cents });
+      this.toast.show(this.t.translate('assets.updated'));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    }
+  }
+
+  protected async editCard(card: Account) {
+    const ref = this.dialog.open<CardSettings>(CardSettingsDialog, {
+      data: { card, accounts: this.debitAccounts() },
+      panelClass: 'fa-dialog',
+      backdropClass: 'fa-backdrop',
+      ariaLabelledBy: 'fa-dialog-title',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+    });
+    const settings = await firstValueFrom(ref.closed);
+    if (!settings) return;
+    try {
+      await this.store.accounts.update(card.id, settings);
+      this.statements.reload();
       this.toast.show(this.t.translate('assets.updated'));
     } catch {
       this.toast.show(this.t.translate('errors.saveFailed'), 'error');
