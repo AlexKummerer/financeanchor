@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.angular/
+.wrangler/
+.dev.vars
+.env
+.env.*
+*.log
+.DS_Store

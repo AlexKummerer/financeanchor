@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Finanzen – alles an einem Ort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9EEF0; --surface:#FFFFFF; --ink:#132430; --muted:#5B6B75; --line:#D3DCE0;
+  --pine:#1D6A58; --pine-soft:#D6EAE3; --debt:#A8412C; --debt-soft:#F3DDD6;
+  --save:#3B5BA5; --save-soft:#DDE4F4; --fix:#7A6A2E; --fix-soft:#EFE9D2; --res:#7B5E9E; --res-soft:#E9E1F2;
+  --radius-lg:18px; --radius-sm:10px;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1A20; --surface:#172731; --ink:#E4ECEF; --muted:#93A5AE; --line:#2A3E49;
+    --pine:#5BC3A3; --pine-soft:#1B3A33; --debt:#E88A72; --debt-soft:#3C2621;
+    --save:#8FA8E8; --save-soft:#222E4A; --fix:#D4C27E; --fix-soft:#35301C; --res:#C1A6E4; --res-soft:#30263D;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1A20; --surface:#172731; --ink:#E4ECEF; --muted:#93A5AE; --line:#2A3E49;
+  --pine:#5BC3A3; --pine-soft:#1B3A33; --debt:#E88A72; --debt-soft:#3C2621;
+  --save:#8FA8E8; --save-soft:#222E4A; --fix:#D4C27E; --fix-soft:#35301C; --res:#C1A6E4; --res-soft:#30263D;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+main{max-width:760px;margin:0 auto;padding:18px 16px 110px}
+h1{font-size:1.9rem;line-height:1.1;margin:0;font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.15rem;margin:28px 0 10px;font-weight:700}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:18px}
+.status{font-size:.8rem;color:var(--muted)}
+.panel{background:var(--surface);border-radius:var(--radius-lg);padding:16px;border:1px solid var(--line)}
+.stack>*+*{margin-top:12px}
+
+/* Hero: Wohin fließt ein Monat */
+.flow-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.flow-free{font-size:2.6rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+.flow-bar{display:flex;height:46px;border-radius:12px;overflow:hidden;margin:16px 0 10px;background:var(--line)}
+.flow-bar span{display:block;height:100%;transition:flex-grow .5s ease}
+.seg-fix{background:var(--fix)} .seg-res{background:var(--res)} .seg-debt{background:var(--debt)} .seg-save{background:var(--save)} .seg-free{background:var(--pine)}
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
+.forecast{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:12px}
+.forecast div{background:var(--bg);border-radius:8px;padding:6px 4px;text-align:center;font-size:.78rem}
+.forecast b{display:block;font-size:.84rem}
+.forecast .low{background:var(--debt-soft);color:var(--debt)}
+.warn{background:var(--debt-soft);color:var(--debt);border-radius:var(--radius-sm);padding:10px 12px;font-size:.9rem;margin-top:12px}
+.legend div{display:flex;gap:8px;align-items:baseline}
+.dot{width:10px;height:10px;border-radius:3px;flex:none;transform:translateY(1px)}
+.legend b{margin-left:auto;font-weight:600}
+.over{color:var(--debt);font-weight:600}
+
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.kpi p:first-child{font-size:.86rem;color:var(--muted)}
+.kpi p:nth-child(2){font-size:1.35rem;font-weight:700;margin-top:2px}
+.pos{color:var(--pine)} .neg{color:var(--debt)}
+
+/* Listen */
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .grow{flex:1;min-width:0}
+.list .name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .amt{font-weight:600;text-align:right;white-space:nowrap}
+.tag{display:inline-block;font-size:.76rem;padding:1px 8px;border-radius:99px;background:var(--bg);color:var(--muted)}
+.tag.fix{background:var(--fix-soft);color:var(--fix)} .tag.debt{background:var(--debt-soft);color:var(--debt)}
+.tag.res{background:var(--res-soft);color:var(--res)} .tag.save{background:var(--save-soft);color:var(--save)} .tag.inc{background:var(--pine-soft);color:var(--pine)}
+.iconbtn{border:0;background:transparent;color:var(--muted);font:inherit;font-size:1.1rem;padding:6px 8px;border-radius:8px;cursor:pointer}
+.iconbtn:hover{background:var(--bg);color:var(--ink)}
+.empty{padding:18px 4px;color:var(--muted)}
+
+/* Formulare */
+form.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+form.grid .full{grid-column:1/-1}
+label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 11px;min-height:44px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--pine);outline-offset:1px}
+.btn{font:inherit;font-weight:600;border:0;border-radius:var(--radius-sm);padding:11px 16px;min-height:44px;cursor:pointer;background:var(--pine);color:#fff}
+[data-theme="dark"] .btn{color:#0F1A20}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn{color:#0F1A20}}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.seg{display:flex;background:var(--bg);border-radius:var(--radius-sm);padding:3px;gap:3px}
+.seg button{flex:1;font:inherit;font-size:.9rem;border:0;background:transparent;color:var(--muted);border-radius:8px;padding:8px;min-height:38px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+details summary{cursor:pointer;font-weight:600;padding:4px 0;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"+ ";color:var(--pine)}
+details[open] summary::before{content:"– "}
+details[open] summary{margin-bottom:12px}
+
+/* Kredite */
+.loan{padding:14px 0;border-bottom:1px solid var(--line)}
+.loan:last-child{border-bottom:0}
+.loan-top{display:flex;justify-content:space-between;gap:10px}
+.progress{height:8px;background:var(--debt-soft);border-radius:99px;overflow:hidden;margin:10px 0 6px}
+.progress span{display:block;height:100%;background:var(--debt)}
+.payoff{font-size:1.6rem;font-weight:800;letter-spacing:-.02em}
+
+/* Chart */
+.chart{width:100%;height:auto;display:block;margin-top:8px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .lineNet{fill:none;stroke:var(--pine);stroke-width:2.5;stroke-linejoin:round}
+.chart .area{fill:var(--pine-soft)}
+.chart text{fill:var(--muted);font-size:11px;font-family:inherit}
+
+/* Tabbar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);z-index:10}
+nav.tabs .inner{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs button{font:inherit;font-size:.74rem;border:0;background:transparent;color:var(--muted);padding:9px 2px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button[aria-selected="true"]{color:var(--pine);font-weight:700}
+.view{display:none}.view.active{display:block}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.toast.show{opacity:1}
+.scroll-x{overflow-x:auto}
+@media (min-width:640px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))} form.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1 id="title">Übersicht</h1>
+    <span class="status" id="status">Lokal gespeichert</span>
+  </div>
+
+  <!-- ÜBERSICHT -->
+  <section class="view active" id="v-home" aria-labelledby="title">
+    <div class="panel">
+      <div class="flow-head">
+        <div>
+          <p class="muted small">Frei verfügbar pro Monat</p>
+          <p class="flow-free" id="h-free">0 €</p>
+        </div>
+        <p class="muted small" id="h-income">von 0 € Einnahmen</p>
+      </div>
+      <div class="flow-bar" id="h-bar" role="img" aria-label="Aufteilung der monatlichen Einnahmen"></div>
+      <div class="legend" id="h-legend"></div>
+    </div>
+
+    <div class="kpis">
+      <div class="panel kpi"><p>Nettovermögen</p><p id="k-net">0 €</p><p class="small muted" id="k-net-d"></p></div>
+      <div class="panel kpi"><p>Restschuld Kredite</p><p id="k-debt">0 €</p><p class="small muted" id="k-debt-d"></p></div>
+      <div class="panel kpi"><p id="k-month-l">Dieser Monat</p><p id="k-month">0 €</p><p class="small muted" id="k-month-d"></p></div>
+      <div class="panel kpi"><p>Schuldenfrei</p><p id="k-free">–</p><p class="small muted" id="k-free-d"></p></div>
+    </div>
+
+    <h2>Ausgaben diesen Monat nach Kategorie</h2>
+    <div class="panel"><ul class="list" id="h-cats"></ul></div>
+
+    <h2>Diesen Monat fällig</h2>
+    <div class="panel">
+      <ul class="list" id="h-due"></ul>
+      <div class="btnrow" style="margin-top:12px"><button class="btn" id="btn-book-due">Fällige als Buchungen übernehmen</button></div>
+    </div>
+  </section>
+
+  <!-- BUCHUNGEN -->
+  <section class="view" id="v-tx">
+    <div class="panel">
+      <details id="tx-details" open>
+        <summary>Buchung erfassen</summary>
+        <form class="grid" id="f-tx">
+          <div class="full"><div class="seg" role="group" aria-label="Art">
+            <button type="button" data-kind="out" aria-pressed="true">Ausgabe</button>
+            <button type="button" data-kind="in" aria-pressed="false">Einnahme</button>
+          </div></div>
+          <div><label for="tx-amt">Betrag (€)</label><input id="tx-amt" inputmode="decimal" required placeholder="0,00"></div>
+          <div><label for="tx-date">Datum</label><input id="tx-date" type="date" required></div>
+          <div><label for="tx-name">Name</label><input id="tx-name" list="dl-names" required placeholder="z. B. Edeka"></div>
+          <div><label for="tx-cat">Kategorie</label><input id="tx-cat" list="dl-cats" required placeholder="z. B. Lebensmittel"></div>
+          <div class="full"><button class="btn" type="submit">Buchung speichern</button></div>
+        </form>
+      </details>
+    </div>
+    <div class="top" style="margin:22px 0 10px">
+      <h2 style="margin:0">Buchungen</h2>
+      <select id="tx-month" style="width:auto" aria-label="Monat wählen"></select>
+    </div>
+    <div class="kpis" style="margin:0 0 12px">
+      <div class="panel kpi"><p>Einnahmen</p><p class="pos" id="tx-in">0 €</p></div>
+      <div class="panel kpi"><p>Ausgaben</p><p class="neg" id="tx-out">0 €</p></div>
+    </div>
+    <div class="panel"><ul class="list" id="tx-list"></ul></div>
+
+    <h2>Kategorien</h2>
+    <div class="panel">
+      <details id="cat-details">
+        <summary>Kategorien verwalten</summary>
+        <form class="grid" id="f-cat">
+          <div class="full" style="display:flex;gap:8px"><input id="cat-new" placeholder="Neue Kategorie" aria-label="Neue Kategorie" required><button class="btn" type="submit">Hinzufügen</button></div>
+        </form>
+        <p class="small muted" style="margin:12px 0 4px">Umbenennen ändert die Kategorie auch in allen bisherigen Buchungen und Fixkosten.</p>
+        <ul class="list" id="cat-list"></ul>
+      </details>
+    </div>
+  </section>
+
+  <!-- FIXKOSTEN -->
+  <section class="view" id="v-fix">
+    <p class="muted" style="margin-bottom:14px">Alles, was regelmäßig wiederkommt. Vierteljährliche oder jährliche Posten werden automatisch auf den Monat umgelegt.</p>
+    <div class="panel">
+      <details id="fix-details">
+        <summary>Posten hinzufügen</summary>
+        <form class="grid" id="f-fix">
+          <div class="full"><label for="fx-name">Name</label><input id="fx-name" required placeholder="z. B. Kfz-Versicherung"></div>
+          <div><label for="fx-amt">Betrag pro Fälligkeit (€)</label><input id="fx-amt" inputmode="decimal" required></div>
+          <div><label for="fx-int">Rhythmus</label>
+            <select id="fx-int"><option value="1">monatlich</option><option value="2">alle 2 Monate</option><option value="3">vierteljährlich</option><option value="6">halbjährlich</option><option value="12">jährlich</option></select></div>
+          <div><label for="fx-type">Art</label>
+            <select id="fx-type"><option value="fix">Fixkosten</option><option value="save">Sparen</option><option value="inc">Einnahme</option></select></div>
+          <div><label for="fx-start">Erste Fälligkeit (Monat)</label><select id="fx-start"></select></div>
+          <div class="full"><label for="fx-cat">Kategorie</label><input id="fx-cat" list="dl-cats" placeholder="z. B. Versicherungen"></div>
+          <div class="full"><button class="btn" type="submit">Posten speichern</button></div>
+        </form>
+      </details>
+    </div>
+    <div class="kpis" id="fix-sum"></div>
+    <h2>Rücklage für nicht-monatliche Kosten</h2>
+    <div class="panel">
+      <p class="small muted">Jeden Monat geht ein fester Betrag aufs Rücklagenkonto (als Ausgabe). Ist ein vierteljährlicher, halbjährlicher oder jährlicher Posten fällig, wird er als Ausgabe gebucht und derselbe Betrag als Umbuchung vom Rücklagenkonto zurückgeholt.</p>
+      <form class="grid" style="margin-top:12px" onsubmit="return false">
+        <div><label for="rs-amt">Monatliche Rücklage (€)</label><input id="rs-amt" inputmode="decimal"></div>
+        <div><label for="rs-acc">Rücklagenkonto</label><select id="rs-acc"></select></div>
+      </form>
+      <div class="kpis" id="rs-kpis"></div>
+      <div id="rs-warn"></div>
+      <p class="small muted" style="margin-top:14px">Voraussichtlicher Stand der Rücklage, jeweils nach den Buchungen des Monats</p>
+      <div class="forecast" id="rs-fc"></div>
+    </div>
+    <h2>Wiederkehrende Posten</h2>
+    <div class="panel"><ul class="list" id="fix-list"></ul></div>
+    <p class="small muted" style="margin-top:10px">Kreditraten stehen im Bereich Kredite und fließen automatisch in die Übersicht ein.</p>
+  </section>
+
+  <!-- KREDITE -->
+  <section class="view" id="v-debt">
+    <div class="panel">
+      <p class="muted small">Voraussichtlich schuldenfrei</p>
+      <p class="payoff" id="d-payoff">–</p>
+      <p class="small muted" id="d-payoff-d"></p>
+      <div style="margin-top:14px"><label>Strategie für Extra-Tilgung</label>
+        <div class="seg" role="group" aria-label="Strategie">
+          <button type="button" data-strat="avalanche">Höchster Zins zuerst</button>
+          <button type="button" data-strat="snowball">Kleinste Schuld zuerst</button>
+        </div></div>
+      <div style="margin-top:10px"><label for="d-extra">Extra-Tilgung pro Monat (€)</label><input id="d-extra" inputmode="decimal" placeholder="0"></div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <details id="debt-details">
+        <summary>Kredit hinzufügen</summary>
+        <form class="grid" id="f-debt">
+          <div class="full"><label for="db-name">Name</label><input id="db-name" required placeholder="z. B. Autokredit"></div>
+          <div><label for="db-bal">Restschuld (€)</label><input id="db-bal" inputmode="decimal" required></div>
+          <div><label for="db-rate">Zins p. a. (%)</label><input id="db-rate" inputmode="decimal" required></div>
+          <div><label for="db-pay">Monatliche Rate (€)</label><input id="db-pay" inputmode="decimal" required></div>
+          <div><label for="db-orig">Ursprünglicher Betrag (€)</label><input id="db-orig" inputmode="decimal" placeholder="optional"></div>
+          <div class="full"><button class="btn" type="submit">Kredit speichern</button></div>
+        </form>
+      </details>
+    </div>
+    <h2>Deine Kredite</h2>
+    <div class="panel" id="debt-list"></div>
+  </section>
+
+  <!-- VERMÖGEN -->
+  <section class="view" id="v-assets">
+    <div class="panel">
+      <p class="muted small">Nettovermögen (Konten und Depots minus Kredite)</p>
+      <p class="payoff" id="a-net">0 €</p>
+      <div class="scroll-x"><svg class="chart" id="a-chart" viewBox="0 0 340 150" preserveAspectRatio="none" role="img" aria-label="Verlauf Nettovermögen"></svg></div>
+      <div class="btnrow" style="margin-top:12px"><button class="btn" id="btn-snap">Stand festhalten</button></div>
+      <p class="small muted" style="margin-top:8px" id="a-snapinfo"></p>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <details id="asset-details">
+        <summary>Konto oder Depot hinzufügen</summary>
+        <form class="grid" id="f-asset">
+          <div class="full"><label for="as-name">Name</label><input id="as-name" required placeholder="z. B. Girokonto"></div>
+          <div><label for="as-type">Art</label><select id="as-type"><option>Konto</option><option>Tagesgeld</option><option>Depot</option><option>Sonstiges</option></select></div>
+          <div><label for="as-val">Aktueller Wert (€)</label><input id="as-val" inputmode="decimal" required></div>
+          <div class="full"><button class="btn" type="submit">Speichern</button></div>
+        </form>
+      </details>
+    </div>
+    <h2>Konten und Depots</h2>
+    <p class="small muted" style="margin-bottom:8px">Wert antippen, um ihn zu aktualisieren.</p>
+    <div class="panel"><ul class="list" id="asset-list"></ul></div>
+
+    <h2>Daten</h2>
+    <div class="panel stack">
+      <div class="btnrow">
+        <button class="btn ghost" id="btn-export">Sicherung herunterladen</button>
+        <label class="btn ghost" style="margin:0;color:var(--ink);display:inline-flex;align-items:center;font-size:1rem">Sicherung einlesen<input type="file" id="imp" accept="application/json" hidden></label>
+      </div>
+      <div class="btnrow">
+        <button class="btn ghost" id="btn-demo">Beispieldaten laden</button>
+        <button class="btn ghost" id="btn-reset">Alles löschen</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<datalist id="dl-cats"></datalist>
+<datalist id="dl-names"></datalist>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<nav class="tabs"><div class="inner" role="tablist">
+  <button role="tab" aria-selected="true" data-view="home" data-title="Übersicht"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Übersicht</button>
+  <button role="tab" aria-selected="false" data-view="tx" data-title="Haushaltsbuch"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Buchungen</button>
+  <button role="tab" aria-selected="false" data-view="fix" data-title="Fixkosten"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v4h4"/></svg>Fixkosten</button>
+  <button role="tab" aria-selected="false" data-view="debt" data-title="Kredite"><svg viewBox="0 0 24 24"><path d="M4 18L10 12l4 4 6-8"/><path d="M15 8h5v5"/></svg>Kredite</button>
+  <button role="tab" aria-selected="false" data-view="assets" data-title="Vermögen"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V10M10 20V6M14 20v-8M18 20V4"/></svg>Vermögen</button>
+</div></nav>
+
+<script>
+(function(){
+"use strict";
+const MONTHS=["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+const MONTHS_L=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+const DEFAULT_CATS=["Lebensmittel","Wohnen","Mobilität","Versicherungen","Freizeit","Kleidung","Gesundheit","Abos","Geschenke","Essen gehen","Gehalt","Sonstiges"];
+const LS_KEY="finanzen-app-v1";
+const fmt=new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+const fmt2=new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"});
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const num=v=>{if(v==null)return 0;const n=parseFloat(String(v).replace(/\./g,"").replace(",","."));return isFinite(n)?n:0};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ymKey=d=>d.slice(0,7);
+const today=()=>new Date().toISOString().slice(0,10);
+
+function empty(){return{tx:[],fix:[],loans:[],assets:[],snaps:[],extra:0,strat:"avalanche",booked:{},reserveAmt:0,reserveAcc:"",cats:null}}
+let S=empty();
+
+/* ---------- Speicherung: db (privat pro Person) mit localStorage als Rückfall ---------- */
+let dbRef=null, saveTimer=null;
+function lsLoad(){try{const r=localStorage.getItem(LS_KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function lsSave(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
+function setStatus(t){$("#status").textContent=t}
+function save(){
+  lsSave();
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    if(!dbRef)return;
+    try{await dbRef.set({json:JSON.stringify(S),updated:Date.now()});setStatus("Gespeichert")}
+    catch(e){setStatus(e&&e.code==="quota_exceeded"?"Speicher voll – Sicherung herunterladen":"Nur lokal gespeichert")}
+  },600);
+}
+async function initDb(){
+  if(!window.claude||!window.claude.use)return;
+  try{
+    const [db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
+    if(!db||!user)return;
+    const id=await user.id(); if(!id)return;
+    dbRef=db.doc("data/users/"+id+"/finanzen");
+    const snap=await dbRef.get();
+    if(snap.exists){
+      const d=snap.data();
+      try{S=Object.assign(empty(),JSON.parse(d.json));migrate();lsSave();safeRender()}catch(e){}
+    }else if(S.tx.length||S.fix.length||S.loans.length||S.assets.length){ save() }
+    setStatus("Gespeichert, privat");
+  }catch(e){setStatus("Nur lokal gespeichert")}
+}
+
+/* ---------- Berechnungen ---------- */
+const monthly=f=>num(f.amount)/(+f.interval||1);
+function isDue(f,y,m){const iv=+f.interval||1;const st=(+f.start||1)-1;return(((m-st)%iv)+iv)%iv===0}
+const viaReserve=f=>f.type!=="inc"&&(+f.interval||1)>1;
+function reserveNeed(){return S.fix.filter(viaReserve).reduce((a,f)=>a+monthly(f),0)}
+function reserveAmt(){return num(S.reserveAmt)>0?num(S.reserveAmt):Math.ceil(reserveNeed())}
+function totals(){
+  let fix=0,save=0,inc=0;
+  S.fix.forEach(f=>{if(viaReserve(f))return;const v=monthly(f);if(f.type==="inc")inc+=v;else if(f.type==="save")save+=v;else fix+=v});
+  const res=S.fix.some(viaReserve)||num(S.reserveAmt)>0?reserveAmt():0;
+  const debt=S.loans.reduce((a,l)=>a+num(l.payment),0)+num(S.extra);
+  return{fix,save,inc,debt,res,free:inc-fix-res-save-debt};
+}
+function reserveBalance(){const a=S.assets.find(x=>x.id===S.reserveAcc);return a?num(a.value):null}
+function reserveForecast(){
+  const now=new Date(),ym=now.toISOString().slice(0,7),bookedNow=(S.booked[ym]||[]).includes("reserve");
+  let bal=reserveBalance()||0;const out=[];const amt=reserveAmt();
+  for(let i=0;i<12;i++){const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    if(!(i===0&&bookedNow)){bal+=amt;S.fix.filter(viaReserve).forEach(f=>{if(isDue(f,d.getFullYear(),d.getMonth()))bal-=num(f.amount)})}
+    out.push({label:MONTHS[d.getMonth()],bal});}
+  return out;
+}
+function loanTotal(){return S.loans.reduce((a,l)=>a+Math.max(0,num(l.balance)),0)}
+function assetTotal(){return S.assets.reduce((a,x)=>a+num(x.value),0)}
+function simulate(){
+  // Gemeinsame Tilgung: Mindestraten + Extra, frei werdende Raten rollen weiter
+  let loans=S.loans.map(l=>({id:l.id,bal:num(l.balance),r:num(l.rate)/1200,pay:num(l.payment),done:null}));
+  if(!loans.length)return null;
+  const budget=loans.reduce((a,l)=>a+l.pay,0)+num(S.extra);
+  let month=0,interest=0;
+  while(loans.some(l=>l.bal>0.005)&&month<600){
+    month++;
+    loans.forEach(l=>{if(l.bal>0){const i=l.bal*l.r;interest+=i;l.bal+=i}});
+    let avail=budget;
+    loans.forEach(l=>{if(l.bal>0){const p=Math.min(l.pay,l.bal);l.bal-=p;avail-=p}});
+    const order=loans.filter(l=>l.bal>0).sort((a,b)=>S.strat==="snowball"?a.bal-b.bal:b.r-a.r);
+    for(const l of order){if(avail<=0)break;const p=Math.min(avail,l.bal);l.bal-=p;avail-=p}
+    loans.forEach(l=>{if(l.bal<=0.005&&l.done==null){l.bal=0;l.done=month}});
+  }
+  const stuck=month>=600;
+  const per={};loans.forEach(l=>per[l.id]=l.done);
+  return{months:month,interest,per,stuck};
+}
+function addMonths(n){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+n);return MONTHS_L[d.getMonth()]+" "+d.getFullYear()}
+function dur(n){const y=Math.floor(n/12),m=n%12;return[y?y+(y===1?" Jahr":" Jahre"):"",m?m+(m===1?" Monat":" Monate"):""].filter(Boolean).join(" ")||"sofort"}
+
+const SYSTEM_CATS=["Rücklage","Umbuchung","Kredite"];
+function cats(){if(!Array.isArray(S.cats))S.cats=[...DEFAULT_CATS];return S.cats}
+function catUses(c){return S.tx.filter(x=>x.cat===c).length+S.fix.filter(f=>f.cat===c).length}
+function ensureCat(c){c=(c||"").trim();if(c&&!SYSTEM_CATS.includes(c)&&!cats().includes(c))cats().push(c)}
+function renderCats(){
+  const list=[...cats()].sort((a,b)=>a.localeCompare(b,"de"));
+  $("#cat-list").innerHTML=list.map(c=>{const n=catUses(c);return`<li><div class="grow"><div class="name">${esc(c)}</div><span class="small muted">${n?n+(n===1?" Verwendung":" Verwendungen"):"nicht verwendet"}</span></div><button class="iconbtn" data-ren-cat="${esc(c)}" aria-label="${esc(c)} umbenennen">✎</button><button class="iconbtn" data-del-cat="${esc(c)}" aria-label="${esc(c)} löschen">×</button></li>`}).join("")+SYSTEM_CATS.map(c=>`<li><div class="grow"><div class="name">${esc(c)}</div><span class="small muted">wird automatisch vergeben</span></div></li>`).join("");
+}
+/* ---------- Rendering ---------- */
+function renderHome(){
+  const t=totals();
+  const base=Math.max(t.inc,t.fix+t.res+t.save+t.debt,1);
+  const parts=[["fix","Fixkosten",t.fix],["res","Rücklage",t.res],["debt","Kreditraten",t.debt],["save","Sparen",t.save],["free","Frei",Math.max(t.free,0)]];
+  $("#h-bar").innerHTML=parts.map(p=>`<span class="seg-${p[0]}" style="flex-grow:${p[2]/base}" title="${p[1]}"></span>`).join("");
+  $("#h-legend").innerHTML=parts.map(p=>`<div><span class="dot seg-${p[0]}"></span>${p[1]}<b>${fmt.format(p[2])}</b></div>`).join("");
+  $("#h-free").textContent=fmt.format(t.free);
+  $("#h-free").className="flow-free"+(t.free<0?" over":"");
+  $("#h-income").textContent=t.inc?"von "+fmt.format(t.inc)+" festen Einnahmen":"Trag unter Fixkosten dein Gehalt als Einnahme ein";
+
+  const debt=loanTotal(),net=assetTotal()-debt;
+  $("#k-net").textContent=fmt.format(net);$("#k-net").className=net<0?"neg":"";
+  const last=S.snaps[S.snaps.length-2],cur=S.snaps[S.snaps.length-1];
+  $("#k-net-d").textContent=cur&&last?((cur.net-last.net>=0?"+":"")+fmt.format(cur.net-last.net)+" seit "+new Date(last.date).toLocaleDateString("de-DE")):"";
+  $("#k-debt").textContent=fmt.format(debt);
+  $("#k-debt-d").textContent=S.loans.length?S.loans.length+(S.loans.length===1?" Kredit":" Kredite"):"keine Kredite erfasst";
+  const now=new Date(),ym=now.toISOString().slice(0,7);
+  const mtx=S.tx.filter(x=>ymKey(x.date)===ym);
+  const inM=mtx.filter(x=>x.amount>0).reduce((a,x)=>a+x.amount,0),outM=mtx.filter(x=>x.amount<0).reduce((a,x)=>a-x.amount,0);
+  $("#k-month-l").textContent=MONTHS_L[now.getMonth()]+" bisher";
+  $("#k-month").textContent=fmt.format(inM-outM);$("#k-month").className=inM-outM<0?"neg":"pos";
+  $("#k-month-d").textContent=fmt.format(inM)+" rein, "+fmt.format(outM)+" raus";
+  const sim=simulate();
+  $("#k-free").textContent=sim?(sim.stuck?"nicht absehbar":addMonths(sim.months)):"–";
+  $("#k-free-d").textContent=sim&&!sim.stuck?"in "+dur(sim.months):"";
+
+  const cats={};mtx.filter(x=>x.amount<0).forEach(x=>cats[x.cat]=(cats[x.cat]||0)-x.amount);
+  const cl=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  const mx=cl.length?cl[0][1]:1;
+  $("#h-cats").innerHTML=cl.length?cl.map(([c,v])=>`<li><div class="grow"><div class="name">${esc(c)}</div><div class="progress" style="background:var(--bg);margin:6px 0 0"><span style="width:${v/mx*100}%;background:var(--fix)"></span></div></div><div class="amt">${fmt2.format(v)}</div></li>`).join(""):`<li class="empty">Noch keine Ausgaben in diesem Monat. Erfasse sie unter Buchungen.</li>`;
+
+  const due=dueThisMonth();
+  const booked=S.booked[ym]||[];
+  $("#h-due").innerHTML=due.length?due.map(d=>`<li><div class="grow"><div class="name">${esc(d.name)}</div><span class="tag ${d.kind}">${d.label}</span></div><div class="amt ${d.amount>0?"pos":""}">${fmt2.format(d.amount)}</div><span class="small muted" style="width:62px;text-align:right">${booked.includes(d.id)?"gebucht":"offen"}</span></li>`).join(""):`<li class="empty">In diesem Monat ist nichts Wiederkehrendes fällig.</li>`;
+  $("#btn-book-due").hidden=!due.some(d=>!booked.includes(d.id));
+}
+function dueThisMonth(){
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth();const out=[];
+  const r=totals().res;
+  if(r>0)out.push({id:"reserve",name:"Rücklage aufs "+(S.assets.find(a=>a.id===S.reserveAcc)||{name:"Rücklagenkonto"}).name,cat:"Rücklage",amount:-r,kind:"res",label:"Rücklage",resDelta:r});
+  S.fix.forEach(f=>{if(!isDue(f,y,m))return;
+    const cat=f.cat||(f.type==="save"?"Sparen":f.type==="inc"?"Einnahmen":"Fixkosten");
+    if(viaReserve(f)){
+      out.push({id:f.id,name:f.name,cat,amount:-num(f.amount),kind:f.type==="save"?"save":"fix",label:"aus Rücklage"});
+      out.push({id:f.id+"-u",name:"Umbuchung Rücklage: "+f.name,cat:"Umbuchung",amount:num(f.amount),kind:"res",label:"Umbuchung",resDelta:-num(f.amount)});
+    }else out.push({id:f.id,name:f.name,cat,amount:f.type==="inc"?num(f.amount):-num(f.amount),kind:f.type==="inc"?"inc":f.type==="save"?"save":"fix",label:f.type==="inc"?"Einnahme":f.type==="save"?"Sparen":"Fixkosten"});
+  });
+  S.loans.forEach(l=>{if(num(l.balance)>0)out.push({id:l.id,name:"Rate "+l.name,cat:"Kredite",amount:-num(l.payment),kind:"debt",label:"Kredit"})});
+  return out;
+}
+
+let txMonth=new Date().toISOString().slice(0,7);
+function renderTx(){
+  const months=new Set(S.tx.map(x=>ymKey(x.date)));months.add(new Date().toISOString().slice(0,7));
+  const ms=[...months].sort().reverse();
+  $("#tx-month").innerHTML=ms.map(k=>`<option value="${k}" ${k===txMonth?"selected":""}>${MONTHS_L[+k.slice(5)-1]} ${k.slice(0,4)}</option>`).join("");
+  const list=S.tx.filter(x=>ymKey(x.date)===txMonth).sort((a,b)=>b.date.localeCompare(a.date));
+  $("#tx-in").textContent=fmt2.format(list.filter(x=>x.amount>0).reduce((a,x)=>a+x.amount,0));
+  $("#tx-out").textContent=fmt2.format(-list.filter(x=>x.amount<0).reduce((a,x)=>a+x.amount,0));
+  $("#tx-list").innerHTML=list.length?list.map(x=>`<li><div class="grow"><div class="name">${esc(x.name)}</div><span class="small muted">${new Date(x.date).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})}</span> <span class="tag">${esc(x.cat)}</span></div><div class="amt ${x.amount>0?"pos":""}">${fmt2.format(x.amount)}</div><button class="iconbtn" data-del-tx="${x.id}" aria-label="Buchung löschen">×</button></li>`).join(""):`<li class="empty">Keine Buchungen in diesem Monat.</li>`;
+  $("#dl-cats").innerHTML=[...cats()].sort((a,b)=>a.localeCompare(b,"de")).map(c=>`<option value="${esc(c)}">`).join("");
+  renderCats();
+  $("#dl-names").innerHTML=[...new Set(S.tx.map(x=>x.name))].slice(0,80).map(c=>`<option value="${esc(c)}">`).join("");
+}
+
+function renderFix(){
+  const t=totals();
+  $("#fix-sum").innerHTML=`<div class="panel kpi"><p>Monatliche Fixkosten</p><p>${fmt.format(t.fix)}</p></div><div class="panel kpi"><p>Rücklage / Monat</p><p>${fmt.format(t.res)}</p></div><div class="panel kpi"><p>Sparen / Monat</p><p>${fmt.format(t.save)}</p></div><div class="panel kpi"><p>Einnahmen / Monat</p><p class="pos">${fmt.format(t.inc)}</p></div>`;
+  renderReserve();
+  const ivName={1:"monatlich",2:"alle 2 Monate",3:"vierteljährlich",6:"halbjährlich",12:"jährlich"};
+  const order={inc:0,fix:1,save:2};
+  const list=[...S.fix].sort((a,b)=>order[a.type]-order[b.type]||monthly(b)-monthly(a));
+  $("#fix-list").innerHTML=list.length?list.map(f=>{const tag=f.type==="inc"?"inc":f.type==="save"?"save":"fix";const lab=f.type==="inc"?"Einnahme":f.type==="save"?"Sparen":(f.cat||"Fixkosten");
+    const due=+f.interval>1?", fällig "+nextDue(f)+(viaReserve(f)?", über Rücklage":""):"";
+    return`<li><div class="grow"><div class="name">${esc(f.name)}</div><span class="tag ${tag}">${esc(lab)}</span> <span class="small muted">${fmt2.format(num(f.amount))} ${ivName[f.interval]||""}${due}</span></div><div class="amt">${fmt2.format(monthly(f))}<div class="small muted" style="font-weight:400">pro Monat</div></div><button class="iconbtn" data-del-fix="${f.id}" aria-label="Posten löschen">×</button></li>`}).join(""):`<li class="empty">Noch keine Posten. Starte mit deinem Gehalt als Einnahme und der Miete.</li>`;
+}
+function renderReserve(){
+  const need=reserveNeed(),amt=reserveAmt(),bal=reserveBalance();
+  if(document.activeElement!==$("#rs-amt"))$("#rs-amt").value=num(S.reserveAmt)>0?String(S.reserveAmt).replace(".",","):"";
+  $("#rs-amt").placeholder="automatisch: "+Math.ceil(need);
+  const accs=S.assets.filter(a=>a.type!=="Depot");
+  $("#rs-acc").innerHTML=`<option value="">kein Konto verknüpft</option>`+accs.map(a=>`<option value="${a.id}" ${a.id===S.reserveAcc?"selected":""}>${esc(a.name)}</option>`).join("");
+  $("#rs-kpis").innerHTML=`<div class="panel kpi"><p>Rechnerisch nötig</p><p>${fmt2.format(need)}</p></div><div class="panel kpi"><p>Aktueller Stand</p><p>${bal==null?"–":fmt2.format(bal)}</p></div>`;
+  const fc=reserveForecast();const low=Math.min(...fc.map(x=>x.bal));
+  $("#rs-fc").innerHTML=S.fix.some(viaReserve)?fc.map(x=>`<div class="${x.bal<0?"low":""}">${x.label}<b>${fmt.format(x.bal)}</b></div>`).join(""):`<p class="empty" style="grid-column:1/-1">Lege einen Posten mit vierteljährlichem, halbjährlichem oder jährlichem Rhythmus an.</p>`;
+  let w="";
+  if(S.fix.some(viaReserve)&&amt<need-0.5)w+=`<div class="warn">Deine Rücklage von ${fmt2.format(amt)} liegt ${fmt2.format(need-amt)} unter dem, was die Posten im Schnitt kosten.</div>`;
+  if(S.fix.some(viaReserve)&&low<0)w+=`<div class="warn">Die Rücklage rutscht voraussichtlich auf ${fmt.format(low)}. Rücklagenkonto verknüpfen und Stand prüfen oder den Monatsbetrag erhöhen.</div>`;
+  $("#rs-warn").innerHTML=w;
+}
+function nextDue(f){const now=new Date();for(let i=0;i<13;i++){const d=new Date(now.getFullYear(),now.getMonth()+i,1);if(isDue(f,d.getFullYear(),d.getMonth()))return MONTHS[d.getMonth()]+(d.getFullYear()!==now.getFullYear()?" "+d.getFullYear():"")}return""}
+
+function renderDebt(){
+  document.querySelectorAll("[data-strat]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.strat===S.strat));
+  if(document.activeElement!==$("#d-extra"))$("#d-extra").value=S.extra?String(S.extra).replace(".",","):"";
+  const sim=simulate();
+  if(!sim){$("#d-payoff").textContent="–";$("#d-payoff-d").textContent="Füge deine Kredite hinzu, um das Datum zu sehen.";$("#debt-list").innerHTML=`<p class="empty">Noch keine Kredite erfasst.</p>`;return}
+  if(sim.stuck){$("#d-payoff").textContent="nicht absehbar";$("#d-payoff-d").textContent="Mindestens eine Rate deckt die Zinsen nicht. Rate erhöhen oder Extra-Tilgung eintragen."}
+  else{$("#d-payoff").textContent=addMonths(sim.months);$("#d-payoff-d").textContent="in "+dur(sim.months)+", noch "+fmt.format(sim.interest)+" Zinsen"}
+  $("#debt-list").innerHTML=S.loans.map(l=>{const bal=num(l.balance),orig=num(l.orig)||bal;const pct=orig>0?Math.min(100,Math.max(0,(1-bal/orig)*100)):0;const d=sim.per[l.id];
+    return`<div class="loan"><div class="loan-top"><div><div class="name" style="font-weight:700">${esc(l.name)}</div><span class="small muted">${String(num(l.rate)).replace(".",",")} % Zins, Rate ${fmt2.format(num(l.payment))}</span></div><button class="iconbtn" data-del-loan="${l.id}" aria-label="Kredit löschen">×</button></div>
+    <div class="progress"><span style="width:${pct}%"></span></div>
+    <div class="loan-top small"><span><button class="iconbtn small" style="font-size:.9rem;padding:2px 0;color:var(--ink);font-weight:600" data-edit-loan="${l.id}">${fmt2.format(bal)}</button> <span class="muted">offen${l.orig?", "+Math.round(pct)+" % getilgt":""}</span></span><span class="muted">${d!=null?"weg im "+addMonths(d):"–"}</span></div></div>`}).join("");
+}
+
+function renderAssets(){
+  const debt=loanTotal(),net=assetTotal()-debt;
+  $("#a-net").textContent=fmt.format(net);
+  const items=S.assets.map(a=>`<li><div class="grow"><div class="name">${esc(a.name)}</div><span class="tag">${esc(a.type)}</span></div><button class="iconbtn amt" style="color:var(--ink);font-size:1rem" data-edit-asset="${a.id}">${fmt2.format(num(a.value))}</button><button class="iconbtn" data-del-asset="${a.id}" aria-label="Löschen">×</button></li>`);
+  if(S.loans.length)items.push(`<li><div class="grow"><div class="name">Kredite</div><span class="tag debt">automatisch aus Kredite</span></div><div class="amt neg">${fmt2.format(-debt)}</div><span style="width:34px"></span></li>`);
+  $("#asset-list").innerHTML=items.length?items.join(""):`<li class="empty">Füge dein Girokonto, Tagesgeld und Depot hinzu.</li>`;
+  const last=S.snaps[S.snaps.length-1];
+  $("#a-snapinfo").textContent=last?"Zuletzt festgehalten am "+new Date(last.date).toLocaleDateString("de-DE")+". Das kannst du wie bisher alle zwei Wochen tun.":"Halte den Stand regelmäßig fest, dann entsteht hier dein Verlauf.";
+  drawChart();
+}
+function drawChart(){
+  const svg=$("#a-chart");const W=340,H=150,P={l:6,r:6,t:14,b:22};
+  const pts=S.snaps.slice(-26);
+  if(pts.length<2){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">Ab zwei festgehaltenen Ständen erscheint hier der Verlauf</text>`;return}
+  const vals=pts.map(p=>p.net);let lo=Math.min(...vals),hi=Math.max(...vals);if(hi===lo){hi+=1;lo-=1}
+  const x=i=>P.l+i*(W-P.l-P.r)/(pts.length-1),y=v=>P.t+(hi-v)*(H-P.t-P.b)/(hi-lo);
+  const line=pts.map((p,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(p.net).toFixed(1)).join(" ");
+  const area=line+` L${x(pts.length-1).toFixed(1)} ${H-P.b} L${x(0).toFixed(1)} ${H-P.b} Z`;
+  const d0=new Date(pts[0].date).toLocaleDateString("de-DE",{month:"short",year:"2-digit"}),d1=new Date(pts[pts.length-1].date).toLocaleDateString("de-DE",{month:"short",year:"2-digit"});
+  svg.innerHTML=`<line class="grid" x1="0" x2="${W}" y1="${H-P.b}" y2="${H-P.b}"/><path class="area" d="${area}" opacity=".7"/><path class="lineNet" d="${line}"/><circle cx="${x(pts.length-1)}" cy="${y(vals[vals.length-1])}" r="4" fill="var(--pine)"/><text x="${P.l}" y="${H-6}">${d0}</text><text x="${W-P.r}" y="${H-6}" text-anchor="end">${d1}</text><text x="${P.l}" y="10">${fmt.format(hi)}</text>`;
+}
+function renderAll(){renderHome();renderTx();renderFix();renderDebt();renderAssets()}
+
+/* ---------- Interaktion ---------- */
+function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("show"),1800)}
+function commit(msg){save();safeRender();if(msg)toast(msg)}
+
+document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("nav.tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="v-"+b.dataset.view));
+  $("#title").textContent=b.dataset.title;window.scrollTo(0,0);
+}));
+
+let txKind="out";
+document.querySelectorAll("[data-kind]").forEach(b=>b.addEventListener("click",()=>{txKind=b.dataset.kind;document.querySelectorAll("[data-kind]").forEach(x=>x.setAttribute("aria-pressed",x===b))}));
+$("#tx-date").value=today();
+$("#tx-name").addEventListener("change",()=>{const prev=[...S.tx].reverse().find(x=>x.name===$("#tx-name").value);if(prev&&!$("#tx-cat").value)$("#tx-cat").value=prev.cat});
+$("#f-tx").addEventListener("submit",e=>{e.preventDefault();const a=Math.abs(num($("#tx-amt").value));if(!a)return;
+  ensureCat($("#tx-cat").value);S.tx.push({id:uid(),date:$("#tx-date").value,name:$("#tx-name").value.trim(),cat:$("#tx-cat").value.trim()||"Sonstiges",amount:txKind==="in"?a:-a});
+  txMonth=ymKey($("#tx-date").value);$("#tx-amt").value="";$("#tx-name").value="";$("#tx-cat").value="";$("#tx-amt").focus();commit("Buchung gespeichert")});
+$("#tx-month").addEventListener("change",e=>{txMonth=e.target.value;renderTx()});
+
+$("#fx-start").innerHTML=MONTHS_L.map((m,i)=>`<option value="${i+1}" ${i===new Date().getMonth()?"selected":""}>${m}</option>`).join("");
+$("#f-fix").addEventListener("submit",e=>{e.preventDefault();const a=Math.abs(num($("#fx-amt").value));if(!a)return;
+  ensureCat($("#fx-cat").value);S.fix.push({id:uid(),name:$("#fx-name").value.trim(),amount:a,interval:+$("#fx-int").value,type:$("#fx-type").value,start:+$("#fx-start").value,cat:$("#fx-cat").value.trim()});
+  e.target.reset();$("#fx-start").value=new Date().getMonth()+1;commit("Posten gespeichert")});
+
+$("#f-cat").addEventListener("submit",e=>{e.preventDefault();const c=$("#cat-new").value.trim();if(!c)return;
+  if(cats().includes(c)||SYSTEM_CATS.includes(c)){toast("Diese Kategorie gibt es schon");return}
+  cats().push(c);$("#cat-new").value="";commit("Kategorie hinzugefügt")});
+$("#rs-amt").addEventListener("change",e=>{S.reserveAmt=Math.max(0,num(e.target.value));commit()});
+$("#rs-acc").addEventListener("change",e=>{S.reserveAcc=e.target.value;commit()});
+$("#f-debt").addEventListener("submit",e=>{e.preventDefault();
+  S.loans.push({id:uid(),name:$("#db-name").value.trim(),balance:num($("#db-bal").value),rate:num($("#db-rate").value),payment:num($("#db-pay").value),orig:num($("#db-orig").value)||num($("#db-bal").value)});
+  e.target.reset();commit("Kredit gespeichert")});
+document.querySelectorAll("[data-strat]").forEach(b=>b.addEventListener("click",()=>{S.strat=b.dataset.strat;commit()}));
+$("#d-extra").addEventListener("change",e=>{S.extra=Math.max(0,num(e.target.value));commit()});
+
+$("#f-asset").addEventListener("submit",e=>{e.preventDefault();
+  S.assets.push({id:uid(),name:$("#as-name").value.trim(),type:$("#as-type").value,value:num($("#as-val").value)});e.target.reset();commit("Gespeichert")});
+$("#btn-snap").addEventListener("click",()=>{const a=assetTotal(),d=loanTotal();S.snaps.push({date:today(),assets:a,debt:d,net:a-d});commit("Stand festgehalten")});
+
+$("#btn-book-due").addEventListener("click",()=>{const ym=new Date().toISOString().slice(0,7);S.booked[ym]=S.booked[ym]||[];let n=0;
+  dueThisMonth().forEach(d=>{if(S.booked[ym].includes(d.id))return;S.tx.push({id:uid(),date:today(),name:d.name,cat:d.cat,amount:d.amount});S.booked[ym].push(d.id);n++;
+    if(d.resDelta){const acc=S.assets.find(a=>a.id===S.reserveAcc);if(acc)acc.value=Math.round((num(acc.value)+d.resDelta)*100)/100}
+    const loan=S.loans.find(l=>l.id===d.id);if(loan){const i=num(loan.balance)*num(loan.rate)/1200;loan.balance=Math.max(0,Math.round((num(loan.balance)+i-num(loan.payment))*100)/100)}});
+  commit(n+" Buchungen übernommen")});
+
+document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const ds=t.dataset;
+  if(ds.delTx){S.tx=S.tx.filter(x=>x.id!==ds.delTx);commit("Gelöscht")}
+  else if(ds.delFix&&confirm("Posten löschen?")){S.fix=S.fix.filter(x=>x.id!==ds.delFix);commit("Gelöscht")}
+  else if(ds.delLoan&&confirm("Kredit löschen?")){S.loans=S.loans.filter(x=>x.id!==ds.delLoan);commit("Gelöscht")}
+  else if(ds.delAsset&&confirm("Eintrag löschen?")){S.assets=S.assets.filter(x=>x.id!==ds.delAsset);commit("Gelöscht")}
+  else if(ds.renCat){const old=ds.renCat;const nu=(prompt("Neuer Name für „"+old+"“",old)||"").trim();
+    if(!nu||nu===old)return;if(SYSTEM_CATS.includes(nu)){toast("Dieser Name ist reserviert");return}
+    S.tx.forEach(x=>{if(x.cat===old)x.cat=nu});S.fix.forEach(f=>{if(f.cat===old)f.cat=nu});
+    S.cats=cats().filter(c=>c!==old);ensureCat(nu);commit("Umbenannt in „"+nu+"“")}
+  else if(ds.delCat){const c=ds.delCat,n=catUses(c);
+    if(!n){if(confirm("Kategorie „"+c+"“ löschen?")){S.cats=cats().filter(x=>x!==c);commit("Kategorie gelöscht")}return}
+    const to=(prompt("„"+c+"“ wird "+n+"× verwendet. In welche Kategorie sollen diese Einträge verschoben werden?","Sonstiges")||"").trim();
+    if(!to||to===c)return;S.tx.forEach(x=>{if(x.cat===c)x.cat=to});S.fix.forEach(f=>{if(f.cat===c)f.cat=to});
+    S.cats=cats().filter(x=>x!==c);ensureCat(to);commit("Verschoben nach „"+to+"“ und gelöscht")}
+  else if(ds.editAsset){const a=S.assets.find(x=>x.id===ds.editAsset);const v=prompt("Neuer Wert für "+a.name+" (€)",String(a.value).replace(".",","));if(v!=null){a.value=num(v);commit("Aktualisiert")}}
+  else if(ds.editLoan){const l=S.loans.find(x=>x.id===ds.editLoan);const v=prompt("Aktuelle Restschuld für "+l.name+" (€)",String(l.balance).replace(".",","));if(v!=null){l.balance=num(v);commit("Aktualisiert")}}
+});
+
+/* Sicherung */
+$("#btn-export").addEventListener("click",async()=>{
+  const data=JSON.stringify(S,null,2);const name="finanzen-sicherung-"+today()+".json";
+  const dl=window.claude&&window.claude.use?await window.claude.use("downloads"):null;
+  if(dl){try{await dl.save({filename:name,data});toast("Sicherung gespeichert")}catch(e){toast("Herunterladen abgebrochen")}}
+  else{try{await navigator.clipboard.writeText(data);toast("Sicherung in die Zwischenablage kopiert")}catch(e){toast("Herunterladen ist hier nicht verfügbar")}}
+});
+$("#imp").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!confirm("Aktuelle Daten durch die Sicherung ersetzen?"))return;S=Object.assign(empty(),d);migrate();commit("Sicherung eingelesen")}catch(err){toast("Die Datei ist keine gültige Sicherung")}};r.readAsText(f);e.target.value=""});
+$("#btn-reset").addEventListener("click",()=>{if(confirm("Wirklich alle Daten löschen? Das lässt sich nicht rückgängig machen.")){S=empty();commit("Alles gelöscht")}});
+$("#btn-demo").addEventListener("click",()=>{
+  if((S.tx.length||S.fix.length||S.loans.length||S.assets.length)&&!confirm("Beispieldaten ersetzen deine aktuellen Daten. Fortfahren?"))return;
+  const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),m0=d.getMonth()+1;
+  S=empty();
+  S.fix=[
+    {id:uid(),name:"Gehalt",amount:3100,interval:1,type:"inc",start:1,cat:"Gehalt"},
+    {id:uid(),name:"Miete warm",amount:850,interval:1,type:"fix",start:1,cat:"Wohnen"},
+    {id:uid(),name:"Strom",amount:65,interval:1,type:"fix",start:1,cat:"Wohnen"},
+    {id:uid(),name:"Handy und Internet",amount:55,interval:1,type:"fix",start:1,cat:"Abos"},
+    {id:uid(),name:"Kfz-Versicherung",amount:420,interval:12,type:"fix",start:1,cat:"Versicherungen"},
+    {id:uid(),name:"Haftpflicht und Hausrat",amount:36,interval:3,type:"fix",start:m0,cat:"Versicherungen"},
+    {id:uid(),name:"Vereinsbeitrag",amount:60,interval:12,type:"fix",start:3,cat:"Freizeit"},
+    {id:uid(),name:"ETF-Sparplan",amount:200,interval:1,type:"save",start:1,cat:"Sparen"},
+    {id:uid(),name:"Bausparvertrag",amount:150,interval:3,type:"save",start:m0,cat:"Sparen"}];
+  S.loans=[{id:uid(),name:"Autokredit",balance:8400,rate:5.9,payment:260,orig:14000},{id:uid(),name:"Ratenkauf Laptop",balance:900,rate:0,payment:75,orig:1500}];
+  S.fix.push({id:uid(),name:"Kfz-Steuer",amount:180,interval:12,type:"fix",start:7,cat:"Mobilität"},{id:uid(),name:"Kfz-Versicherung Halbjahr",amount:250,interval:6,type:"fix",start:1,cat:"Versicherungen"});
+  S.fix=S.fix.filter(f=>f.name!=="Kfz-Versicherung");
+  S.assets=[{id:uid(),name:"Girokonto",type:"Konto",value:1850},{id:uid(),name:"Tagesgeld Rücklage",type:"Tagesgeld",value:620},{id:uid(),name:"Tagesgeld Notgroschen",type:"Tagesgeld",value:3600},{id:uid(),name:"ETF-Depot",type:"Depot",value:7300}];
+  S.reserveAcc=S.assets[1].id;
+  const tx=[["03","Edeka","Lebensmittel",-64.3],["05","Tankstelle","Mobilität",-58],["08","Kino","Freizeit",-24],["10","dm","Gesundheit",-18.9],["12","Lidl","Lebensmittel",-41.2],["14","Pizzeria","Essen gehen",-32]];
+  S.tx=tx.filter(t=>+t[0]<=d.getDate()).map(t=>({id:uid(),date:`${y}-${m}-${t[0]}`,name:t[1],cat:t[2],amount:t[3]}));
+  for(let i=10;i>=0;i--){const dd=new Date(Date.now()-i*14*864e5);const a=11500+(10-i)*190+(i%3)*120,db=9300-(10-i)*290+ (i===0?0:0);S.snaps.push({date:dd.toISOString().slice(0,10),assets:a,debt:db,net:a-db})}
+  migrate();commit("Beispieldaten geladen");
+});
+
+/* Start */
+function migrate(){if(!Array.isArray(S.cats)){S.cats=[...DEFAULT_CATS];S.tx.forEach(x=>ensureCat(x.cat));S.fix.forEach(f=>ensureCat(f.cat))}}
+function safeRender(){try{renderAll()}catch(err){console.error(err);setStatus("Anzeigefehler: "+(err&&err.message||err))}}
+try{const cached=lsLoad();if(cached)S=Object.assign(empty(),cached);migrate()}catch(e){S=empty();migrate()}
+safeRender();
+initDb();
+})();
+</script>
+</body>
+</html>
