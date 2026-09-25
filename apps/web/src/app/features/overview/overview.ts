@@ -1,6 +1,7 @@
 import { httpResource } from '@angular/common/http';
 import { Component, computed, inject } from '@angular/core';
 import {
+  bookedBreakdown,
   monthlyBreakdown,
   monthsBetween,
   monthTotals,
@@ -41,15 +42,40 @@ export class OverviewPage {
     },
   );
 
-  protected readonly breakdown = computed(() =>
-    monthlyBreakdown({
+  /** Tatsächlich gebucht im laufenden Monat, aufgeteilt wie der Plan */
+  protected readonly booked = computed(() =>
+    bookedBreakdown(this.monthTx.value(), this.store.items.items(), this.month),
+  );
+
+  /**
+   * Voraussichtlich im laufenden Monat. Kredite: schon Gebuchtes plus noch Offenes, damit die Zahl
+   * vor und nach „Fällige übernehmen“ gleich bleibt.
+   */
+  protected readonly breakdown = computed(() => {
+    const first = this.planner.plan()?.months[0];
+    const openLoans = first?.month === this.month ? first.paidCents : 0;
+    return monthlyBreakdown({
       items: this.store.items.items(),
       pots: this.store.pots.items(),
       loans: this.store.loans.items(),
-      // Kredite wie auf der Kredit-Seite: ist der Monat schon ganz gebucht, der nächste
-      month: this.planner.adviceMonth(),
-    }),
-  );
+      month: this.month,
+      loanCents: this.booked().loanCents + openLoans,
+    });
+  });
+
+  /** Zeilen „voraussichtlich / gebucht“; Ausgaben als positive Beträge */
+  protected readonly compare = computed(() => {
+    const p = this.breakdown();
+    const b = this.booked();
+    return [
+      { key: 'income', plan: p.incomeCents, booked: b.incomeCents },
+      { key: 'fixed', plan: p.fixedCents, booked: b.fixedCents },
+      { key: 'reserve', plan: p.reserveCents, booked: b.reserveCents },
+      { key: 'loans', plan: p.loanCents, booked: b.loanCents },
+      { key: 'saving', plan: p.savingCents, booked: b.savingCents },
+      { key: 'other', plan: null, booked: b.otherCents },
+    ];
+  });
 
   protected readonly flowSummary = computed(() => {
     const b = this.breakdown();
@@ -93,6 +119,11 @@ export class OverviewPage {
       duration: formatDuration(this.t, monthsBetween(this.month, plan.debtFreeMonth) + 1),
     };
   });
+
+  constructor() {
+    // Buchungsstand der Kredite kann sich seit dem letzten Laden geändert haben
+    void this.planner.refresh();
+  }
 
   /** Nach „Fällige übernehmen“: Buchungen des Monats neu laden. */
   protected onBooked() {

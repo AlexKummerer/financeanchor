@@ -88,7 +88,6 @@
     "months": "{{n}} Monaten"
   },
   "overview": {
-    "freePerMonth": "Frei verfügbar pro Monat",
     "ofIncome": "von {{income}} festen Einnahmen",
     "addIncomeHint": "Trag unter Fixkosten dein Gehalt als Einnahme ein",
     "flowSummary": "Aufteilung der monatlichen Einnahmen von {{income}}: Fixkosten {{fixed}}, Rücklage {{reserve}}, Kreditraten {{loans}}, Sparen {{saving}}, frei {{free}}.",
@@ -109,7 +108,22 @@
     "inDuration": "in {{duration}}",
     "spendingByCategory": "Ausgaben diesen Monat nach Kategorie",
     "noSpending": "Noch keine Ausgaben in diesem Monat. Erfasse sie unter Buchungen.",
-    "dueThisMonth": "Diesen Monat fällig"
+    "dueThisMonth": "Diesen Monat fällig",
+    "expectedFree": "Voraussichtlich frei im {{month}}",
+    "compare": {
+      "caption": "{{month}}: voraussichtlich und gebucht",
+      "what": "Posten",
+      "expected": "Voraussichtlich",
+      "booked": "Gebucht",
+      "income": "Einnahmen",
+      "fixed": "Fixkosten",
+      "reserve": "Rücklage",
+      "loans": "Kredite",
+      "saving": "Sparen",
+      "other": "Sonstige Ausgaben",
+      "rest": "Übrig",
+      "hint": "Voraussichtlich: alles Eingetragene für diesen Monat, Kredite inklusive schon Gebuchtem. Gebucht: nur, was unter Buchungen steht. „Übrig“ voraussichtlich ist das, was für sonstige Ausgaben bleibt."
+    }
   },
   "loans": {
     "payoffLabel": "Voraussichtlich schuldenfrei",

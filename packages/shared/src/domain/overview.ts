@@ -1,5 +1,6 @@
 import type { Cents } from '../money.js';
-import type { YearMonth } from '../month.js';
+import { monthOfDate, type YearMonth } from '../month.js';
+import type { Transaction } from '../schemas/entities.js';
 import { allocateMonth, type PlanLoan } from './loans.js';
 import { hasStarted, monthlyShareTimes12, viaReserve } from './recurring.js';
 import {
@@ -25,6 +26,8 @@ export interface BreakdownInput {
   pots: readonly ReservePotLike[];
   loans: readonly PlanLoan[];
   month: YearMonth;
+  /** Kreditzahlungen vorgeben statt sie aus `loans` zu berechnen (z. B. gebucht plus noch offen) */
+  loanCents?: Cents;
 }
 
 /**
@@ -50,7 +53,7 @@ export function monthlyBreakdown(input: BreakdownInput): MonthlyBreakdown {
       sum + reserveMonthlyAmount(pot, reserveNeed(input.items, pot.id, defaultPot?.id ?? pot.id)),
     0,
   );
-  const loanCents = allocateMonth(input.loans, input.month).paidCents;
+  const loanCents = input.loanCents ?? allocateMonth(input.loans, input.month).paidCents;
   const incomeCents = Math.round(income12 / 12);
   const fixedCents = Math.round(fixed12 / 12);
   const savingCents = Math.round(saving12 / 12);
@@ -61,5 +64,64 @@ export function monthlyBreakdown(input: BreakdownInput): MonthlyBreakdown {
     loanCents,
     savingCents,
     freeCents: incomeCents - fixedCents - reserveCents - loanCents - savingCents,
+  };
+}
+
+export interface BookedBreakdown {
+  /** Alle Einnahmen des Monats (feste und sonstige) */
+  incomeCents: Cents;
+  fixedCents: Cents;
+  /** Überweisungen in die Rücklage; Posten über die Rücklage und ihre Entnahme heben sich auf */
+  reserveCents: Cents;
+  loanCents: Cents;
+  savingCents: Cents;
+  /** Von Hand erfasste Ausgaben (Einkäufe usw.), im Plan Teil von „frei“ */
+  otherCents: Cents;
+  /** Einnahmen minus alle Ausgaben */
+  restCents: Cents;
+}
+
+type BookedTransaction = Pick<
+  Transaction,
+  'date' | 'amountCents' | 'kind' | 'sourceType' | 'sourceId'
+>;
+
+/**
+ * Was im Monat tatsächlich gebucht ist, aufgeteilt wie der Plan. Ausgaben sind positive Beträge.
+ * Buchungen aus „Fällige übernehmen“ werden über Art und Quelle zugeordnet, von Hand erfasste
+ * Ausgaben zählen als „sonstige“.
+ */
+export function bookedBreakdown(
+  transactions: readonly BookedTransaction[],
+  items: readonly Pick<ReserveItemLike, 'id' | 'kind' | 'intervalMonths'>[],
+  month: YearMonth,
+): BookedBreakdown {
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  const r = {
+    incomeCents: 0,
+    fixedCents: 0,
+    reserveCents: 0,
+    loanCents: 0,
+    savingCents: 0,
+    otherCents: 0,
+  };
+  for (const t of transactions) {
+    if (monthOfDate(t.date) !== month) continue;
+    const out = -t.amountCents;
+    if (t.kind === 'loan_payment') r.loanCents += out;
+    else if (t.kind === 'reserve' || t.kind === 'transfer') r.reserveCents += out;
+    else if (t.sourceType === 'recurring_item') {
+      const item = t.sourceId ? itemById.get(t.sourceId) : undefined;
+      if (t.amountCents > 0) r.incomeCents += t.amountCents;
+      else if (item && viaReserve(item)) r.reserveCents += out;
+      else if (item?.kind === 'saving') r.savingCents += out;
+      else r.fixedCents += out;
+    } else if (t.amountCents > 0) r.incomeCents += t.amountCents;
+    else r.otherCents += out;
+  }
+  return {
+    ...r,
+    restCents:
+      r.incomeCents - r.fixedCents - r.reserveCents - r.loanCents - r.savingCents - r.otherCents,
   };
 }

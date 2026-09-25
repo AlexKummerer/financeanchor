@@ -21,3 +21,38 @@
 a {
   color: var(--pine);
 }
+
+.compare {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.compare th,
+.compare td {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+.compare th[scope='row'],
+.compare thead th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+.compare thead th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.compare td + td,
+.compare th + th {
+  padding-left: 12px;
+}
+.compare tfoot th,
+.compare tfoot td {
+  font-weight: 700;
+  border-bottom: 0;
+}
+.compare + .hint {
+  margin-top: 6px;
+}

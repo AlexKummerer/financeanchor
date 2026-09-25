@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { monthlyBreakdown, monthTotals, spendingByCategory } from '../src/index.js';
+import {
+  bookedBreakdown,
+  monthlyBreakdown,
+  monthTotals,
+  spendingByCategory,
+} from '../src/index.js';
 import { items, loans, MONTH, pots } from './fixtures/demo.js';
 
 describe('Monatsübersicht', () => {
@@ -104,5 +109,60 @@ describe('Buchungen eines Monats', () => {
       { categoryId: 'lebensmittel', amountCents: 10550 },
       { categoryId: 'mobil', amountCents: 5800 },
     ]);
+  });
+});
+
+describe('Gebucht im Monat', () => {
+  const its = [
+    { id: 'gehalt', kind: 'income' as const, intervalMonths: 1 as const },
+    { id: 'miete', kind: 'fixed' as const, intervalMonths: 1 as const },
+    { id: 'kfz', kind: 'fixed' as const, intervalMonths: 12 as const },
+    { id: 'etf', kind: 'saving' as const, intervalMonths: 1 as const },
+  ];
+  const tx = (
+    amountCents: number,
+    kind: 'normal' | 'reserve' | 'transfer' | 'loan_payment',
+    sourceType: 'recurring_item' | 'loan' | 'reserve_pot' | null = null,
+    sourceId: string | null = null,
+    date = '2026-09-05',
+  ) => ({ date, amountCents, kind, sourceType, sourceId });
+
+  it('ordnet Buchungen wie den Plan zu; Posten über die Rücklage heben sich mit der Entnahme auf', () => {
+    const b = bookedBreakdown(
+      [
+        tx(300000, 'normal', 'recurring_item', 'gehalt'),
+        tx(-90000, 'normal', 'recurring_item', 'miete'),
+        tx(-20000, 'reserve', 'reserve_pot', 'pot'),
+        tx(-60000, 'normal', 'recurring_item', 'kfz'),
+        tx(60000, 'transfer', 'recurring_item', 'kfz'),
+        tx(-36499, 'loan_payment', 'loan', 'pb'),
+        tx(-10000, 'normal', 'recurring_item', 'etf'),
+        tx(-4550, 'normal'),
+        tx(2000, 'normal'),
+        tx(-99999, 'normal', null, null, '2026-10-01'),
+      ],
+      its,
+      '2026-09',
+    );
+    expect(b).toEqual({
+      incomeCents: 302000,
+      fixedCents: 90000,
+      reserveCents: 20000,
+      loanCents: 36499,
+      savingCents: 10000,
+      otherCents: 4550,
+      restCents: 302000 - 90000 - 20000 - 36499 - 10000 - 4550,
+    });
+  });
+
+  it('gelöschter Posten: Ausgabe zählt als Fixkosten', () => {
+    expect(
+      bookedBreakdown([tx(-5000, 'normal', 'recurring_item', 'weg')], its, '2026-09').fixedCents,
+    ).toBe(5000);
+  });
+
+  it('Kreditzahlungen im Plan lassen sich vorgeben (gebucht plus noch offen)', () => {
+    const b = monthlyBreakdown({ items, pots, loans, month: MONTH, loanCents: 12345 });
+    expect(b.loanCents).toBe(12345);
   });
 });

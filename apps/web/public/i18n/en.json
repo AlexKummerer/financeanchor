@@ -88,7 +88,6 @@
     "months": "{{n}} months"
   },
   "overview": {
-    "freePerMonth": "Available per month",
     "ofIncome": "of {{income}} fixed income",
     "addIncomeHint": "Add your salary as income under fixed costs",
     "flowSummary": "Split of monthly income of {{income}}: fixed costs {{fixed}}, reserve {{reserve}}, loan payments {{loans}}, savings {{saving}}, available {{free}}.",
@@ -109,7 +108,22 @@
     "inDuration": "in {{duration}}",
     "spendingByCategory": "Spending this month by category",
     "noSpending": "No spending this month yet. Add it under transactions.",
-    "dueThisMonth": "Due this month"
+    "dueThisMonth": "Due this month",
+    "expectedFree": "Expected free in {{month}}",
+    "compare": {
+      "caption": "{{month}}: expected and booked",
+      "what": "Item",
+      "expected": "Expected",
+      "booked": "Booked",
+      "income": "Income",
+      "fixed": "Fixed costs",
+      "reserve": "Reserve",
+      "loans": "Loans",
+      "saving": "Saving",
+      "other": "Other expenses",
+      "rest": "Left",
+      "hint": "Expected: everything entered for this month, loans including what is already booked. Booked: only what is listed under transactions. Expected “left” is what remains for other expenses."
+    }
   },
   "loans": {
     "payoffLabel": "Expected to be debt-free",

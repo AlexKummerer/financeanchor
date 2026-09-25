@@ -14,7 +14,10 @@ test.describe('Login', () => {
 
   test('anmelden, Übersicht sehen und wieder abmelden', async ({ page }) => {
     await login(page);
-    await expect(page.getByText('Frei verfügbar pro Monat')).toBeVisible();
+    await expect(page.getByText(/Voraussichtlich frei im/)).toBeVisible();
+    const compare = page.locator('table.compare');
+    await expect(compare.getByRole('columnheader', { name: 'Voraussichtlich' })).toBeVisible();
+    await expect(compare.getByRole('columnheader', { name: 'Gebucht' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Hauptnavigation' })).toBeVisible();
 
     await page.getByRole('link', { name: 'Einstellungen' }).click();

@@ -1,7 +1,9 @@
 <section class="panel" aria-labelledby="flow-title">
   <div class="flow-head">
     <div>
-      <p id="flow-title" class="muted small">{{ 'overview.freePerMonth' | transloco }}</p>
+      <p id="flow-title" class="muted small">
+        {{ 'overview.expectedFree' | transloco: { month: (month | faMonth: 'longNoYear') } }}
+      </p>
       <p class="flow-free" [class.neg]="breakdown().freeCents < 0">
         {{ breakdown().freeCents | money: true }}
       </p>
@@ -15,6 +17,46 @@
     </p>
   </div>
   <fa-flow-bar [breakdown]="breakdown()" [summary]="flowSummary()" />
+
+  <table class="compare small">
+    <caption class="visually-hidden">
+      {{
+        'overview.compare.caption' | transloco: { month: (month | faMonth) }
+      }}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">
+          <span class="visually-hidden">{{ 'overview.compare.what' | transloco }}</span>
+        </th>
+        <th scope="col">{{ 'overview.compare.expected' | transloco }}</th>
+        <th scope="col">{{ 'overview.compare.booked' | transloco }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of compare(); track r.key) {
+        <tr>
+          <th scope="row">{{ 'overview.compare.' + r.key | transloco }}</th>
+          <td>
+            @if (r.plan === null) {
+              <span class="muted">–</span>
+            } @else {
+              {{ r.key === 'income' ? '+' : '−' }}{{ r.plan | money }}
+            }
+          </td>
+          <td>{{ r.key === 'income' ? '+' : '−' }}{{ r.booked | money }}</td>
+        </tr>
+      }
+    </tbody>
+    <tfoot>
+      <tr>
+        <th scope="row">{{ 'overview.compare.rest' | transloco }}</th>
+        <td [class.neg]="breakdown().freeCents < 0">{{ breakdown().freeCents | money }}</td>
+        <td [class.neg]="booked().restCents < 0">{{ booked().restCents | money }}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <p class="small muted hint">{{ 'overview.compare.hint' | transloco }}</p>
 </section>
 
 <div class="kpis">
