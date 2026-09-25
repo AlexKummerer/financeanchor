@@ -90,7 +90,8 @@ describe('DuePanel', () => {
     expect(checkbox(el, 'Gehalt')!.disabled).toBe(true);
     expect(checkbox(el, 'Umbuchung')).toBeNull();
     expect(checkbox(el, 'Strom')).toBeNull();
-    expect(el.textContent).toContain('2 als Buchungen übernehmen');
+    // Miete und Versicherung, dazu deren Umbuchung
+    expect(el.textContent).toContain('3 als Buchungen übernehmen');
   });
 
   it('vorgezogenes Datum macht einen späteren Posten buchbar und wird mitgeschickt', async () => {

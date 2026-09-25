@@ -102,7 +102,7 @@
         [disabled]="selectedKeys().length === 0 || pending()"
         (click)="bookSelected()"
       >
-        {{ 'due.bookSelected' | transloco: { n: selectedKeys().length } }}
+        {{ 'due.bookSelected' | transloco: { n: bookCount() } }}
       </button>
     </div>
     <p class="small muted" style="margin-top: 8px">{{ 'due.hint' | transloco }}</p>

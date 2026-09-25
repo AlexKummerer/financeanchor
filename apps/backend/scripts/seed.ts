@@ -38,6 +38,8 @@ const { values } = parseArgs({
     name: { type: 'string' },
     remote: { type: 'boolean', default: false },
     demo: { type: 'boolean', default: false },
+    /** Eigener Speicherort der lokalen D1 (E2E-Tests) */
+    'persist-to': { type: 'string' },
   },
 });
 
@@ -132,9 +134,10 @@ async function main() {
   writeFileSync(file, statements.join('\n'), { mode: 0o600 });
   try {
     const target = values.remote ? '--remote' : '--local';
+    const persist = values['persist-to'] ? ['--persist-to', values['persist-to']] : [];
     const r = spawnSync(
       'pnpm',
-      ['exec', 'wrangler', 'd1', 'execute', 'DB', target, '--file', file, '--yes'],
+      ['exec', 'wrangler', 'd1', 'execute', 'DB', target, ...persist, '--file', file, '--yes'],
       {
         stdio: 'inherit',
       },

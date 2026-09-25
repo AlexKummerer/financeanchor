@@ -98,6 +98,15 @@ export class DuePanel {
       .filter((r) => r.selected)
       .map((r) => r.entry.key),
   );
+  /** Anzahl der entstehenden Buchungen: gewählte Einträge plus ihre Umbuchungen. */
+  protected readonly bookCount = computed(() => {
+    const keys = new Set(this.selectedKeys());
+    return this.rows().filter(
+      (r) =>
+        !r.entry.booked &&
+        (keys.has(r.entry.key) || (r.entry.linkedKey !== null && keys.has(r.entry.linkedKey))),
+    ).length;
+  });
   protected readonly hasOpen = computed(() => this.rows().some((r) => !r.entry.booked));
 
   constructor() {

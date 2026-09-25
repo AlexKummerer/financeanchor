@@ -12,3 +12,4 @@ test-results/
 playwright-report/
 .pnpm-store/
 .playwright-mcp/
+blob-report/
