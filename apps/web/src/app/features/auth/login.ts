@@ -3,18 +3,16 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { AuthService } from '../../core/auth/auth.service';
+import { Icon } from '../../core/ui/icon';
 import { ApiError } from '../../core/http/api-error';
 
 @Component({
   selector: 'fa-login',
-  imports: [ReactiveFormsModule, TranslocoPipe],
+  imports: [ReactiveFormsModule, TranslocoPipe, Icon],
   template: `
     <main class="wrap">
       <div class="brand" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="5" r="2" />
-          <path d="M12 7v14M5 12H3a9 9 0 0 0 18 0h-2M8 10h8" />
-        </svg>
+        <fa-icon name="anchor" />
       </div>
       <h1>FinanceAnchor</h1>
       <p class="muted" style="margin: 6px 0 22px">{{ 'login.tagline' | transloco }}</p>
@@ -75,15 +73,7 @@ import { ApiError } from '../../core/http/api-error';
       display: grid;
       place-items: center;
       margin-bottom: 16px;
-    }
-    .brand svg {
-      width: 30px;
-      height: 30px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
+      --icon-size: 30px;
     }
   `,
 })

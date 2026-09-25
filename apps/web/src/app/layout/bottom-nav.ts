@@ -1,18 +1,19 @@
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { Icon, type IconName } from '../core/ui/icon';
 
 interface NavItem {
   path: string;
   labelKey: string;
-  icon: string;
+  icon: IconName;
   exact: boolean;
 }
 
 /** Untere Navigation wie im Prototyp, mit Abstand zum Home-Indikator (safe area). */
 @Component({
   selector: 'fa-bottom-nav',
-  imports: [RouterLink, RouterLinkActive, TranslocoPipe],
+  imports: [RouterLink, RouterLinkActive, TranslocoPipe, Icon],
   template: `
     <nav [attr.aria-label]="'nav.main' | transloco">
       <ul>
@@ -24,7 +25,7 @@ interface NavItem {
               [routerLinkActiveOptions]="{ exact: item.exact }"
               ariaCurrentWhenActive="page"
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="item.icon" /></svg>
+              <fa-icon [name]="item.icon" />
               <span>{{ item.labelKey | transloco }}</span>
             </a>
           </li>
@@ -67,15 +68,6 @@ interface NavItem {
       color: var(--pine);
       font-weight: 700;
     }
-    svg {
-      width: 22px;
-      height: 22px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
   `,
 })
 export class BottomNav {
@@ -84,26 +76,26 @@ export class BottomNav {
       path: '/',
       labelKey: 'nav.overview',
       exact: true,
-      icon: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+      icon: 'home',
     },
     {
       path: '/buchungen',
       labelKey: 'nav.transactions',
       exact: false,
-      icon: 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h3',
+      icon: 'book',
     },
     {
       path: '/fixkosten',
       labelKey: 'nav.recurring',
       exact: false,
-      icon: 'M4 12a8 8 0 1 0 3-6.2M4 4v4h4',
+      icon: 'repeat',
     },
-    { path: '/kredite', labelKey: 'nav.loans', exact: false, icon: 'M4 18L10 12l4 4 6-8M15 8h5v5' },
+    { path: '/kredite', labelKey: 'nav.loans', exact: false, icon: 'trend' },
     {
       path: '/vermoegen',
       labelKey: 'nav.assets',
       exact: false,
-      icon: 'M4 20h16M6 20V10M10 20V6M14 20v-8M18 20V4',
+      icon: 'bars',
     },
   ];
 }

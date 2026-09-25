@@ -1,0 +1,32 @@
+.check {
+  width: 24px;
+  flex: none;
+}
+.check input {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--pine);
+}
+label.name {
+  display: block;
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+}
+li.booked .name,
+li.booked .amt {
+  color: var(--muted);
+}
+li.edit {
+  display: block;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  border-bottom: 0;
+  margin-bottom: 8px;
+}
+li.edit input {
+  background: var(--surface);
+}

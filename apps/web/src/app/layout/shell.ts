@@ -1,15 +1,17 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { filter, map, startWith, switchMap, tap } from 'rxjs';
 import { BottomNav } from './bottom-nav';
+import { Icon } from '../core/ui/icon';
+import { FinanceStore } from '../core/data/finance-store';
 
 /** Rahmen für angemeldete Seiten: Kopf mit Seitentitel, Inhalt, untere Navigation. */
 @Component({
   selector: 'fa-shell',
-  imports: [RouterOutlet, RouterLink, BottomNav, TranslocoPipe],
+  imports: [RouterOutlet, RouterLink, BottomNav, TranslocoPipe, Icon],
   template: `
     <a class="skip" href="#main">{{ 'common.skipToContent' | transloco }}</a>
     <main id="main" tabindex="-1">
@@ -20,15 +22,23 @@ import { BottomNav } from './bottom-nav';
           routerLink="/einstellungen"
           [attr.aria-label]="'nav.settings' | transloco"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="3" />
-            <path
-              d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
-            />
-          </svg>
+          <fa-icon name="settings" />
         </a>
       </header>
-      <router-outlet />
+      @if (store.ready()) {
+        <router-outlet />
+      } @else if (loadFailed()) {
+        <div class="panel stack" role="alert">
+          <p>{{ 'errors.loadFailed' | transloco }}</p>
+          <div class="btnrow">
+            <button class="btn" type="button" (click)="load()">
+              {{ 'common.retry' | transloco }}
+            </button>
+          </div>
+        </div>
+      } @else {
+        <p class="muted" aria-live="polite">{{ 'common.loading' | transloco }}</p>
+      }
     </main>
     <fa-bottom-nav />
   `,
@@ -52,15 +62,6 @@ import { BottomNav } from './bottom-nav';
       align-items: center;
       justify-content: center;
     }
-    .iconbtn svg {
-      width: 22px;
-      height: 22px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
     .skip {
       position: absolute;
       left: -9999px;
@@ -79,6 +80,21 @@ export class Shell {
   private readonly router = inject(Router);
   private readonly transloco = inject(TranslocoService);
   private readonly pageTitle = inject(Title);
+  protected readonly store = inject(FinanceStore);
+  protected readonly loadFailed = signal(false);
+
+  constructor() {
+    void this.load();
+  }
+
+  protected async load() {
+    this.loadFailed.set(false);
+    try {
+      await this.store.ensureLoaded();
+    } catch {
+      this.loadFailed.set(true);
+    }
+  }
 
   protected readonly title = toSignal(
     this.router.events.pipe(

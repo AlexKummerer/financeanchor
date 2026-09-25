@@ -1,0 +1,114 @@
+<section class="panel" aria-labelledby="flow-title">
+  <div class="flow-head">
+    <div>
+      <p id="flow-title" class="muted small">{{ 'overview.freePerMonth' | transloco }}</p>
+      <p class="flow-free" [class.neg]="breakdown().freeCents < 0">
+        {{ breakdown().freeCents | money: true }}
+      </p>
+    </div>
+    <p class="muted small">
+      @if (breakdown().incomeCents > 0) {
+        {{ 'overview.ofIncome' | transloco: { income: (breakdown().incomeCents | money: true) } }}
+      } @else {
+        <a routerLink="/fixkosten">{{ 'overview.addIncomeHint' | transloco }}</a>
+      }
+    </p>
+  </div>
+  <fa-flow-bar [breakdown]="breakdown()" [summary]="flowSummary()" />
+</section>
+
+<div class="kpis">
+  <div class="panel">
+    <p class="kpi-label">{{ 'overview.netWorth' | transloco }}</p>
+    <p class="kpi-value" [class.neg]="worth().netCents < 0">{{ worth().netCents | money: true }}</p>
+    @if (worthChange(); as ch) {
+      <p class="small muted">
+        {{
+          'overview.since'
+            | transloco
+              : {
+                  delta: (ch.deltaCents >= 0 ? '+' : '') + (ch.deltaCents | money: true),
+                  date: (ch.sinceDate | faDate),
+                }
+        }}
+      </p>
+    }
+  </div>
+  <div class="panel">
+    <p class="kpi-label">{{ 'overview.debt' | transloco }}</p>
+    <p class="kpi-value">{{ worth().debtCents | money: true }}</p>
+    <p class="small muted">
+      @if (openLoans() === 0) {
+        {{ 'overview.noLoans' | transloco }}
+      } @else {
+        {{
+          (openLoans() === 1 ? 'overview.oneLoan' : 'overview.nLoans')
+            | transloco: { n: openLoans() }
+        }}
+      }
+    </p>
+  </div>
+  <div class="panel">
+    <p class="kpi-label">
+      {{ 'overview.monthSoFar' | transloco: { month: (month | faMonth: 'longNoYear') } }}
+    </p>
+    <p
+      class="kpi-value"
+      [class.neg]="totals().balanceCents < 0"
+      [class.pos]="totals().balanceCents >= 0"
+    >
+      {{ totals().balanceCents | money: true }}
+    </p>
+    <p class="small muted">
+      {{
+        'overview.inOut'
+          | transloco
+            : {
+                in: (totals().incomeCents | money: true),
+                out: (totals().expenseCents | money: true),
+              }
+      }}
+    </p>
+  </div>
+  <div class="panel">
+    <p class="kpi-label">{{ 'overview.debtFree' | transloco }}</p>
+    @if (payoff(); as p) {
+      @if (p.stuck) {
+        <p class="kpi-value neg">{{ 'loans.notForeseeable' | transloco }}</p>
+      } @else {
+        <p class="kpi-value">{{ p.month | faMonth: 'short' }}</p>
+        <p class="small muted">{{ 'overview.inDuration' | transloco: { duration: p.duration } }}</p>
+      }
+    } @else {
+      <p class="kpi-value">–</p>
+    }
+  </div>
+</div>
+
+<h2 id="cats-title">{{ 'overview.spendingByCategory' | transloco }}</h2>
+<section class="panel" aria-labelledby="cats-title">
+  @if (monthTx.error()) {
+    <p role="alert">{{ 'errors.loadFailed' | transloco }}</p>
+  } @else {
+    <ul class="list">
+      @for (c of spending(); track c.categoryId) {
+        <li>
+          <div class="grow">
+            <div class="name">{{ c.name }}</div>
+            <div class="progress cat" aria-hidden="true">
+              <span [style.width.%]="c.share"></span>
+            </div>
+          </div>
+          <div class="amt">{{ c.amountCents | money }}</div>
+        </li>
+      } @empty {
+        <li class="empty">{{ 'overview.noSpending' | transloco }}</li>
+      }
+    </ul>
+  }
+</section>
+
+<h2 id="due-title">{{ 'overview.dueThisMonth' | transloco }}</h2>
+<section class="panel" aria-labelledby="due-title">
+  <fa-due-panel [month]="month" (booked)="onBooked()" />
+</section>

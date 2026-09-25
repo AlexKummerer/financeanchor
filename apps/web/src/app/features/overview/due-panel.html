@@ -1,0 +1,110 @@
+@if (failed()) {
+  <div role="alert" class="stack">
+    <p>{{ 'errors.loadFailed' | transloco }}</p>
+    <button class="btn ghost" type="button" (click)="load()">
+      {{ 'common.retry' | transloco }}
+    </button>
+  </div>
+} @else if (entries() === null) {
+  <p class="muted">{{ 'common.loading' | transloco }}</p>
+} @else if (rows().length === 0) {
+  <p class="empty">{{ 'due.nothing' | transloco }}</p>
+} @else {
+  <ul class="list">
+    @for (row of rows(); track row.entry.key) {
+      <li [class.booked]="row.entry.booked">
+        <div class="check">
+          @if (row.selectable) {
+            <input
+              type="checkbox"
+              [id]="'due-' + $index"
+              [checked]="row.selected"
+              [disabled]="!row.bookable || pending()"
+              (change)="toggle(row.entry.key, $any($event.target).checked)"
+            />
+          }
+        </div>
+        <div class="grow">
+          <label class="name" [for]="'due-' + $index">{{ row.entry.name }}</label>
+          <span class="tag" [class]="'tag ' + row.tagClass">{{ row.tagKey | transloco }}</span>
+          <span class="small muted">
+            {{ row.date | faDate: 'dayMonth' }}
+            @if (row.entry.booked) {
+              · {{ 'due.status.booked' | transloco }}
+            } @else if (!row.bookable) {
+              · {{ 'due.status.later' | transloco }}
+            }
+            @if (row.adjusted) {
+              · {{ 'due.status.adjusted' | transloco }}
+            }
+          </span>
+        </div>
+        <div class="amt" [class.pos]="row.amountCents > 0">{{ row.amountCents | money }}</div>
+        @if (row.selectable) {
+          <button
+            type="button"
+            class="iconbtn"
+            [attr.aria-expanded]="editing() === row.entry.key"
+            [attr.aria-label]="'due.adjust' | transloco: { name: row.entry.name }"
+            (click)="startEdit(row.entry.key)"
+          >
+            ✎
+          </button>
+        }
+      </li>
+      @if (editing() === row.entry.key) {
+        <li class="edit">
+          <form
+            class="form-grid"
+            (submit)="$event.preventDefault(); applyEdit(row, dateInput.value, amountInput.value)"
+          >
+            <div>
+              <label [for]="'due-date-' + $index">{{ 'due.date' | transloco }}</label>
+              <input
+                #dateInput
+                [id]="'due-date-' + $index"
+                type="date"
+                [value]="row.date"
+                [min]="month() + '-01'"
+              />
+            </div>
+            <div>
+              <label [for]="'due-amt-' + $index">{{ 'due.amount' | transloco }}</label>
+              <input
+                #amountInput
+                [id]="'due-amt-' + $index"
+                inputmode="decimal"
+                [value]="amountText(row)"
+                autocomplete="off"
+              />
+            </div>
+            @if (amountError()) {
+              <p class="field-error full" role="alert">{{ amountError() }}</p>
+            }
+            <div class="full btnrow">
+              <button class="btn" type="submit">{{ 'due.apply' | transloco }}</button>
+              @if (row.adjusted) {
+                <button class="btn ghost" type="button" (click)="resetEdit(row.entry.key)">
+                  {{ 'due.reset' | transloco }}
+                </button>
+              }
+            </div>
+          </form>
+        </li>
+      }
+    }
+  </ul>
+  @if (hasOpen()) {
+    <div class="btnrow" style="margin-top: 12px">
+      <button
+        class="btn"
+        type="button"
+        [disabled]="selectedKeys().length === 0 || pending()"
+        (click)="bookSelected()"
+      >
+        {{ 'due.bookSelected' | transloco: { n: selectedKeys().length } }}
+      </button>
+    </div>
+    <p class="small muted" style="margin-top: 8px">{{ 'due.hint' | transloco }}</p>
+  }
+}

@@ -7,7 +7,8 @@
     "edit": "Edit",
     "skipToContent": "Skip to content",
     "perMonth": "per month",
-    "loading": "Loading …"
+    "loading": "Loading …",
+    "retry": "Try again"
   },
   "nav": {
     "main": "Main navigation",
@@ -49,6 +50,71 @@
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "network": "Cannot reach the server.",
-    "saveFailed": "Saving failed."
+    "saveFailed": "Saving failed.",
+    "loadFailed": "Data could not be loaded."
+  },
+  "duration": {
+    "now": "now",
+    "year": "{{n}} year",
+    "years": "{{n}} years",
+    "month": "{{n}} month",
+    "months": "{{n}} months"
+  },
+  "overview": {
+    "freePerMonth": "Available per month",
+    "ofIncome": "of {{income}} fixed income",
+    "addIncomeHint": "Add your salary as income under fixed costs",
+    "flowSummary": "Split of monthly income of {{income}}: fixed costs {{fixed}}, reserve {{reserve}}, loan payments {{loans}}, savings {{saving}}, available {{free}}.",
+    "fixed": "Fixed costs",
+    "reserve": "Reserve",
+    "loans": "Loan payments",
+    "saving": "Savings",
+    "free": "Available",
+    "netWorth": "Net worth",
+    "since": "{{delta}} since {{date}}",
+    "debt": "Loan balance",
+    "noLoans": "no loans added",
+    "oneLoan": "1 loan",
+    "nLoans": "{{n}} loans",
+    "monthSoFar": "{{month}} so far",
+    "inOut": "{{in}} in, {{out}} out",
+    "debtFree": "Debt-free",
+    "inDuration": "in {{duration}}",
+    "spendingByCategory": "Spending this month by category",
+    "noSpending": "No spending this month yet. Add it under transactions.",
+    "dueThisMonth": "Due this month"
+  },
+  "loans": {
+    "notForeseeable": "not foreseeable"
+  },
+  "due": {
+    "nothing": "Nothing recurring is due this month.",
+    "status": {
+      "booked": "booked",
+      "later": "not due yet",
+      "adjusted": "adjusted"
+    },
+    "tag": {
+      "reserve": "Reserve",
+      "transfer": "Transfer",
+      "loan": "Loan",
+      "extra": "Extra payment",
+      "income": "Income",
+      "fromReserve": "from reserve",
+      "saving": "Savings",
+      "fixed": "Fixed costs"
+    },
+    "adjust": "Adjust {{name}}",
+    "date": "Date",
+    "amount": "Amount (€)",
+    "apply": "Apply",
+    "reset": "Reset",
+    "amountInvalid": "Please enter an amount greater than 0.",
+    "amountTooHigh": "At most {{max}} (outstanding balance).",
+    "dateOutsideMonth": "The date must be in the same month.",
+    "bookSelected": "Book {{n}} as transactions",
+    "booked": "{{n}} transactions booked",
+    "alreadyBooked": "Something was booked in the meantime. The list has been updated.",
+    "hint": "Only what is due by today is booked. Use ✎ to adjust date and amount first."
   }
 }

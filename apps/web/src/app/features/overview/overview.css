@@ -1,0 +1,23 @@
+.flow-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.flow-free {
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.progress.cat {
+  background: var(--bg);
+  margin: 6px 0 0;
+}
+.progress.cat span {
+  background: var(--fix);
+}
+a {
+  color: var(--pine);
+}

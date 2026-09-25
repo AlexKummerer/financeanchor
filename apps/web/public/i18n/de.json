@@ -7,7 +7,8 @@
     "edit": "Bearbeiten",
     "skipToContent": "Zum Inhalt springen",
     "perMonth": "pro Monat",
-    "loading": "Wird geladen …"
+    "loading": "Wird geladen …",
+    "retry": "Erneut versuchen"
   },
   "nav": {
     "main": "Hauptnavigation",
@@ -49,6 +50,71 @@
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     "network": "Keine Verbindung zum Server.",
-    "saveFailed": "Speichern fehlgeschlagen."
+    "saveFailed": "Speichern fehlgeschlagen.",
+    "loadFailed": "Daten konnten nicht geladen werden."
+  },
+  "duration": {
+    "now": "sofort",
+    "year": "{{n}} Jahr",
+    "years": "{{n}} Jahren",
+    "month": "{{n}} Monat",
+    "months": "{{n}} Monaten"
+  },
+  "overview": {
+    "freePerMonth": "Frei verfügbar pro Monat",
+    "ofIncome": "von {{income}} festen Einnahmen",
+    "addIncomeHint": "Trag unter Fixkosten dein Gehalt als Einnahme ein",
+    "flowSummary": "Aufteilung der monatlichen Einnahmen von {{income}}: Fixkosten {{fixed}}, Rücklage {{reserve}}, Kreditraten {{loans}}, Sparen {{saving}}, frei {{free}}.",
+    "fixed": "Fixkosten",
+    "reserve": "Rücklage",
+    "loans": "Kreditraten",
+    "saving": "Sparen",
+    "free": "Frei",
+    "netWorth": "Nettovermögen",
+    "since": "{{delta}} seit {{date}}",
+    "debt": "Restschuld Kredite",
+    "noLoans": "keine Kredite erfasst",
+    "oneLoan": "1 Kredit",
+    "nLoans": "{{n}} Kredite",
+    "monthSoFar": "{{month}} bisher",
+    "inOut": "{{in}} rein, {{out}} raus",
+    "debtFree": "Schuldenfrei",
+    "inDuration": "in {{duration}}",
+    "spendingByCategory": "Ausgaben diesen Monat nach Kategorie",
+    "noSpending": "Noch keine Ausgaben in diesem Monat. Erfasse sie unter Buchungen.",
+    "dueThisMonth": "Diesen Monat fällig"
+  },
+  "loans": {
+    "notForeseeable": "nicht absehbar"
+  },
+  "due": {
+    "nothing": "In diesem Monat ist nichts Wiederkehrendes fällig.",
+    "status": {
+      "booked": "gebucht",
+      "later": "noch nicht fällig",
+      "adjusted": "angepasst"
+    },
+    "tag": {
+      "reserve": "Rücklage",
+      "transfer": "Umbuchung",
+      "loan": "Kredit",
+      "extra": "Extra-Tilgung",
+      "income": "Einnahme",
+      "fromReserve": "aus Rücklage",
+      "saving": "Sparen",
+      "fixed": "Fixkosten"
+    },
+    "adjust": "{{name}} anpassen",
+    "date": "Datum",
+    "amount": "Betrag (€)",
+    "apply": "Übernehmen",
+    "reset": "Zurücksetzen",
+    "amountInvalid": "Bitte einen Betrag größer als 0 eingeben.",
+    "amountTooHigh": "Höchstens {{max}} (offene Restschuld).",
+    "dateOutsideMonth": "Das Datum muss im selben Monat liegen.",
+    "bookSelected": "{{n}} als Buchungen übernehmen",
+    "booked": "{{n}} Buchungen übernommen",
+    "alreadyBooked": "Inzwischen wurde schon gebucht. Die Liste ist aktualisiert.",
+    "hint": "Gebucht wird, was bis heute fällig ist. Über ✎ lassen sich Tag und Betrag vorher anpassen."
   }
 }
