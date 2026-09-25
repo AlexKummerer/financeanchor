@@ -49,7 +49,15 @@ const { values } = parseArgs({
 async function readPassword(): Promise<string> {
   if (process.env.SEED_PASSWORD) return process.env.SEED_PASSWORD;
   if (!process.stdin.isTTY) throw new Error('SEED_PASSWORD setzen oder im Terminal ausführen');
-  process.stdout.write('Passwort (mind. 12 Zeichen): ');
+  const first = await promptHidden('Passwort (mind. 12 Zeichen): ');
+  const second = await promptHidden('Passwort wiederholen: ');
+  if (first !== second) throw new Error('Die Passwörter stimmen nicht überein.');
+  return first;
+}
+
+/** Eingabe ohne Anzeige im Terminal. */
+function promptHidden(label: string): Promise<string> {
+  process.stdout.write(label);
   process.stdin.setRawMode(true);
   process.stdin.resume();
   let input = '';
