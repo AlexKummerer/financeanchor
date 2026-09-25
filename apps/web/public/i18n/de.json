@@ -1,0 +1,54 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "skipToContent": "Zum Inhalt springen",
+    "perMonth": "pro Monat",
+    "loading": "Wird geladen …"
+  },
+  "nav": {
+    "main": "Hauptnavigation",
+    "overview": "Übersicht",
+    "transactions": "Buchungen",
+    "transactionsTitle": "Haushaltsbuch",
+    "recurring": "Fixkosten",
+    "loans": "Kredite",
+    "assets": "Vermögen",
+    "settings": "Einstellungen"
+  },
+  "login": {
+    "tagline": "Deine Finanzen an einem Ort.",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "submit": "Anmelden",
+    "pending": "Anmelden …",
+    "emailInvalid": "Bitte eine gültige E-Mail-Adresse eingeben.",
+    "passwordRequired": "Bitte das Passwort eingeben.",
+    "wrongCredentials": "E-Mail oder Passwort stimmen nicht.",
+    "tooMany": "Zu viele Versuche. Bitte in einer Minute erneut probieren."
+  },
+  "settings": {
+    "theme": "Darstellung",
+    "themeSystem": "Wie das System",
+    "themeLight": "Hell",
+    "themeDark": "Dunkel",
+    "language": "Sprache",
+    "account": "Konto",
+    "logout": "Abmelden",
+    "plan": {
+      "trial": "Testphase",
+      "founder": "Gründerpreis",
+      "monthly": "Monatsabo",
+      "yearly": "Jahresabo",
+      "internal": "Alle Funktionen freigeschaltet"
+    }
+  },
+  "errors": {
+    "generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+    "network": "Keine Verbindung zum Server.",
+    "saveFailed": "Speichern fehlgeschlagen."
+  }
+}

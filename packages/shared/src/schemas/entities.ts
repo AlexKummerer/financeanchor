@@ -198,3 +198,11 @@ export const entitlementSchema = z.object({
   source: z.enum(entitlementSources),
 });
 export type Entitlement = z.infer<typeof entitlementSchema>;
+
+// Antwort von GET /api/me
+export const meSchema = z.object({
+  user: z.object({ id: idSchema, name: z.string(), email: z.string() }),
+  settings: userSettingsSchema,
+  entitlement: entitlementSchema.extend({ active: z.boolean() }).nullable(),
+});
+export type Me = z.infer<typeof meSchema>;

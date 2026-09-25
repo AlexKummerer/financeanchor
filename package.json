@@ -16,11 +16,14 @@
     "db:generate": "pnpm --filter @financeanchor/api db:generate",
     "db:migrate": "pnpm --filter @financeanchor/api db:migrate",
     "db:migrate:remote": "pnpm --filter @financeanchor/api db:migrate:remote",
-    "db:seed": "pnpm --filter @financeanchor/api db:seed"
+    "db:seed": "pnpm --filter @financeanchor/api db:seed",
+    "dev": "pnpm --parallel --filter @financeanchor/api --filter @financeanchor/web dev",
+    "dev:web": "pnpm --filter @financeanchor/web dev"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.6",
+    "angular-eslint": "^22.5.0",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.12.0",

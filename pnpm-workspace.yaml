@@ -6,3 +6,7 @@ allowBuilds:
   esbuild: true
   workerd: true
   sharp: true
+  # Bringen vorkompilierte Binärdateien als optionale Pakete mit; Install-Skripte unnötig.
+  '@parcel/watcher': false
+  lmdb: false
+  msgpackr-extract: false

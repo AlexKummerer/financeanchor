@@ -9,7 +9,7 @@ Phase 1: produktionsreif für einen Nutzer, aber mandantenfähig (siehe `docs/pl
 ## Struktur
 
 ```
-apps/web         Angular-PWA (noch nicht angelegt)
+apps/web         Angular-PWA (Standalone, Signals, zoneless, Transloco, CDK)
 apps/api         Cloudflare Worker, Hono, D1, Drizzle, Better Auth
 packages/shared  Typen, Zod-Schemas, gesamte Fachlogik (reines TS, Vitest)
 ```
@@ -28,6 +28,7 @@ Node 24 (`.nvmrc`), pnpm 12.
 | `pnpm db:generate -- --name <name>`                               | Drizzle-Migration aus `apps/api/src/db/schema.ts` erzeugen                                                                           |
 | `pnpm db:migrate`                                                 | Migrationen auf die lokale D1 anwenden (`db:migrate:remote` für Produktion)                                                          |
 | `pnpm db:seed -- --email <mail> [--name <n>] [--demo] [--remote]` | Account mit vollen Freigaben anlegen, `--demo` mit Beispieldaten des Prototyps; Passwort über `SEED_PASSWORD` oder verdeckte Eingabe |
+| `pnpm dev`                                                        | API und Web parallel (Web: http://localhost:4200, `/api` per Proxy an Port 8787)                                                     |
 | `pnpm dev:api`                                                    | API lokal (`wrangler dev`, Port 8787)                                                                                                |
 | `pnpm --filter @financeanchor/api types`                          | `worker-configuration.d.ts` nach Änderungen an `wrangler.jsonc` neu erzeugen                                                         |
 
@@ -48,3 +49,6 @@ Node 24 (`.nvmrc`), pnpm 12.
 - Texte in der Oberfläche auf Deutsch (i18n-Schlüssel), Englisch vorbereitet.
 - API: Routen hinter `requireAuth` und `requireEntitlement('core')`; `/api/me` nur hinter `requireAuth`. Fehler als `AppError` werfen (Format `{ error: { code, message, details? } }`).
 - D1 erlaubt höchstens 100 Parameter pro Abfrage: Mehrzeilige Inserts über `chunkedInsert`, mehrschrittige Vorgänge über `runBatch` (atomar).
+- Web: Dienste mit `@Service()`, Komponenten ohne `standalone`/`OnPush`-Angabe (Standard in Angular 22), `input()`/`output()`, native Control-Flow, Reactive Forms (typed). Texte nur über Transloco-Schlüssel (`public/i18n/de.json` und `en.json` gemeinsam pflegen). Beträge über `Formatter`/`money`-Pipe.
+- Web ist Capacitor-tauglich zu halten: kein direkter Zugriff auf `localStorage`, Downloads usw., sondern über `core/platform/*`; API-URLs immer mit `/api/…` (Interceptor setzt Basis-URL, Cookies bzw. später Bearer-Token).
+- Icons neu erzeugen: `node apps/web/scripts/icons.mjs` (aus `public/icons/icon.svg`).

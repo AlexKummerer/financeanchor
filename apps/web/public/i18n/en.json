@@ -1,0 +1,54 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "skipToContent": "Skip to content",
+    "perMonth": "per month",
+    "loading": "Loading …"
+  },
+  "nav": {
+    "main": "Main navigation",
+    "overview": "Overview",
+    "transactions": "Transactions",
+    "transactionsTitle": "Transactions",
+    "recurring": "Fixed costs",
+    "loans": "Loans",
+    "assets": "Net worth",
+    "settings": "Settings"
+  },
+  "login": {
+    "tagline": "Your finances in one place.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "pending": "Signing in …",
+    "emailInvalid": "Please enter a valid email address.",
+    "passwordRequired": "Please enter your password.",
+    "wrongCredentials": "Email or password is incorrect.",
+    "tooMany": "Too many attempts. Please try again in a minute."
+  },
+  "settings": {
+    "theme": "Appearance",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "language": "Language",
+    "account": "Account",
+    "logout": "Sign out",
+    "plan": {
+      "trial": "Trial",
+      "founder": "Founder price",
+      "monthly": "Monthly plan",
+      "yearly": "Yearly plan",
+      "internal": "All features unlocked"
+    }
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Cannot reach the server.",
+    "saveFailed": "Saving failed."
+  }
+}
