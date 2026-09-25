@@ -1,0 +1,138 @@
+<section class="panel">
+  <p class="muted small">{{ 'assets.netLabel' | transloco }}</p>
+  <p class="big-number" [class.neg]="worth().netCents < 0">{{ worth().netCents | money: true }}</p>
+  <fa-net-worth-chart [snapshots]="store.snapshots.items()" />
+  <div class="btnrow" style="margin-top: 12px">
+    <button class="btn" type="button" [disabled]="busy()" (click)="snapshot()">
+      {{ 'assets.snapshot' | transloco }}
+    </button>
+  </div>
+  <p class="small muted" style="margin-top: 8px">
+    @if (lastSnapshot(); as s) {
+      {{ 'assets.lastSnapshot' | transloco: { date: (s.date | faDate) } }}
+    } @else {
+      {{ 'assets.noSnapshot' | transloco }}
+    }
+  </p>
+</section>
+
+<section class="panel" style="margin-top: 12px">
+  <details>
+    <summary>{{ 'assets.add' | transloco }}</summary>
+    <form class="form-grid" [formGroup]="form" (ngSubmit)="add()" novalidate>
+      <div class="full">
+        <label for="as-name">{{ 'assets.name' | transloco }}</label>
+        <input
+          id="as-name"
+          formControlName="name"
+          [placeholder]="'assets.namePlaceholder' | transloco"
+          autocomplete="off"
+          [attr.aria-invalid]="invalid('name')"
+          aria-describedby="as-name-err"
+        />
+        @if (invalid('name')) {
+          <p id="as-name-err" class="field-error">{{ 'forms.required' | transloco }}</p>
+        }
+      </div>
+      <div>
+        <label for="as-kind">{{ 'assets.kind' | transloco }}</label>
+        <select id="as-kind" formControlName="kind">
+          @for (k of kinds; track k) {
+            <option [value]="k">{{ 'assets.kinds.' + k | transloco }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label for="as-balance">{{ 'assets.value' | transloco }}</label>
+        <input
+          id="as-balance"
+          formControlName="balance"
+          inputmode="decimal"
+          autocomplete="off"
+          [attr.aria-invalid]="invalid('balance')"
+          aria-describedby="as-balance-err"
+        />
+        @if (invalid('balance')) {
+          <p id="as-balance-err" class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
+        }
+      </div>
+      <div class="full">
+        <button class="btn" type="submit">{{ 'common.save' | transloco }}</button>
+      </div>
+    </form>
+  </details>
+</section>
+
+<h2 id="accounts-title">{{ 'assets.listTitle' | transloco }}</h2>
+<p class="small muted" style="margin-bottom: 8px">{{ 'assets.tapHint' | transloco }}</p>
+<section class="panel" aria-labelledby="accounts-title">
+  <ul class="list">
+    @for (a of store.accounts.items(); track a.id) {
+      <li>
+        <div class="grow">
+          <button
+            type="button"
+            class="name linkish"
+            (click)="rename(a)"
+            [attr.aria-label]="'assets.renameNamed' | transloco: { name: a.name }"
+          >
+            {{ a.name }}
+          </button>
+          <span class="tag">{{ 'assets.kinds.' + a.kind | transloco }}</span>
+        </div>
+        <button
+          type="button"
+          class="linkbtn amt"
+          [class.neg]="a.balanceCents < 0"
+          (click)="updateBalance(a)"
+          [attr.aria-label]="
+            'assets.updateNamed' | transloco: { name: a.name, value: (a.balanceCents | money) }
+          "
+        >
+          {{ a.balanceCents | money }}
+        </button>
+        <button
+          class="iconbtn"
+          type="button"
+          (click)="remove(a)"
+          [attr.aria-label]="'assets.deleteNamed' | transloco: { name: a.name }"
+        >
+          ×
+        </button>
+      </li>
+    }
+    @if (hasLoans()) {
+      <li>
+        <div class="grow">
+          <div class="name">{{ 'nav.loans' | transloco }}</div>
+          <span class="tag debt">{{ 'assets.fromLoans' | transloco }}</span>
+        </div>
+        <div class="amt neg">{{ -worth().debtCents | money }}</div>
+        <span class="spacer" aria-hidden="true"></span>
+      </li>
+    }
+    @if (store.accounts.items().length === 0 && !hasLoans()) {
+      <li class="empty">{{ 'assets.none' | transloco }}</li>
+    }
+  </ul>
+</section>
+
+<h2 id="data-title">{{ 'assets.dataTitle' | transloco }}</h2>
+<section class="panel stack" aria-labelledby="data-title">
+  <p class="small muted">{{ 'assets.dataHint' | transloco }}</p>
+  <div class="btnrow">
+    <button class="btn ghost" type="button" (click)="exportData()">
+      {{ 'assets.export' | transloco }}
+    </button>
+    <button class="btn ghost" type="button" [disabled]="busy()" (click)="fileInput.click()">
+      {{ 'assets.import' | transloco }}
+    </button>
+    <input
+      #fileInput
+      type="file"
+      accept="application/json,.json"
+      hidden
+      (change)="importData(fileInput)"
+    />
+  </div>
+</section>

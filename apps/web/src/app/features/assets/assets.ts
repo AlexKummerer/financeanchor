@@ -1,7 +1,208 @@
-import { Component } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  accountKinds,
+  exportSchema,
+  netWorth,
+  parseEuroToCents,
+  type Account,
+  type AccountKind,
+  type ExportFile,
+} from '@financeanchor/shared';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { firstValueFrom } from 'rxjs';
+import { Clock } from '../../core/clock';
+import { FinanceStore } from '../../core/data/finance-store';
+import { euroAmount, toCents } from '../../core/forms/validators';
+import { Formatter } from '../../core/format/formatter';
+import { DatePipe, MoneyPipe } from '../../core/format/pipes';
+import { ApiError, toApiError } from '../../core/http/api-error';
+import { FileSaver } from '../../core/platform/file-saver';
+import { Dialogs } from '../../core/ui/dialogs';
+import { ToastService } from '../../core/ui/toast.service';
+import { NetWorthChart } from './net-worth-chart';
 
 @Component({
   selector: 'fa-assets',
-  template: `<div class="panel"><p class="muted">…</p></div>`,
+  imports: [ReactiveFormsModule, TranslocoPipe, MoneyPipe, DatePipe, NetWorthChart],
+  templateUrl: './assets.html',
+  styleUrl: './assets.css',
 })
-export class AssetsPage {}
+export class AssetsPage {
+  protected readonly store = inject(FinanceStore);
+  private readonly http = inject(HttpClient);
+  private readonly clock = inject(Clock);
+  private readonly t = inject(TranslocoService);
+  private readonly f = inject(Formatter);
+  private readonly dialogs = inject(Dialogs);
+  private readonly toast = inject(ToastService);
+  private readonly files = inject(FileSaver);
+
+  protected readonly kinds = accountKinds;
+  protected readonly worth = computed(() =>
+    netWorth(this.store.accounts.items(), this.store.loans.items()),
+  );
+  protected readonly lastSnapshot = computed(
+    () =>
+      [...this.store.snapshots.items()].sort((a, b) => a.date.localeCompare(b.date)).at(-1) ?? null,
+  );
+  protected readonly hasLoans = computed(() => this.store.loans.items().length > 0);
+  protected readonly busy = signal(false);
+  protected readonly submitted = signal(false);
+
+  private readonly fb = inject(FormBuilder).nonNullable;
+  protected readonly form = this.fb.group({
+    name: ['', [Validators.required, Validators.maxLength(100)]],
+    kind: this.fb.control<AccountKind>('checking'),
+    balance: ['', euroAmount({ min: -100_000_000_000 })],
+  });
+
+  protected invalid(name: 'name' | 'balance') {
+    const c = this.form.controls[name];
+    return c.invalid && (c.touched || this.submitted());
+  }
+
+  protected async add() {
+    this.submitted.set(true);
+    if (this.form.invalid) return;
+    const v = this.form.getRawValue();
+    try {
+      await this.store.accounts.create({
+        name: v.name.trim(),
+        kind: v.kind,
+        balanceCents: toCents(v.balance),
+      });
+      this.form.reset({ kind: 'checking' });
+      this.submitted.set(false);
+      this.toast.show(this.t.translate('assets.saved'));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    }
+  }
+
+  /** Wert antippen und aktualisieren (wie im Prototyp). */
+  protected async updateBalance(a: Account) {
+    const value = await this.dialogs.prompt({
+      title: this.t.translate('assets.updateTitle', { name: a.name }),
+      label: this.t.translate('assets.value'),
+      value: this.f.amountInput(a.balanceCents),
+      inputMode: 'decimal',
+      confirmLabel: this.t.translate('common.save'),
+    });
+    if (value === undefined) return;
+    const cents = parseEuroToCents(value);
+    if (cents === null) {
+      this.toast.show(this.t.translate('forms.amountInvalid'), 'error');
+      return;
+    }
+    try {
+      await this.store.accounts.update(a.id, { balanceCents: cents });
+      this.toast.show(this.t.translate('assets.updated'));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    }
+  }
+
+  protected async rename(a: Account) {
+    const name = await this.dialogs.prompt({
+      title: this.t.translate('assets.renameTitle'),
+      label: this.t.translate('assets.name'),
+      value: a.name,
+    });
+    if (!name || name === a.name) return;
+    try {
+      await this.store.accounts.update(a.id, { name });
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    }
+  }
+
+  protected async remove(a: Account) {
+    const linked = this.store.pots.items().some((p) => p.accountId === a.id);
+    const ok = await this.dialogs.confirm({
+      title: this.t.translate('assets.deleteTitle', { name: a.name }),
+      ...(linked ? { message: this.t.translate('assets.deleteLinked') } : {}),
+      confirmLabel: this.t.translate('common.delete'),
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await this.store.accounts.remove(a.id);
+      if (linked) await this.store.pots.load();
+      this.toast.show(this.t.translate('tx.deleted'));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    }
+  }
+
+  protected async snapshot() {
+    this.busy.set(true);
+    try {
+      await firstValueFrom(this.http.post('/api/snapshots', { date: this.clock.today() }));
+      await this.store.snapshots.load();
+      this.toast.show(this.t.translate('assets.snapshotSaved'));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async exportData() {
+    try {
+      const file = await firstValueFrom(this.http.get<ExportFile>('/api/export'));
+      this.files.save(
+        `financeanchor-sicherung-${this.clock.today()}.json`,
+        JSON.stringify(file, null, 2),
+      );
+      this.toast.show(this.t.translate('assets.exported'));
+    } catch (err) {
+      const e = toApiError(err);
+      this.toast.show(
+        this.t.translate(e.status === 402 ? 'assets.exportLocked' : 'errors.generic'),
+        'error',
+      );
+    }
+  }
+
+  protected async importData(input: HTMLInputElement) {
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    let parsed: ExportFile;
+    try {
+      parsed = exportSchema.parse(JSON.parse(await file.text()));
+    } catch {
+      this.toast.show(this.t.translate('assets.importInvalid'), 'error');
+      return;
+    }
+    const ok = await this.dialogs.confirm({
+      title: this.t.translate('assets.importTitle'),
+      message: this.t.translate('assets.importText', {
+        date: this.f.date(parsed.exportedAt.slice(0, 10)),
+      }),
+      confirmLabel: this.t.translate('assets.importConfirm'),
+      danger: true,
+    });
+    if (!ok) return;
+    this.busy.set(true);
+    try {
+      await firstValueFrom(this.http.post('/api/import', parsed));
+      await this.store.reloadAll();
+      this.toast.show(this.t.translate('assets.imported'));
+    } catch (err) {
+      const e = toApiError(err);
+      this.toast.show(
+        this.t.translate(
+          e instanceof ApiError && e.code === 'import_invalid'
+            ? 'assets.importInvalid'
+            : 'errors.saveFailed',
+        ),
+        'error',
+      );
+    } finally {
+      this.busy.set(false);
+    }
+  }
+}
