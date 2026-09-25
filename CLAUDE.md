@@ -22,7 +22,7 @@ Node 24 (`.nvmrc`), pnpm 12.
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm install`                                                    | Abhängigkeiten                                                                                                                                                               |
 | `pnpm test`                                                       | alle Tests                                                                                                                                                                   |
-| `pnpm test:e2e`                                                   | Playwright-E2E mit eigener lokaler D1 (`apps/backend/.wrangler/e2e`, Ports 4300/8788); Browser einmalig: `pnpm --filter @financeanchor/web exec playwright install chromium` |
+| `pnpm test:e2e`                                                   | Playwright-E2E mit eigener lokaler D1 (`apps/backend/.wrangler/e2e`, Ports 4300/8790); Browser einmalig: `pnpm --filter @financeanchor/web exec playwright install chromium` |
 | `pnpm typecheck`                                                  | TypeScript in allen Paketen                                                                                                                                                  |
 | `pnpm lint`                                                       | ESLint + Prettier-Check                                                                                                                                                      |
 | `pnpm format`                                                     | Prettier schreiben                                                                                                                                                           |
@@ -55,3 +55,5 @@ Node 24 (`.nvmrc`), pnpm 12.
 - Icons neu erzeugen: `node apps/web/scripts/icons.mjs` (aus `public/icons/icon.svg`).
 - Kein Inline-SVG direkt in Layout-Templates vor einem `router-outlet` (Seiten entstanden sonst im SVG-Namensraum und blieben unsichtbar); Icons über `fa-icon`.
 - Deployment: `APP_URL=https://… pnpm deploy` (siehe README). Sicherheits-Header der statischen Dateien in `apps/web/public/_headers`; CSP ohne Inline-Skripte, daher `inlineCritical: false`.
+- Kredite: Arten `installment` (Rate, optional `targetMonth`) und `deadline` (`dueDate`, `paymentMode` spread/lump). Verteilung und Simulation nur über `allocateMonth`/`planLoans` in `shared` (`docs/plan-kredite-budget.md`); die Web-App liest den Plan über `LoanPlanner`.
+- drizzle-kit fragt bei Spalten-Umbenennungen interaktiv – in solchen Fällen Hinzufügen und Entfernen auf zwei Migrationen aufteilen und das erzeugte SQL prüfen.
