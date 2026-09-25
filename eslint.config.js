@@ -37,6 +37,8 @@ export default defineConfig(
       // Angular-DI braucht Wert-Importe für Klassen, die per inject() genutzt werden.
       '@typescript-eslint/consistent-type-imports': 'off',
       '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
+      // `output<void>()` ist das übliche Angular-Muster für Ereignisse ohne Wert.
+      '@typescript-eslint/no-invalid-void-type': 'off',
       '@angular-eslint/component-selector': [
         'error',
         { type: 'element', prefix: ['fa', 'app'], style: 'kebab-case' },
