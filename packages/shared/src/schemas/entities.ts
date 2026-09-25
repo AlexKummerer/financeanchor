@@ -4,6 +4,7 @@ import {
   basisPointsSchema,
   centsSchema,
   currencySchema,
+  dueDaySchema,
   idSchema,
   intervalSchema,
   isoDateSchema,
@@ -44,14 +45,18 @@ export const reservePotSchema = z.object({
   accountId: idSchema.nullable(),
   /** `null` = automatisch aus dem Bedarf berechnet */
   monthlyAmountCents: nonNegativeCentsSchema.nullable(),
+  /** Tag, an dem die monatliche Rücklage gebucht wird */
+  dueDay: dueDaySchema,
   isDefault: z.boolean(),
   ...meta,
 });
 export type ReservePot = z.infer<typeof reservePotSchema>;
 export const reservePotCreateSchema = reservePotSchema
   .pick({ name: true, accountId: true, monthlyAmountCents: true })
-  .extend({ id: idSchema.optional() });
-export const reservePotUpdateSchema = reservePotCreateSchema.omit({ id: true }).partial();
+  .extend({ id: idSchema.optional(), dueDay: dueDaySchema.default(1) });
+export const reservePotUpdateSchema = reservePotSchema
+  .pick({ name: true, accountId: true, monthlyAmountCents: true, dueDay: true })
+  .partial();
 
 // Kategorien
 export const categorySchema = z.object({
@@ -71,6 +76,7 @@ export const recurringItemSchema = z.object({
   amountCents: positiveCentsSchema,
   intervalMonths: intervalSchema,
   startMonth: yearMonthSchema,
+  dueDay: dueDaySchema,
   kind: recurringKindSchema,
   categoryId: idSchema,
   /** `null` = Standardtopf, sofern der Posten über die Rücklage läuft */
@@ -79,9 +85,15 @@ export const recurringItemSchema = z.object({
 });
 export type RecurringItem = z.infer<typeof recurringItemSchema>;
 export const recurringItemCreateSchema = recurringItemSchema
-  .omit({ id: true, createdAt: true, updatedAt: true, reservePotId: true })
-  .extend({ id: idSchema.optional(), reservePotId: idSchema.nullable().optional() });
-export const recurringItemUpdateSchema = recurringItemCreateSchema.omit({ id: true }).partial();
+  .omit({ id: true, createdAt: true, updatedAt: true, reservePotId: true, dueDay: true })
+  .extend({
+    id: idSchema.optional(),
+    reservePotId: idSchema.nullable().optional(),
+    dueDay: dueDaySchema.default(1),
+  });
+export const recurringItemUpdateSchema = recurringItemSchema
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .partial();
 
 // Buchungen
 export const transactionSchema = z.object({
@@ -120,13 +132,27 @@ export const loanSchema = z.object({
   originalCents: nonNegativeCentsSchema,
   rateBp: basisPointsSchema,
   paymentCents: positiveCentsSchema,
+  dueDay: dueDaySchema,
   ...meta,
 });
 export type Loan = z.infer<typeof loanSchema>;
 export const loanCreateSchema = loanSchema
   .pick({ name: true, balanceCents: true, rateBp: true, paymentCents: true })
-  .extend({ id: idSchema.optional(), originalCents: nonNegativeCentsSchema.optional() });
-export const loanUpdateSchema = loanCreateSchema.omit({ id: true }).partial();
+  .extend({
+    id: idSchema.optional(),
+    originalCents: nonNegativeCentsSchema.optional(),
+    dueDay: dueDaySchema.default(1),
+  });
+export const loanUpdateSchema = loanSchema
+  .pick({
+    name: true,
+    balanceCents: true,
+    originalCents: true,
+    rateBp: true,
+    paymentCents: true,
+    dueDay: true,
+  })
+  .partial();
 
 // Vermögensstände
 export const netWorthSnapshotSchema = z.object({

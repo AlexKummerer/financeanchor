@@ -169,7 +169,7 @@ Jeder Schritt endet mit grünen Tests, einem Commit und einem kurzen Bericht.
 ## 9. Entscheidungen
 
 1. **Startmonat** mit Jahr (`YYYY-MM`). Vor dem Startmonat ist ein Posten nie fällig.
-2. **Buchungsdatum bei „Fällige übernehmen“**: soll „auf den Tag passen“ – Details offen (siehe Rückfrage).
+2. **Fälligkeitstag**: Posten, Kredite und Rücklagentöpfe haben einen Tag im Monat (1–31, in kürzeren Monaten der letzte Tag; Standard 1). Die Buchung erhält dieses Datum, die Umbuchung aus der Rücklage denselben Tag wie ihr Posten. „Fällige übernehmen“ bucht im laufenden Monat nur, was bis heute fällig ist; in vergangenen Monaten alles Offene. Vor dem Übernehmen lassen sich Tag (innerhalb des Monats) und Betrag je Buchung anpassen; eine angepasste Posten-Ausgabe ändert die zugehörige Umbuchung mit.
 3. **Letzte Kreditrate**: gebucht wird höchstens Restschuld plus Monatszins.
 4. **Extra-Tilgung** wird bei „Fällige übernehmen“ als eigene Buchung auf den Kredit gebucht, den die Strategie gerade vorsieht, und senkt dessen Restschuld.
 5. **Kategorien** sind für wiederkehrende Posten Pflicht. Kategorien sind frei pflegbar und erweiterbar; „Sparen“ ist nur eine Standardkategorie, die umbenannt oder ergänzt werden kann (z. B. „Urlaub“).

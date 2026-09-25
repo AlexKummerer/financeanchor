@@ -13,6 +13,9 @@ export const basisPointsSchema = z.int().min(0).max(MAX_BASIS_POINTS);
 export const yearMonthSchema = z.string().refine(isYearMonth, { error: 'Monat im Format JJJJ-MM' });
 export const isoDateSchema = z.string().refine(isIsoDate, { error: 'Datum im Format JJJJ-MM-TT' });
 
+/** Tag im Monat; in kürzeren Monaten gilt der letzte Tag. */
+export const dueDaySchema = z.int().min(1).max(31);
+
 export const nameSchema = z.string().trim().min(1).max(100);
 
 export const accountKinds = ['checking', 'savings', 'depot', 'other'] as const;

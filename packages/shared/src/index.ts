@@ -10,3 +10,6 @@ export * from './domain/reserve.js';
 export * from './domain/overview.js';
 export * from './domain/transactions.js';
 export * from './domain/loans.js';
+export * from './domain/dueBooking.js';
+export * from './domain/netWorth.js';
+export * from './domain/categories.js';
