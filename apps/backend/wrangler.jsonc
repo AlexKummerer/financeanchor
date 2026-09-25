@@ -20,8 +20,11 @@
     {
       "binding": "DB",
       "database_name": "financeanchor",
-      // D1 in der EU (--jurisdiction eu); lokal wird eine eigene Datenbank unter .wrangler genutzt.
+      // Produktion: D1 in der EU (--jurisdiction eu)
       "database_id": "651a0b78-1710-418a-aec0-f098059f624a",
+      // Lokale Entwicklung (wrangler dev, --local) nutzt diese ID als Dateinamen der lokalen D1;
+      // fester Wert, damit lokale Daten nicht von der Produktions-ID abhängen.
+      "preview_database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations",
     },
   ],
