@@ -72,6 +72,24 @@ Eigenen Account anlegen (einmalig):
 pnpm db:seed -- --email du@example.com --remote
 ```
 
+### Anmelden mit Google, Microsoft oder Apple (optional)
+
+Ein Anbieter erscheint auf der Login-Seite, sobald seine Zugangsdaten als Secrets gesetzt sind (lokal in `apps/backend/.dev.vars`). Neue Konten entstehen darüber nicht: Man meldet sich einmal mit E-Mail und Passwort an und verbindet den Anbieter unter **Einstellungen → Konto → Anmelden mit**. Eine automatische Verknüpfung über die gleiche E-Mail-Adresse gibt es bewusst nicht.
+
+Rücksprung-Adresse beim Anbieter: `<APP_URL>/api/auth/callback/<google|microsoft|apple>`, lokal `http://localhost:8787/api/auth/callback/<…>`.
+
+- **Google:** [Google Cloud Console](https://console.cloud.google.com/) → APIs & Dienste → OAuth-Zustimmungsbildschirm (Extern; im Testmodus die eigene Adresse als Testnutzer eintragen) → Anmeldedaten → OAuth-Client-ID (Webanwendung) mit obiger Rücksprung-Adresse. Secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+- **Microsoft:** [Microsoft Entra](https://entra.microsoft.com/) → App-Registrierungen → Neue Registrierung, Kontotyp „Konten in einem beliebigen Organisationsverzeichnis und persönliche Microsoft-Konten“, Plattform „Web“ mit obiger Rücksprung-Adresse → Zertifikate & Geheimnisse → neuer geheimer Clientschlüssel (läuft ab, rechtzeitig erneuern). Secrets `MICROSOFT_CLIENT_ID` (Anwendungs-ID), `MICROSOFT_CLIENT_SECRET` (Wert des Schlüssels).
+- **Apple:** braucht das Apple Developer Program (99 $/Jahr) und eine HTTPS-Domain – lokal nicht testbar. Im [Developer-Portal](https://developer.apple.com/account/resources/identifiers/list): App-ID mit „Sign in with Apple“, dazu eine **Services-ID** (= `APPLE_CLIENT_ID`) mit Domain (ohne `https://`) und obiger Rücksprung-Adresse; unter Keys einen Schlüssel mit „Sign in with Apple“ anlegen und die `.p8`-Datei herunterladen (nur einmal möglich). Secrets `APPLE_CLIENT_ID`, `APPLE_TEAM_ID` (oben rechts im Portal), `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` (Inhalt der `.p8`-Datei; in `.dev.vars` Zeilenumbrüche als `\n`).
+
+Secrets setzen, z. B.:
+
+```sh
+cd apps/backend
+pnpm exec wrangler secret put GOOGLE_CLIENT_ID
+pnpm exec wrangler secret put APPLE_PRIVATE_KEY < AuthKey_ABC123.p8
+```
+
 ### Datensicherung
 
 - In der App: Vermögen → Daten → „Sicherung herunterladen“ (alle Daten als JSON) bzw. „Sicherung einlesen“.

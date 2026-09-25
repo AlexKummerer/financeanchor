@@ -1,2 +1,14 @@
 # Kopieren nach .dev.vars (nicht einchecken). Erzeugen z. B. mit: openssl rand -base64 32
 BETTER_AUTH_SECRET=bitte-ersetzen-mindestens-32-zeichen
+
+# Anmelden mit Google/Microsoft/Apple (optional; ein Anbieter ist aktiv, sobald seine Werte gesetzt sind).
+# Rücksprung-Adresse beim Anbieter eintragen: <BETTER_AUTH_URL>/api/auth/callback/<google|microsoft|apple>
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+# Apple: Services-ID, Team-ID, Key-ID und Inhalt der .p8-Datei (Zeilenumbrüche als \n)
+APPLE_CLIENT_ID=
+APPLE_TEAM_ID=
+APPLE_KEY_ID=
+APPLE_PRIVATE_KEY=

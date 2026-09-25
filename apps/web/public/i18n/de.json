@@ -30,7 +30,16 @@
     "emailInvalid": "Bitte eine gültige E-Mail-Adresse eingeben.",
     "passwordRequired": "Bitte das Passwort eingeben.",
     "wrongCredentials": "E-Mail oder Passwort stimmen nicht.",
-    "tooMany": "Zu viele Versuche. Bitte in einer Minute erneut probieren."
+    "tooMany": "Zu viele Versuche. Bitte in einer Minute erneut probieren.",
+    "or": "oder",
+    "with": {
+      "google": "Mit Google anmelden",
+      "microsoft": "Mit Microsoft anmelden",
+      "apple": "Mit Apple anmelden"
+    },
+    "socialHint": "Funktioniert, sobald du den Anbieter in den Einstellungen mit deinem Konto verbunden hast.",
+    "socialNotLinked": "Dieses Konto ist noch nicht mit FinanceAnchor verbunden. Melde dich mit E-Mail und Passwort an und verbinde es unter Einstellungen → Konto.",
+    "socialFailed": "Die Anmeldung beim Anbieter hat nicht geklappt. Bitte erneut versuchen."
   },
   "settings": {
     "theme": "Darstellung",
@@ -46,6 +55,23 @@
       "monthly": "Monatsabo",
       "yearly": "Jahresabo",
       "internal": "Alle Funktionen freigeschaltet"
+    },
+    "social": {
+      "title": "Anmelden mit",
+      "hint": "Verbinde ein Konto, um dich künftig darüber anzumelden. Ein neues FinanceAnchor-Konto entsteht dabei nicht.",
+      "name": {
+        "google": "Google",
+        "microsoft": "Microsoft",
+        "apple": "Apple"
+      },
+      "linked": "verbunden",
+      "link": "Verbinden",
+      "unlink": "Trennen",
+      "unlinkTitle": "{{name}} trennen?",
+      "unlinkMessage": "Danach kannst du dich nicht mehr über {{name}} anmelden. E-Mail und Passwort funktionieren weiter.",
+      "done": "{{name}} ist verbunden.",
+      "otherUser": "Dieses Konto ist schon mit einem anderen FinanceAnchor-Konto verbunden.",
+      "failed": "Das hat nicht geklappt. Bitte erneut versuchen."
     }
   },
   "errors": {

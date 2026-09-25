@@ -30,7 +30,16 @@
     "emailInvalid": "Please enter a valid email address.",
     "passwordRequired": "Please enter your password.",
     "wrongCredentials": "Email or password is incorrect.",
-    "tooMany": "Too many attempts. Please try again in a minute."
+    "tooMany": "Too many attempts. Please try again in a minute.",
+    "or": "or",
+    "with": {
+      "google": "Sign in with Google",
+      "microsoft": "Sign in with Microsoft",
+      "apple": "Sign in with Apple"
+    },
+    "socialHint": "Works once you have connected the provider to your account in the settings.",
+    "socialNotLinked": "This account is not connected to FinanceAnchor yet. Sign in with email and password and connect it under Settings → Account.",
+    "socialFailed": "Signing in with the provider did not work. Please try again."
   },
   "settings": {
     "theme": "Appearance",
@@ -46,6 +55,23 @@
       "monthly": "Monthly plan",
       "yearly": "Yearly plan",
       "internal": "All features unlocked"
+    },
+    "social": {
+      "title": "Sign in with",
+      "hint": "Connect an account to sign in with it in the future. No new FinanceAnchor account is created.",
+      "name": {
+        "google": "Google",
+        "microsoft": "Microsoft",
+        "apple": "Apple"
+      },
+      "linked": "connected",
+      "link": "Connect",
+      "unlink": "Disconnect",
+      "unlinkTitle": "Disconnect {{name}}?",
+      "unlinkMessage": "You will no longer be able to sign in with {{name}}. Email and password keep working.",
+      "done": "{{name}} is connected.",
+      "otherUser": "This account is already connected to another FinanceAnchor account.",
+      "failed": "That did not work. Please try again."
     }
   },
   "errors": {

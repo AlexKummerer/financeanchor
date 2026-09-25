@@ -5,6 +5,7 @@ import { requestId } from 'hono/request-id';
 import { secureHeaders } from 'hono/secure-headers';
 import { ZodError } from 'zod';
 import { allowedOrigins, createAuth } from './auth.js';
+import { enabledSocialProviders } from './social.js';
 import { createDb } from './db/client.js';
 import { AppError, fromDbError } from './errors.js';
 import { loginRateLimit, requireAuth } from './middleware/auth.js';
@@ -43,6 +44,8 @@ export function createApp() {
   });
 
   app.get('/health', (c) => c.json({ ok: true }));
+  // Für die Login-Seite: welche Anmeldewege es gibt
+  app.get('/auth-options', (c) => c.json({ social: enabledSocialProviders(c.env) }));
 
   app.use('/auth/*', loginRateLimit);
   app.on(['GET', 'POST'], '/auth/*', (c) => c.var.auth.handler(c.req.raw));
