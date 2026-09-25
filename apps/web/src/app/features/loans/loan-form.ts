@@ -1,31 +1,51 @@
-import { Component, effect, inject, input, output, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { parsePercentToBasisPoints, type Loan } from '@financeanchor/shared';
-import { TranslocoPipe } from '@jsverse/transloco';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule, Validators, type AbstractControl } from '@angular/forms';
+import {
+  isIsoDate,
+  isYearMonth,
+  parsePercentToBasisPoints,
+  type Loan,
+  type LoanCreate,
+  type LoanKind,
+  type PaymentMode,
+} from '@financeanchor/shared';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { Segmented } from '../../core/forms/segmented';
 import { euroAmount, percent, toCents, toCentsOrNull } from '../../core/forms/validators';
 import { Formatter } from '../../core/format/formatter';
 
-export interface LoanFormValue {
-  name: string;
-  balanceCents: number;
-  rateBp: number;
-  paymentCents: number;
-  originalCents?: number;
-  dueDay: number;
-}
+export type LoanFormValue = LoanCreate;
 
-/** Formular für einen Kredit (Anlegen und Bearbeiten). */
+const optionalMonth = (c: AbstractControl<string>) =>
+  !c.value || isYearMonth(c.value) ? null : { month: true };
+const requiredDate = (c: AbstractControl<string>) =>
+  isIsoDate(c.value ?? '') ? null : { date: true };
+
+/** Formular für einen Kredit: Ratenkredit oder „Tilgen bis Datum“ (Anlegen und Bearbeiten). */
 @Component({
   selector: 'fa-loan-form',
-  imports: [ReactiveFormsModule, TranslocoPipe],
+  imports: [ReactiveFormsModule, TranslocoPipe, Segmented],
   template: `
     <form class="form-grid" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="full">
+        <fa-segmented
+          formControlName="kind"
+          [options]="kindOptions()"
+          [label]="'loans.kind' | transloco"
+        />
+        <p class="small muted hint">
+          {{ (isDeadline() ? 'loans.kindDeadlineHint' : 'loans.kindInstallmentHint') | transloco }}
+        </p>
+      </div>
       <div class="full">
         <label for="ln-name">{{ 'loans.name' | transloco }}</label>
         <input
           id="ln-name"
           formControlName="name"
-          [placeholder]="'loans.namePlaceholder' | transloco"
+          [placeholder]="
+            (isDeadline() ? 'loans.namePlaceholderDeadline' : 'loans.namePlaceholder') | transloco
+          "
           autocomplete="off"
           [attr.aria-invalid]="invalid('name')"
           aria-describedby="ln-name-err"
@@ -35,7 +55,9 @@ export interface LoanFormValue {
         }
       </div>
       <div>
-        <label for="ln-balance">{{ 'loans.balance' | transloco }}</label>
+        <label for="ln-balance">{{
+          (isDeadline() ? 'loans.amountOpen' : 'loans.balance') | transloco
+        }}</label>
         <input
           id="ln-balance"
           formControlName="balance"
@@ -48,34 +70,101 @@ export interface LoanFormValue {
           <p id="ln-balance-err" class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
         }
       </div>
-      <div>
-        <label for="ln-rate">{{ 'loans.rate' | transloco }}</label>
-        <input
-          id="ln-rate"
-          formControlName="rate"
-          inputmode="decimal"
-          autocomplete="off"
-          [attr.aria-invalid]="invalid('rate')"
-          aria-describedby="ln-rate-err"
-        />
-        @if (invalid('rate')) {
-          <p id="ln-rate-err" class="field-error">{{ 'forms.percentInvalid' | transloco }}</p>
-        }
-      </div>
-      <div>
-        <label for="ln-payment">{{ 'loans.payment' | transloco }}</label>
-        <input
-          id="ln-payment"
-          formControlName="payment"
-          inputmode="decimal"
-          autocomplete="off"
-          [attr.aria-invalid]="invalid('payment')"
-          aria-describedby="ln-payment-err"
-        />
-        @if (invalid('payment')) {
-          <p id="ln-payment-err" class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
-        }
-      </div>
+      @if (isDeadline()) {
+        <div>
+          <label for="ln-due-date">{{ 'loans.dueDate' | transloco }}</label>
+          <input
+            id="ln-due-date"
+            type="date"
+            formControlName="dueDate"
+            [attr.aria-invalid]="invalid('dueDate')"
+            aria-describedby="ln-due-date-err"
+          />
+          @if (invalid('dueDate')) {
+            <p id="ln-due-date-err" class="field-error">{{ 'forms.required' | transloco }}</p>
+          }
+        </div>
+        <div class="full">
+          <fa-segmented
+            formControlName="paymentMode"
+            [options]="modeOptions()"
+            [label]="'loans.paymentMode' | transloco"
+          />
+          <p class="small muted hint">
+            {{
+              (form.controls.paymentMode.value === 'lump' ? 'loans.lumpHint' : 'loans.spreadHint')
+                | transloco
+            }}
+          </p>
+        </div>
+        <div>
+          <label for="ln-rate">{{ 'loans.rateOptional' | transloco }}</label>
+          <input
+            id="ln-rate"
+            formControlName="rate"
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="0"
+            [attr.aria-invalid]="invalid('rate')"
+            aria-describedby="ln-rate-err"
+          />
+          @if (invalid('rate')) {
+            <p id="ln-rate-err" class="field-error">{{ 'forms.percentInvalid' | transloco }}</p>
+          }
+        </div>
+      } @else {
+        <div>
+          <label for="ln-rate">{{ 'loans.rate' | transloco }}</label>
+          <input
+            id="ln-rate"
+            formControlName="rate"
+            inputmode="decimal"
+            autocomplete="off"
+            [attr.aria-invalid]="invalid('rate')"
+            aria-describedby="ln-rate-err"
+          />
+          @if (invalid('rate')) {
+            <p id="ln-rate-err" class="field-error">{{ 'forms.percentInvalid' | transloco }}</p>
+          }
+        </div>
+        <div>
+          <label for="ln-payment">{{ 'loans.payment' | transloco }}</label>
+          <input
+            id="ln-payment"
+            formControlName="payment"
+            inputmode="decimal"
+            autocomplete="off"
+            [attr.aria-invalid]="invalid('payment')"
+            aria-describedby="ln-payment-err"
+          />
+          @if (invalid('payment')) {
+            <p id="ln-payment-err" class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
+          }
+        </div>
+        <div>
+          <label for="ln-day">{{ 'loans.dueDay' | transloco }}</label>
+          <input
+            id="ln-day"
+            type="number"
+            min="1"
+            max="31"
+            inputmode="numeric"
+            formControlName="dueDay"
+            [attr.aria-invalid]="invalid('dueDay')"
+          />
+        </div>
+        <div>
+          <label for="ln-target">{{ 'loans.target' | transloco }}</label>
+          <input
+            id="ln-target"
+            type="month"
+            formControlName="targetMonth"
+            [attr.aria-invalid]="invalid('targetMonth')"
+            aria-describedby="ln-target-hint"
+          />
+          <p id="ln-target-hint" class="small muted hint">{{ 'loans.targetHint' | transloco }}</p>
+        </div>
+      }
       <div>
         <label for="ln-original">{{ 'loans.original' | transloco }}</label>
         <input
@@ -85,18 +174,6 @@ export interface LoanFormValue {
           autocomplete="off"
           [placeholder]="'loans.optional' | transloco"
           [attr.aria-invalid]="invalid('original')"
-        />
-      </div>
-      <div>
-        <label for="ln-day">{{ 'loans.dueDay' | transloco }}</label>
-        <input
-          id="ln-day"
-          type="number"
-          min="1"
-          max="31"
-          inputmode="numeric"
-          formControlName="dueDay"
-          [attr.aria-invalid]="invalid('dueDay')"
         />
       </div>
       <div class="full btnrow">
@@ -111,6 +188,11 @@ export interface LoanFormValue {
       </div>
     </form>
   `,
+  styles: `
+    .hint {
+      margin-top: 6px;
+    }
+  `,
 })
 export class LoanForm {
   readonly loan = input<Loan | null>(null);
@@ -119,16 +201,34 @@ export class LoanForm {
   readonly cancelled = output<void>();
 
   private readonly f = inject(Formatter);
+  private readonly t = inject(TranslocoService);
   private readonly submitted = signal(false);
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
+    kind: this.fb.control<LoanKind>('installment'),
     name: ['', [Validators.required, Validators.maxLength(100)]],
     balance: ['', euroAmount({ min: 0 })],
     rate: ['', percent()],
     payment: ['', euroAmount()],
     original: ['', euroAmount({ min: 0, required: false })],
     dueDay: [1, [Validators.required, Validators.min(1), Validators.max(31)]],
+    targetMonth: ['', optionalMonth],
+    dueDate: ['', requiredDate],
+    paymentMode: this.fb.control<PaymentMode>('spread'),
   });
+
+  private readonly kind = toSignal(this.form.controls.kind.valueChanges, {
+    initialValue: this.form.controls.kind.value,
+  });
+  protected readonly isDeadline = computed(() => this.kind() === 'deadline');
+  protected readonly kindOptions = computed(() => [
+    { value: 'installment' as const, label: this.t.translate('loans.kinds.installment') },
+    { value: 'deadline' as const, label: this.t.translate('loans.kinds.deadline') },
+  ]);
+  protected readonly modeOptions = computed(() => [
+    { value: 'spread' as const, label: this.t.translate('loans.modes.spread') },
+    { value: 'lump' as const, label: this.t.translate('loans.modes.lump') },
+  ]);
 
   constructor() {
     effect(() => {
@@ -139,19 +239,42 @@ export class LoanForm {
         return;
       }
       this.form.reset({
+        kind: l.kind,
         name: l.name,
         balance: this.f.amountInput(l.balanceCents),
-        rate: this.f.percent(l.rateBp),
-        payment: this.f.amountInput(l.paymentCents),
+        rate: l.rateBp ? this.f.percent(l.rateBp) : l.kind === 'deadline' ? '' : '0',
+        payment: l.paymentCents ? this.f.amountInput(l.paymentCents) : '',
         original: this.f.amountInput(l.originalCents),
         dueDay: l.dueDay,
+        targetMonth: l.targetMonth ?? '',
+        dueDate: l.dueDate ?? '',
+        paymentMode: l.paymentMode ?? 'spread',
       });
     });
+    // Felder der jeweils anderen Art zählen für die Gültigkeit nicht.
+    this.form.controls.kind.valueChanges.subscribe((k) => this.applyKind(k));
+    this.applyKind(this.form.controls.kind.value);
+  }
+
+  private applyKind(kind: LoanKind) {
+    const c = this.form.controls;
+    const deadline = kind === 'deadline';
+    for (const ctl of [c.payment, c.dueDay, c.targetMonth])
+      (deadline ? ctl.disable : ctl.enable).call(ctl, { emitEvent: false });
+    for (const ctl of [c.dueDate, c.paymentMode])
+      (deadline ? ctl.enable : ctl.disable).call(ctl, { emitEvent: false });
+    // Zins ist bei Fristen optional
+    c.rate.setValidators(
+      deadline
+        ? (x: AbstractControl<string>) => (!x.value?.trim() ? null : percent()(x))
+        : percent(),
+    );
+    c.rate.updateValueAndValidity({ emitEvent: false });
   }
 
   protected invalid(name: keyof typeof this.form.controls) {
     const c = this.form.controls[name];
-    return c.invalid && (c.touched || this.submitted());
+    return c.enabled && c.invalid && (c.touched || this.submitted());
   }
 
   protected submit() {
@@ -159,18 +282,34 @@ export class LoanForm {
     if (this.form.invalid) return;
     const v = this.form.getRawValue();
     const original = toCentsOrNull(v.original);
-    this.saved.emit({
+    const common = {
       name: v.name.trim(),
       balanceCents: toCents(v.balance),
-      rateBp: parsePercentToBasisPoints(v.rate) ?? 0,
-      paymentCents: toCents(v.payment),
+      rateBp: v.rate.trim() ? (parsePercentToBasisPoints(v.rate) ?? 0) : 0,
       ...(original !== null ? { originalCents: original } : {}),
-      dueDay: v.dueDay,
-    });
+    };
+    this.saved.emit(
+      v.kind === 'deadline'
+        ? { ...common, kind: 'deadline', dueDate: v.dueDate, paymentMode: v.paymentMode }
+        : {
+            ...common,
+            kind: 'installment',
+            paymentCents: toCents(v.payment),
+            dueDay: v.dueDay,
+            targetMonth: v.targetMonth || null,
+          },
+    );
   }
 
   clear() {
-    this.form.reset({ dueDay: 1 });
+    this.form.reset({
+      kind: 'installment',
+      dueDay: 1,
+      paymentMode: 'spread',
+      targetMonth: '',
+      dueDate: '',
+    });
+    this.applyKind('installment');
     this.submitted.set(false);
   }
 }

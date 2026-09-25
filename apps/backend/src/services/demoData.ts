@@ -66,9 +66,18 @@ export function demoRows(
     item('Kfz-Versicherung Halbjahr', 250, 6, 'fixed', `${year}-01`, 'Versicherungen', 1),
   ];
 
+  const installment = {
+    kind: 'installment' as const,
+    targetMonth: null,
+    dueDate: null,
+    paymentMode: null,
+  };
+  // „Tilgen bis Datum“: Privatkredit ohne feste Rate, bis Ende März zurückzuzahlen
+  const marchYear = Number(month.slice(5, 7)) >= 3 ? Number(year) + 1 : Number(year);
   const loans = [
     {
       name: 'Autokredit',
+      ...installment,
       balanceCents: 840000,
       originalCents: 1400000,
       rateBp: 590,
@@ -77,11 +86,24 @@ export function demoRows(
     },
     {
       name: 'Ratenkauf Laptop',
+      ...installment,
       balanceCents: 90000,
       originalCents: 150000,
       rateBp: 0,
       paymentCents: 7500,
       dueDay: 1,
+    },
+    {
+      name: 'Privatkredit Familie',
+      kind: 'deadline' as const,
+      balanceCents: 120000,
+      originalCents: 150000,
+      rateBp: 0,
+      paymentCents: null,
+      dueDay: 31,
+      targetMonth: null,
+      dueDate: `${marchYear}-03-31`,
+      paymentMode: 'spread' as const,
     },
   ].map((l) => ({ ...l, ...meta, id: newId(now) }));
 

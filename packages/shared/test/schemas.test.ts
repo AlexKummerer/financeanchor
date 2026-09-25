@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   idSchema,
   loanCreateSchema,
+  loanShapeIssues,
   newId,
   recurringItemCreateSchema,
   transactionCreateSchema,
@@ -58,10 +59,66 @@ describe('Schemas', () => {
     expect(transactionCreateSchema.safeParse({ ...tx, date: '2026-02-30' }).success).toBe(false);
   });
 
-  it('Kredite: Zins in Basispunkten, Rate > 0', () => {
-    const loan = { name: 'Autokredit', balanceCents: 840000, rateBp: 590, paymentCents: 26000 };
-    expect(loanCreateSchema.safeParse(loan).success).toBe(true);
+  it('Ratenkredit: Zins in Basispunkten, Rate > 0, Ziel optional', () => {
+    const loan = {
+      kind: 'installment',
+      name: 'Autokredit',
+      balanceCents: 840000,
+      rateBp: 590,
+      paymentCents: 26000,
+    };
+    const ok = loanCreateSchema.safeParse(loan);
+    expect(ok.success).toBe(true);
+    expect(ok.data).toMatchObject({ dueDay: 1, targetMonth: null });
     expect(loanCreateSchema.safeParse({ ...loan, paymentCents: 0 }).success).toBe(false);
     expect(loanCreateSchema.safeParse({ ...loan, rateBp: 5.9 }).success).toBe(false);
+    expect(loanCreateSchema.safeParse({ ...loan, targetMonth: '2027-03' }).success).toBe(true);
+    expect(loanCreateSchema.safeParse({ ...loan, kind: undefined }).success).toBe(false);
+  });
+
+  it('„Tilgen bis Datum“: Frist und Zahlweise Pflicht, Zins optional', () => {
+    const loan = {
+      kind: 'deadline',
+      name: 'Privatkredit',
+      balanceCents: 150000,
+      dueDate: '2027-03-31',
+      paymentMode: 'spread',
+    };
+    const ok = loanCreateSchema.safeParse(loan);
+    expect(ok.success).toBe(true);
+    expect(ok.data).toMatchObject({ rateBp: 0 });
+    expect(loanCreateSchema.safeParse({ ...loan, dueDate: undefined }).success).toBe(false);
+    expect(loanCreateSchema.safeParse({ ...loan, paymentMode: 'bald' }).success).toBe(false);
+  });
+
+  it('Gesamtstand eines Kredits: Felder passen zur Art', () => {
+    const base = {
+      kind: 'installment' as const,
+      paymentCents: 100,
+      targetMonth: null,
+      dueDate: null,
+      paymentMode: null,
+    };
+    expect(loanShapeIssues(base)).toEqual([]);
+    expect(loanShapeIssues({ ...base, paymentCents: null }).map((i) => i.path)).toEqual([
+      'paymentCents',
+    ]);
+    expect(
+      loanShapeIssues({
+        ...base,
+        kind: 'deadline',
+        dueDate: '2027-03-31',
+        paymentMode: 'lump',
+      }).map((i) => i.path),
+    ).toEqual(['paymentCents']);
+    expect(
+      loanShapeIssues({
+        ...base,
+        kind: 'deadline',
+        paymentCents: null,
+        dueDate: '2027-03-31',
+        paymentMode: 'lump',
+      }),
+    ).toEqual([]);
   });
 });

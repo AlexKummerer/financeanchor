@@ -1,0 +1,135 @@
+<article class="loan" [attr.aria-labelledby]="'loan-' + loan().id">
+  <div class="top">
+    <div class="grow">
+      <h3 [id]="'loan-' + loan().id">{{ loan().name }}</h3>
+      <p class="small muted">
+        @if (loan().kind === 'installment') {
+          {{
+            'loans.terms'
+              | transloco
+                : { rate: f.percent(loan().rateBp), payment: (loan().paymentCents | money) }
+          }}
+          @if (loan().targetMonth) {
+            ·
+            {{
+              'loans.targetShort' | transloco: { month: (loan().targetMonth | faMonth: 'short') }
+            }}
+          }
+        } @else {
+          {{
+            (isLump() ? 'loans.lumpTerms' : 'loans.spreadTerms')
+              | transloco: { date: (loan().dueDate | faDate) }
+          }}
+          @if (loan().rateBp > 0) {
+            · {{ 'loans.rateShort' | transloco: { rate: f.percent(loan().rateBp) } }}
+          }
+        }
+      </p>
+    </div>
+    <div class="actions">
+      <button
+        class="iconbtn"
+        type="button"
+        (click)="edit.emit()"
+        [attr.aria-label]="'loans.editNamed' | transloco: { name: loan().name }"
+      >
+        ✎
+      </button>
+      <button
+        class="iconbtn"
+        type="button"
+        (click)="remove.emit()"
+        [attr.aria-label]="'loans.deleteNamed' | transloco: { name: loan().name }"
+      >
+        ×
+      </button>
+    </div>
+  </div>
+
+  <div
+    class="progress"
+    role="progressbar"
+    [attr.aria-valuenow]="paidPct()"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-label]="'loans.paidShare' | transloco"
+  >
+    <span [style.width.%]="paidPct()"></span>
+  </div>
+  <div class="top small">
+    <span>
+      <b>{{ loan().balanceCents | money }}</b>
+      <span class="muted">
+        {{ 'loans.open' | transloco }}
+        @if (loan().originalCents > loan().balanceCents) {
+          , {{ 'loans.paidPct' | transloco: { pct: paidPct() } }}
+        }
+      </span>
+    </span>
+    <span class="muted">
+      @if (loan().balanceCents === 0) {
+        {{ 'loans.paidOff' | transloco }}
+      } @else if (payoffMonth()) {
+        {{ 'loans.goneIn' | transloco: { month: (payoffMonth() | faMonth: 'short') } }}
+      } @else {
+        {{ 'loans.notForeseeable' | transloco }}
+      }
+    </span>
+  </div>
+
+  @if (loan().balanceCents > 0) {
+    <ul class="facts small">
+      @if (bookedThisMonth()) {
+        <li class="ok">
+          {{ 'loans.bookedThisMonth' | transloco
+          }}{{
+            thisMonth()
+              ? ' · ' + ('loans.extraThisMonth' | transloco: { amount: (thisMonth()! | money) })
+              : ''
+          }}
+        </li>
+      } @else if (thisMonth() !== null) {
+        <li>{{ 'loans.thisMonth' | transloco: { amount: (thisMonth()! | money) } }}</li>
+      }
+      @if (neededMonthly(); as need) {
+        <li>
+          {{
+            'loans.needed'
+              | transloco: { amount: (need | money), month: (deadline() | faMonth: 'short') }
+          }}
+        </li>
+      }
+      @if (isLump() && daysLeft() !== null) {
+        <li [class.neg]="daysLeft()! < 0">
+          {{
+            (daysLeft()! < 0
+              ? 'loans.overdue'
+              : daysLeft() === 0
+                ? 'loans.dueToday'
+                : 'loans.dueInDays'
+            ) | transloco: { n: daysLeft()! < 0 ? -daysLeft()! : daysLeft() }
+          }}
+        </li>
+      }
+      @if (deadlineStatus(); as ds) {
+        <li [class.ok]="ds.met" [class.neg]="!ds.met">
+          {{
+            (ds.met ? 'loans.deadlineMet' : 'loans.deadlineMissed')
+              | transloco: { month: (ds.month | faMonth: 'short') }
+          }}
+        </li>
+      }
+    </ul>
+
+    @if (!isLump()) {
+      <details class="more">
+        <summary>{{ 'loans.scenario.title' | transloco }}</summary>
+        <fa-scenario-table [loan]="loan()" [name]="loan().name" [month]="month" />
+      </details>
+    }
+    <details class="more">
+      <summary>{{ 'loans.schedule.title' | transloco }}</summary>
+      <fa-schedule-table [plan]="plan()" [loanId]="loan().id" [name]="loan().name" />
+    </details>
+  }
+</article>

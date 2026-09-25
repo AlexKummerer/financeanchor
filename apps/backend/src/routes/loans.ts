@@ -1,7 +1,13 @@
-import { loanCreateSchema, loanUpdateSchema } from '@financeanchor/shared';
+import {
+  loanCreateSchema,
+  loanShapeIssues,
+  loanUpdateSchema,
+  type LoanCreate,
+} from '@financeanchor/shared';
 import { asc } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { loans } from '../db/schema.js';
+import { AppError } from '../errors.js';
 import { strip } from '../mappers.js';
 import type { AppEnv } from '../middleware/context.js';
 import { validate } from '../validation.js';
@@ -14,19 +20,27 @@ export const loanRoutes = new Hono<AppEnv>()
     return c.json(rows.map(strip));
   })
   .post('/', validate('json', loanCreateSchema), async (c) => {
-    const body = c.req.valid('json');
-    const row = one(
-      await scopedFrom(c).insert(loans, {
-        ...body,
-        originalCents: body.originalCents ?? body.balanceCents,
-      }),
-      'loan',
-    );
+    const row = one(await scopedFrom(c).insert(loans, toRow(c.req.valid('json'))), 'loan');
     return c.json(strip(row), 201);
   })
   .patch('/:id', validate('param', idParam), validate('json', loanUpdateSchema), async (c) => {
     const s = scopedFrom(c);
-    const row = one(await s.update(loans, c.req.valid('param').id, c.req.valid('json')), 'loan');
+    const { id } = c.req.valid('param');
+    const current = found(await s.get(loans, id), 'loan');
+    const next = { ...current, ...(definedOnly(c.req.valid('json')) as Partial<typeof current>) };
+    // Beim Wechsel der Art gehören die Felder der anderen Art nicht mehr dazu.
+    if (next.kind === 'deadline') {
+      next.paymentCents = null;
+      next.targetMonth = null;
+      if (next.dueDate) next.dueDay = Number(next.dueDate.slice(8, 10));
+    } else {
+      next.dueDate = null;
+      next.paymentMode = null;
+    }
+    const issues = loanShapeIssues(next);
+    if (issues.length) throw new AppError(400, 'validation_failed', 'Invalid loan', issues);
+    const { id: _id, userId: _u, createdAt: _c, updatedAt: _up, ...values } = next;
+    const row = one(await s.update(loans, id, values), 'loan');
     return c.json(strip(row));
   })
   .delete('/:id', validate('param', idParam), async (c) => {
@@ -36,3 +50,37 @@ export const loanRoutes = new Hono<AppEnv>()
     await s.remove(loans, id);
     return c.body(null, 204);
   });
+
+/** Neuer Kredit → Zeile; bei Fristen ist der Buchungstag der Tag der Frist. */
+function toRow(body: LoanCreate) {
+  const common = {
+    id: body.id,
+    name: body.name,
+    kind: body.kind,
+    balanceCents: body.balanceCents,
+    originalCents: body.originalCents ?? body.balanceCents,
+    rateBp: body.rateBp,
+  };
+  if (body.kind === 'installment') {
+    return {
+      ...common,
+      paymentCents: body.paymentCents,
+      dueDay: body.dueDay,
+      targetMonth: body.targetMonth,
+      dueDate: null,
+      paymentMode: null,
+    };
+  }
+  return {
+    ...common,
+    paymentCents: null,
+    dueDay: Number(body.dueDate.slice(8, 10)),
+    targetMonth: null,
+    dueDate: body.dueDate,
+    paymentMode: body.paymentMode,
+  };
+}
+
+function definedOnly<T extends object>(o: T): Partial<T> {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
+}

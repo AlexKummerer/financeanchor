@@ -3,31 +3,29 @@
   color: var(--muted);
   margin-bottom: 4px;
 }
-.loan {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
+.budget,
+.strategy {
+  margin-top: 14px;
 }
-.loan:first-child {
-  padding-top: 0;
+.hint {
+  margin-top: 4px;
 }
-.loan:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
+.split {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
 }
-.loan-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
+.split div {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
 }
-.loan h3 {
-  font-size: 1rem;
-  margin: 0;
-  font-weight: 700;
+.split dt {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
-.actions {
-  display: flex;
-}
-.progress {
-  margin: 10px 0 6px;
+.split dd {
+  margin: 2px 0 0;
+  font-weight: 600;
 }

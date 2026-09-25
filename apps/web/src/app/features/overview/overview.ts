@@ -1,12 +1,11 @@
 import { httpResource } from '@angular/common/http';
 import { Component, computed, inject } from '@angular/core';
 import {
-  addMonths,
   monthlyBreakdown,
+  monthsBetween,
   monthTotals,
   netWorth,
   netWorthChange,
-  simulatePayoff,
   spendingByCategory,
   type Transaction,
 } from '@financeanchor/shared';
@@ -14,6 +13,7 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { RouterLink } from '@angular/router';
 import { Clock } from '../../core/clock';
 import { FinanceStore } from '../../core/data/finance-store';
+import { LoanPlanner } from '../../core/data/loan-planner';
 import { formatDuration } from '../../core/format/duration';
 import { Formatter } from '../../core/format/formatter';
 import { DatePipe, MoneyPipe, MonthPipe } from '../../core/format/pipes';
@@ -31,6 +31,7 @@ export class OverviewPage {
   private readonly clock = inject(Clock);
   private readonly t = inject(TranslocoService);
   private readonly f = inject(Formatter);
+  private readonly planner = inject(LoanPlanner);
 
   protected readonly month = this.clock.month();
   protected readonly monthTx = httpResource<Transaction[]>(
@@ -45,7 +46,8 @@ export class OverviewPage {
       items: this.store.items.items(),
       pots: this.store.pots.items(),
       loans: this.store.loans.items(),
-      extraPaymentCents: this.store.settings()?.extraPaymentCents ?? 0,
+      loanBudgetCents: this.store.settings()?.loanBudgetCents ?? null,
+      strategy: this.store.settings()?.strategy ?? 'avalanche',
       month: this.month,
     }),
   );
@@ -83,24 +85,19 @@ export class OverviewPage {
   });
 
   protected readonly payoff = computed(() => {
-    const s = this.store.settings();
-    const sim = simulatePayoff(
-      this.store.loans.items(),
-      s?.extraPaymentCents ?? 0,
-      s?.strategy ?? 'avalanche',
-    );
-    if (!sim) return null;
-    return sim.stuck
-      ? { stuck: true as const }
-      : {
-          stuck: false as const,
-          month: addMonths(this.month, sim.months),
-          duration: formatDuration(this.t, sim.months),
-        };
+    const plan = this.planner.plan();
+    if (!plan) return null;
+    if (plan.stuck || !plan.debtFreeMonth) return { stuck: true as const };
+    return {
+      stuck: false as const,
+      month: plan.debtFreeMonth,
+      duration: formatDuration(this.t, monthsBetween(this.month, plan.debtFreeMonth) + 1),
+    };
   });
 
   /** Nach „Fällige übernehmen“: Buchungen des Monats neu laden. */
   protected onBooked() {
     this.monthTx.reload();
+    void this.planner.refresh();
   }
 }

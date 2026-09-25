@@ -80,7 +80,7 @@ export async function loadDuePlan(
     pots,
     accounts: accs,
     loans: ls,
-    extraPaymentCents: setting.extraPaymentCents,
+    loanBudgetCents: setting.loanBudgetCents,
     strategy: setting.strategy,
     systemCategoryIds,
     booked: new Map(booked.map((b) => [b.key, { amountCents: b.amountCents, date: b.date }])),

@@ -78,7 +78,7 @@ describe('Login und Session', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
       user: { email: 'me@example.com' },
-      settings: { strategy: 'avalanche', locale: 'de', currency: 'EUR', extraPaymentCents: 0 },
+      settings: { strategy: 'avalanche', locale: 'de', currency: 'EUR', loanBudgetCents: null },
       entitlement: { plan: 'trial', active: true },
     });
   });

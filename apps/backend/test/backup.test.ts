@@ -26,6 +26,7 @@ async function fill(api: Api) {
     amountCents: -25000,
   });
   await api.post('/loans', {
+    kind: 'installment',
     name: 'Auto',
     balanceCents: 840000,
     rateBp: 590,
@@ -33,7 +34,7 @@ async function fill(api: Api) {
   });
   await api.post(`/due/${month}/book`, { today, overrides: [] });
   await api.post('/snapshots', { date: today });
-  await api.patch('/settings', { extraPaymentCents: 5000, strategy: 'snowball' });
+  await api.patch('/settings', { loanBudgetCents: 31000, strategy: 'snowball' });
 }
 
 /** Vergleichbare Form ohne IDs und Zeitstempel. */
@@ -68,7 +69,7 @@ describe('Export und Import', () => {
       /attachment; filename="financeanchor-sicherung-/,
     );
     const file = await res.json<any>();
-    expect(file).toMatchObject({ format: 'financeanchor-export', version: 1 });
+    expect(file).toMatchObject({ format: 'financeanchor-export', version: 2 });
     expect(file.data.transactions.length).toBeGreaterThanOrEqual(3);
     expect(JSON.stringify(file)).not.toContain('userId');
   });

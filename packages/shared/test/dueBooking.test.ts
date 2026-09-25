@@ -45,7 +45,7 @@ const base: DueInput = {
     { ...demoLoans[0]!, name: 'Autokredit', dueDay: 15 },
     { ...demoLoans[1]!, name: 'Ratenkauf Laptop', dueDay: 1 },
   ],
-  extraPaymentCents: 0,
+  loanBudgetCents: null,
   strategy: 'avalanche',
   systemCategoryIds: { reserve: 'sys-reserve', transfer: 'sys-transfer', loans: 'sys-loans' },
   booked: new Map(),
@@ -151,14 +151,14 @@ describe('Fällige eines Monats planen', () => {
 
 describe('Extra-Tilgung', () => {
   it('geht nach Strategie an einen Kredit und senkt dessen Restschuld vollständig', () => {
-    const av = planDue({ ...base, extraPaymentCents: 10000 });
+    const av = planDue({ ...base, loanBudgetCents: 43500 });
     expect(byKey(av, 'extra:Autokredit')).toMatchObject({
       name: 'Extra-Tilgung Autokredit',
       amountCents: -10000,
       loanDelta: { cents: -10000 },
       date: '2026-09-15',
     });
-    const sn = planDue({ ...base, extraPaymentCents: 10000, strategy: 'snowball' });
+    const sn = planDue({ ...base, loanBudgetCents: 43500, strategy: 'snowball' });
     expect(byKey(sn, 'extra:Ratenkauf Laptop').amountCents).toBe(-10000);
   });
 
@@ -166,7 +166,7 @@ describe('Extra-Tilgung', () => {
     const p = planDue({
       ...base,
       strategy: 'snowball',
-      extraPaymentCents: 10000,
+      loanBudgetCents: 43500,
       loans: [base.loans[0]!, { ...base.loans[1]!, balanceCents: 9000 }],
     });
     // Laptop: 90 − 75 Rate = 15 € übrig, der Rest geht an den Autokredit
@@ -177,7 +177,7 @@ describe('Extra-Tilgung', () => {
   it('ist die Rate schon gebucht, wird der Zins nicht erneut angesetzt', () => {
     const p = planDue({
       ...base,
-      extraPaymentCents: 1_000_000,
+      loanBudgetCents: 1_026_000,
       loans: [{ ...base.loans[0]!, balanceCents: 5000 }],
       booked: new Map([['loan:Autokredit', { amountCents: -26000, date: '2026-09-15' }]]),
     });
@@ -205,7 +205,7 @@ describe('Idempotenz', () => {
   it('Extra-Tilgung wird pro Monat nur einmal gebucht', () => {
     const p = planDue({
       ...base,
-      extraPaymentCents: 10000,
+      loanBudgetCents: 43500,
       booked: new Map([['extra:Autokredit', { amountCents: -10000, date: '2026-09-15' }]]),
     });
     const extras = p.filter((e) => e.type === 'extra');

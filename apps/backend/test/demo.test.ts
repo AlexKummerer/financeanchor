@@ -30,7 +30,12 @@ describe('Beispieldaten', () => {
       amountCents: -12367,
       name: 'Rücklage aufs Tagesgeld Rücklage',
     });
-    expect(plan.filter((e) => e.type === 'loan')).toHaveLength(2);
+    // Autokredit, Laptop und die Teilzahlung des Privatkredits (bis Ende März)
+    const loanEntries = plan.filter((e) => e.type === 'loan');
+    expect(loanEntries).toHaveLength(3);
+    expect(
+      loanEntries.find((e) => e.name === 'Rate Privatkredit Familie')!.amountCents,
+    ).toBeLessThan(0);
     expect((await api.get('/snapshots')).body).toHaveLength(11);
   });
 });

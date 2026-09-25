@@ -44,7 +44,7 @@ export async function exportUserData(s: Scoped, now = new Date()): Promise<Expor
     exportedAt: now.toISOString(),
     data: {
       settings: {
-        extraPaymentCents: st.extraPaymentCents,
+        loanBudgetCents: st.loanBudgetCents,
         strategy: st.strategy,
         locale: st.locale,
         currency: st.currency as 'EUR',

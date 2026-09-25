@@ -1,6 +1,7 @@
 import type { Cents } from '../money.js';
 import type { YearMonth } from '../month.js';
-import type { Loan } from '../schemas/entities.js';
+import type { Strategy } from '../schemas/common.js';
+import { allocateMonth, type PlanLoan } from './loans.js';
 import { hasStarted, monthlyShareTimes12, viaReserve } from './recurring.js';
 import {
   reserveMonthlyAmount,
@@ -9,13 +10,11 @@ import {
   type ReservePotLike,
 } from './reserve.js';
 
-export type LoanLike = Pick<Loan, 'id' | 'balanceCents' | 'rateBp' | 'paymentCents'>;
-
 export interface MonthlyBreakdown {
   incomeCents: Cents;
   fixedCents: Cents;
   reserveCents: Cents;
-  /** Kreditraten inklusive Extra-Tilgung */
+  /** Tilgung laut Aufteilung des Monats (Pflicht, Fristen, Extra) */
   loanCents: Cents;
   savingCents: Cents;
   /** Einnahmen minus alles andere; kann negativ sein */
@@ -25,8 +24,10 @@ export interface MonthlyBreakdown {
 export interface BreakdownInput {
   items: readonly ReserveItemLike[];
   pots: readonly ReservePotLike[];
-  loans: readonly LoanLike[];
-  extraPaymentCents: Cents;
+  loans: readonly PlanLoan[];
+  /** Kreditbudget pro Monat; `null` = genau die fälligen Beträge */
+  loanBudgetCents: Cents | null;
+  strategy: Strategy;
   month: YearMonth;
 }
 
@@ -34,7 +35,7 @@ export interface BreakdownInput {
  * Wohin fließt ein Monat: feste Einnahmen aufgeteilt in Fixkosten, Rücklage, Kreditraten, Sparen, frei.
  *
  * Monatliche Posten zählen ab ihrem Startmonat. Posten über die Rücklage stecken im Rücklagenbetrag
- * (für sie wird schon vor der ersten Fälligkeit angespart). Kredite zählen, solange Restschuld besteht.
+ * (für sie wird schon vor der ersten Fälligkeit angespart). Kredite zählen mit der Aufteilung des Monats.
  */
 export function monthlyBreakdown(input: BreakdownInput): MonthlyBreakdown {
   let income12 = 0;
@@ -53,10 +54,12 @@ export function monthlyBreakdown(input: BreakdownInput): MonthlyBreakdown {
       sum + reserveMonthlyAmount(pot, reserveNeed(input.items, pot.id, defaultPot?.id ?? pot.id)),
     0,
   );
-  const openLoans = input.loans.filter((l) => l.balanceCents > 0);
-  const loanCents =
-    openLoans.reduce((sum, l) => sum + l.paymentCents, 0) +
-    (openLoans.length ? input.extraPaymentCents : 0);
+  const loanCents = allocateMonth(
+    input.loans,
+    input.month,
+    input.loanBudgetCents,
+    input.strategy,
+  ).paidCents;
   const incomeCents = Math.round(income12 / 12);
   const fixedCents = Math.round(fixed12 / 12);
   const savingCents = Math.round(saving12 / 12);

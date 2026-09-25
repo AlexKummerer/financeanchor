@@ -52,7 +52,7 @@ const child = spawn(
   [
     'dev',
     '--port',
-    '8788',
+    '8790',
     '--persist-to',
     persist,
     ...Object.entries(vars).flatMap(([k, v]) => ['--var', `${k}:${v}`]),

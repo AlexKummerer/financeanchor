@@ -45,9 +45,17 @@ export const pots = [
   { id: POT_ID, monthlyAmountCents: null, isDefault: true, accountId: RESERVE_ACCOUNT_ID },
 ];
 
+const installment = {
+  kind: 'installment' as const,
+  targetMonth: null,
+  dueDate: null,
+  paymentMode: null,
+};
+
 export const loans = [
   {
     id: 'Autokredit',
+    ...installment,
     balanceCents: 840000,
     originalCents: 1400000,
     rateBp: 590,
@@ -55,6 +63,7 @@ export const loans = [
   },
   {
     id: 'Ratenkauf Laptop',
+    ...installment,
     balanceCents: 90000,
     originalCents: 150000,
     rateBp: 0,

@@ -40,6 +40,7 @@ async function household(api: Api) {
   await item('Gehalt', 310000, 1, 'income', await categoryId(api, 'Gehalt'), 31);
   const loan = (
     await api.post('/loans', {
+      kind: 'installment',
       name: 'Auto',
       balanceCents: 840000,
       rateBp: 590,
@@ -47,7 +48,7 @@ async function household(api: Api) {
       dueDay: 1,
     })
   ).body;
-  await api.patch('/settings', { extraPaymentCents: 10000 });
+  await api.patch('/settings', { loanBudgetCents: 36000 });
   return { reserveAccount, pot, loan };
 }
 

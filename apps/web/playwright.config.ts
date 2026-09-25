@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * E2E-Tests gegen `ng serve` (Port 4300) und `wrangler dev` (Port 8788) mit eigener lokaler D1.
+ * E2E-Tests gegen `ng serve` (Port 4300) und `wrangler dev` (Port 8790) mit eigener lokaler D1.
  * Die Datenbank wird bei jedem Start neu angelegt und mit dem Demo-Account befüllt.
  */
 export default defineConfig({
@@ -22,7 +22,7 @@ export default defineConfig({
     {
       name: 'api',
       command: 'node e2e/start-api.mjs',
-      url: 'http://localhost:8788/api/health',
+      url: 'http://localhost:8790/api/health',
       timeout: 180_000,
       reuseExistingServer: false,
       // Wrangler beendet sich sauber nur auf SIGINT (wie Strg+C).

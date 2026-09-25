@@ -245,6 +245,7 @@ describe('Kredite', () => {
   it('Ursprungsbetrag fällt auf die Restschuld zurück', async () => {
     const { api } = await newUser();
     const res = await api.post('/loans', {
+      kind: 'installment',
       name: 'Laptop',
       balanceCents: 90000,
       rateBp: 0,
@@ -255,18 +256,25 @@ describe('Kredite', () => {
       (await api.patch(`/loans/${res.body.id}`, { balanceCents: 82500 })).body.balanceCents,
     ).toBe(82500);
     expect(
-      (await api.post('/loans', { name: 'X', balanceCents: 1, rateBp: 20000, paymentCents: 1 }))
-        .status,
+      (
+        await api.post('/loans', {
+          kind: 'installment',
+          name: 'X',
+          balanceCents: 1,
+          rateBp: 20000,
+          paymentCents: 1,
+        })
+      ).status,
     ).toBe(400);
   });
 });
 
 describe('Einstellungen', () => {
-  it('Extra-Tilgung und Strategie', async () => {
+  it('Kreditbudget und Strategie', async () => {
     const { api } = await newUser();
-    const res = await api.patch('/settings', { extraPaymentCents: 10000, strategy: 'snowball' });
+    const res = await api.patch('/settings', { loanBudgetCents: 50000, strategy: 'snowball' });
     expect(res.body).toEqual({
-      extraPaymentCents: 10000,
+      loanBudgetCents: 50000,
       strategy: 'snowball',
       locale: 'de',
       currency: 'EUR',
@@ -284,6 +292,7 @@ describe('Vermögensstände', () => {
       balanceCents: 100000,
     });
     await api.post('/loans', {
+      kind: 'installment',
       name: 'Auto',
       balanceCents: 40000,
       rateBp: 590,
@@ -303,5 +312,74 @@ describe('Vermögensstände', () => {
       '2026-09-25',
       '2026-10-09',
     ]);
+  });
+});
+
+describe('Kredite „Tilgen bis Datum“', () => {
+  it('anlegen: keine Rate, Buchungstag aus der Frist, Ursprungsbetrag = Restschuld', async () => {
+    const { api } = await newUser();
+    const res = await api.post('/loans', {
+      kind: 'deadline',
+      name: 'Privatkredit',
+      balanceCents: 150000,
+      dueDate: '2027-03-31',
+      paymentMode: 'spread',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      kind: 'deadline',
+      paymentCents: null,
+      dueDay: 31,
+      rateBp: 0,
+      originalCents: 150000,
+      targetMonth: null,
+      paymentMode: 'spread',
+    });
+  });
+
+  it('ändern: Frist verschieben passt den Buchungstag an; Art wechseln räumt fremde Felder auf', async () => {
+    const { api } = await newUser();
+    const created = (
+      await api.post('/loans', {
+        kind: 'deadline',
+        name: 'Klarna',
+        balanceCents: 30000,
+        dueDate: '2026-11-20',
+        paymentMode: 'lump',
+      })
+    ).body;
+    const moved = await api.patch(`/loans/${created.id}`, { dueDate: '2026-12-05' });
+    expect(moved.body).toMatchObject({ dueDate: '2026-12-05', dueDay: 5 });
+
+    const switched = await api.patch(`/loans/${created.id}`, {
+      kind: 'installment',
+      paymentCents: 10000,
+    });
+    expect(switched.body).toMatchObject({
+      kind: 'installment',
+      paymentCents: 10000,
+      dueDate: null,
+      paymentMode: null,
+    });
+
+    const missing = await api.patch(`/loans/${created.id}`, { kind: 'deadline' });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error.details.map((i: any) => i.path)).toEqual(['dueDate', 'paymentMode']);
+  });
+
+  it('Ratenkredit mit Zieldatum; ohne Rate abgelehnt', async () => {
+    const { api } = await newUser();
+    const ok = await api.post('/loans', {
+      kind: 'installment',
+      name: 'Auto',
+      balanceCents: 500000,
+      rateBp: 590,
+      paymentCents: 20000,
+      targetMonth: '2027-12',
+    });
+    expect(ok.body).toMatchObject({ targetMonth: '2027-12' });
+    expect(
+      (await api.post('/loans', { kind: 'installment', name: 'X', balanceCents: 100 })).status,
+    ).toBe(400);
   });
 });

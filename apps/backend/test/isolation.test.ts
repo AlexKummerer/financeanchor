@@ -44,6 +44,7 @@ beforeAll(async () => {
   ).body.id;
   a.loan = (
     await alice.post('/loans', {
+      kind: 'installment',
       name: 'Alice Kredit',
       balanceCents: 10000,
       rateBp: 100,

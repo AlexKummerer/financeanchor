@@ -22,7 +22,7 @@ export const meRoutes = new Hono<AppEnv>().get('/', async (c) => {
   return c.json({
     user: me,
     settings: {
-      extraPaymentCents: s.extraPaymentCents,
+      loanBudgetCents: s.loanBudgetCents,
       strategy: s.strategy,
       locale: s.locale,
       currency: s.currency,

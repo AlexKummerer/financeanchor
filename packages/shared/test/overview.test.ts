@@ -4,7 +4,14 @@ import { items, loans, MONTH, pots } from './fixtures/demo.js';
 
 describe('Monatsübersicht', () => {
   it('teilt die Einnahmen auf wie im Prototyp (ohne Rundung der Rücklage)', () => {
-    const b = monthlyBreakdown({ items, pots, loans, extraPaymentCents: 0, month: MONTH });
+    const b = monthlyBreakdown({
+      items,
+      pots,
+      loans,
+      loanBudgetCents: null,
+      strategy: 'avalanche',
+      month: MONTH,
+    });
     expect(b).toEqual({
       incomeCents: 310000,
       fixedCents: 97000, // Miete 850 + Strom 65 + Handy 55
@@ -15,32 +22,51 @@ describe('Monatsübersicht', () => {
     });
   });
 
-  it('Extra-Tilgung zählt zu den Kreditraten, abbezahlte Kredite nicht', () => {
+  it('das Kreditbudget zählt als Kreditrate, abbezahlte Kredite zählen nicht', () => {
     const paid = [{ ...loans[1]!, balanceCents: 0 }];
     expect(
       monthlyBreakdown({
         items: [],
         pots,
         loans: [loans[0]!, ...paid],
-        extraPaymentCents: 10000,
+        loanBudgetCents: 36000,
+        strategy: 'avalanche',
         month: MONTH,
       }).loanCents,
     ).toBe(36000);
     expect(
-      monthlyBreakdown({ items: [], pots, loans: paid, extraPaymentCents: 10000, month: MONTH })
-        .loanCents,
+      monthlyBreakdown({
+        items: [],
+        pots,
+        loans: paid,
+        loanBudgetCents: 36000,
+        strategy: 'avalanche',
+        month: MONTH,
+      }).loanCents,
     ).toBe(0);
   });
 
   it('monatliche Posten zählen erst ab ihrem Startmonat', () => {
     const later = [{ ...items[1]!, startMonth: '2026-12' }];
     expect(
-      monthlyBreakdown({ items: later, pots, loans: [], extraPaymentCents: 0, month: MONTH })
-        .fixedCents,
+      monthlyBreakdown({
+        items: later,
+        pots,
+        loans: [],
+        loanBudgetCents: null,
+        strategy: 'avalanche',
+        month: MONTH,
+      }).fixedCents,
     ).toBe(0);
     expect(
-      monthlyBreakdown({ items: later, pots, loans: [], extraPaymentCents: 0, month: '2026-12' })
-        .fixedCents,
+      monthlyBreakdown({
+        items: later,
+        pots,
+        loans: [],
+        loanBudgetCents: null,
+        strategy: 'avalanche',
+        month: '2026-12',
+      }).fixedCents,
     ).toBe(85000);
   });
 
@@ -59,7 +85,8 @@ describe('Monatsübersicht', () => {
       items: bonus,
       pots,
       loans: [],
-      extraPaymentCents: 0,
+      loanBudgetCents: null,
+      strategy: 'avalanche',
       month: MONTH,
     });
     expect(b.incomeCents).toBe(10000);

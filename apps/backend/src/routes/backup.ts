@@ -1,4 +1,4 @@
-import { exportSchema } from '@financeanchor/shared';
+import { importFileSchema } from '@financeanchor/shared';
 import { Hono } from 'hono';
 import type { AppEnv } from '../middleware/context.js';
 import { requireEntitlement } from '../middleware/entitlement.js';
@@ -15,6 +15,6 @@ export const backupRoutes = new Hono<AppEnv>()
     );
     return c.json(file);
   })
-  .post('/import', requireEntitlement('export'), validate('json', exportSchema), async (c) => {
+  .post('/import', requireEntitlement('export'), validate('json', importFileSchema), async (c) => {
     return c.json({ imported: await importUserData(scopedFrom(c), c.req.valid('json')) });
   });

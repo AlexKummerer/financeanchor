@@ -129,32 +129,99 @@ export const bookedItemSchema = z.object({
 export type BookedItem = z.infer<typeof bookedItemSchema>;
 
 // Kredite
-export const loanSchema = z.object({
+export const loanKinds = ['installment', 'deadline'] as const;
+export const loanKindSchema = z.enum(loanKinds);
+export type LoanKind = z.infer<typeof loanKindSchema>;
+/** Bei „Tilgen bis Datum“: in Teilen bis zur Frist oder in einer Summe am Fälligkeitstag. */
+export const paymentModes = ['spread', 'lump'] as const;
+export const paymentModeSchema = z.enum(paymentModes);
+export type PaymentMode = z.infer<typeof paymentModeSchema>;
+
+const loanFields = z.object({
   id: idSchema,
   name: nameSchema,
+  /** `installment` = Ratenkredit mit fester Rate, `deadline` = ohne Rate, aber mit Frist */
+  kind: loanKindSchema,
   balanceCents: nonNegativeCentsSchema,
   originalCents: nonNegativeCentsSchema,
   rateBp: basisPointsSchema,
-  paymentCents: positiveCentsSchema,
+  /** Monatliche Mindestrate; nur bei Ratenkrediten */
+  paymentCents: positiveCentsSchema.nullable(),
+  /** Buchungstag der Rate (bei Fristen aus dem Fälligkeitsdatum) */
   dueDay: dueDaySchema,
+  /** Optionales Ziel „getilgt bis“ (Monat); nur bei Ratenkrediten */
+  targetMonth: yearMonthSchema.nullable(),
+  /** Frist; nur bei „Tilgen bis Datum“ */
+  dueDate: isoDateSchema.nullable(),
+  paymentMode: paymentModeSchema.nullable(),
   ...meta,
 });
+
+type LoanShape = Pick<
+  z.infer<typeof loanFields>,
+  'kind' | 'paymentCents' | 'targetMonth' | 'dueDate' | 'paymentMode'
+>;
+
+/** Welche Felder zu welcher Art gehören. Liefert Fehlermeldungen je Feld (leer = in Ordnung). */
+export function loanShapeIssues(l: LoanShape): { path: string; message: string }[] {
+  const issues: { path: string; message: string }[] = [];
+  if (l.kind === 'installment') {
+    if (l.paymentCents === null) issues.push({ path: 'paymentCents', message: 'Rate fehlt' });
+    if (l.dueDate !== null) issues.push({ path: 'dueDate', message: 'Nur bei Fristen' });
+    if (l.paymentMode !== null) issues.push({ path: 'paymentMode', message: 'Nur bei Fristen' });
+  } else {
+    if (l.dueDate === null) issues.push({ path: 'dueDate', message: 'Frist fehlt' });
+    if (l.paymentMode === null) issues.push({ path: 'paymentMode', message: 'Zahlweise fehlt' });
+    if (l.paymentCents !== null)
+      issues.push({ path: 'paymentCents', message: 'Keine Rate bei Fristen' });
+    if (l.targetMonth !== null)
+      issues.push({ path: 'targetMonth', message: 'Ziel ergibt sich aus der Frist' });
+  }
+  return issues;
+}
+
+export const loanSchema = loanFields.superRefine((l, ctx) => {
+  for (const i of loanShapeIssues(l))
+    ctx.addIssue({ code: 'custom', path: [i.path], message: i.message });
+});
 export type Loan = z.infer<typeof loanSchema>;
-export const loanCreateSchema = loanSchema
-  .pick({ name: true, balanceCents: true, rateBp: true, paymentCents: true })
-  .extend({
-    id: idSchema.optional(),
-    originalCents: nonNegativeCentsSchema.optional(),
+
+const loanCreateCommon = {
+  id: idSchema.optional(),
+  name: nameSchema,
+  balanceCents: nonNegativeCentsSchema,
+  originalCents: nonNegativeCentsSchema.optional(),
+  rateBp: basisPointsSchema.default(0),
+};
+export const loanCreateSchema = z.discriminatedUnion('kind', [
+  z.object({
+    ...loanCreateCommon,
+    kind: z.literal('installment'),
+    paymentCents: positiveCentsSchema,
     dueDay: dueDaySchema.default(1),
-  });
-export const loanUpdateSchema = loanSchema
+    targetMonth: yearMonthSchema.nullable().default(null),
+  }),
+  z.object({
+    ...loanCreateCommon,
+    kind: z.literal('deadline'),
+    dueDate: isoDateSchema,
+    paymentMode: paymentModeSchema,
+  }),
+]);
+export type LoanCreate = z.infer<typeof loanCreateSchema>;
+/** Teiländerung; der Server prüft danach den Gesamtstand mit `loanShapeIssues`. */
+export const loanUpdateSchema = loanFields
   .pick({
     name: true,
+    kind: true,
     balanceCents: true,
     originalCents: true,
     rateBp: true,
     paymentCents: true,
     dueDay: true,
+    targetMonth: true,
+    dueDate: true,
+    paymentMode: true,
   })
   .partial();
 
@@ -171,7 +238,8 @@ export type NetWorthSnapshot = z.infer<typeof netWorthSnapshotSchema>;
 
 // Einstellungen
 export const userSettingsSchema = z.object({
-  extraPaymentCents: nonNegativeCentsSchema,
+  /** Gesamtbetrag pro Monat für alle Kredite; `null` = genau die fälligen Raten */
+  loanBudgetCents: nonNegativeCentsSchema.nullable(),
   strategy: strategySchema,
   locale: localeSchema,
   currency: currencySchema,
@@ -179,7 +247,7 @@ export const userSettingsSchema = z.object({
 export type UserSettings = z.infer<typeof userSettingsSchema>;
 export const userSettingsUpdateSchema = userSettingsSchema.partial();
 export const defaultUserSettings: UserSettings = {
-  extraPaymentCents: 0,
+  loanBudgetCents: null,
   strategy: 'avalanche',
   locale: 'de',
   currency: 'EUR',

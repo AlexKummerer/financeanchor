@@ -18,7 +18,7 @@ export const settingsRoutes = new Hono<AppEnv>().patch(
       .returning();
     const s = one(rows, 'settings');
     return c.json({
-      extraPaymentCents: s.extraPaymentCents,
+      loanBudgetCents: s.loanBudgetCents,
       strategy: s.strategy,
       locale: s.locale,
       currency: s.currency,

@@ -20,7 +20,9 @@ import {
   accountKinds,
   entitlementSources,
   entitlementStatuses,
+  loanKinds,
   locales,
+  paymentModes,
   plans,
   recurringKinds,
   sourceTypes,
@@ -192,18 +194,31 @@ export const loans = sqliteTable(
   {
     ...base,
     name: text('name').notNull(),
+    /** `installment` = Ratenkredit, `deadline` = „Tilgen bis Datum“ ohne feste Rate */
+    kind: text('kind', { enum: loanKinds }).notNull().default('installment'),
     balanceCents: integer('balance_cents').notNull(),
     originalCents: integer('original_cents').notNull(),
     rateBp: integer('rate_bp').notNull(),
-    paymentCents: integer('payment_cents').notNull(),
+    paymentCents: integer('payment_cents'),
     dueDay: integer('due_day').notNull().default(1),
+    targetMonth: text('target_month'),
+    dueDate: text('due_date'),
+    paymentMode: text('payment_mode', { enum: paymentModes }),
   },
   (t) => [
     index('loans_user_idx').on(t.userId),
     check('loans_balance_ck', sql`balance_cents >= 0 and original_cents >= 0`),
     check('loans_rate_ck', sql`rate_bp between 0 and 10000`),
-    check('loans_payment_ck', sql`payment_cents > 0`),
+    check('loans_payment_ck', sql`payment_cents is null or payment_cents > 0`),
     check('loans_due_day_ck', sql`due_day between 1 and 31`),
+    check('loans_kind_ck', inList('kind', loanKinds)),
+    // Felder passend zur Art (wie loanShapeIssues in shared)
+    check(
+      'loans_shape_ck',
+      sql`(kind = 'installment' and payment_cents is not null and due_date is null and payment_mode is null)
+        or (kind = 'deadline' and payment_cents is null and target_month is null and due_date is not null
+            and payment_mode in ('spread', 'lump'))`,
+    ),
   ],
 );
 
@@ -223,14 +238,15 @@ export const userSettings = sqliteTable(
   'user_settings',
   {
     ...base,
-    extraPaymentCents: integer('extra_payment_cents').notNull().default(0),
+    /** Gesamtbetrag pro Monat für Kredite; null = genau die fälligen Beträge */
+    loanBudgetCents: integer('loan_budget_cents'),
     strategy: text('strategy', { enum: strategies }).notNull().default('avalanche'),
     locale: text('locale', { enum: locales }).notNull().default('de'),
     currency: text('currency').notNull().default('EUR'),
   },
   (t) => [
     uniqueIndex('user_settings_user_uq').on(t.userId),
-    check('user_settings_extra_ck', sql`extra_payment_cents >= 0`),
+    check('user_settings_budget_ck', sql`loan_budget_cents is null or loan_budget_cents >= 0`),
   ],
 );
 

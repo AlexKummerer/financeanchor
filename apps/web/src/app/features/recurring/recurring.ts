@@ -42,7 +42,8 @@ export class RecurringPage {
       items: this.store.items.items(),
       pots: this.store.pots.items(),
       loans: [],
-      extraPaymentCents: 0,
+      loanBudgetCents: null,
+      strategy: 'avalanche',
       month: this.month,
     }),
   );

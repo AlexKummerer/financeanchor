@@ -1,11 +1,8 @@
-<section class="panel">
-  <p class="muted small">{{ 'loans.payoffLabel' | transloco }}</p>
-  @if (!sim()) {
+<section class="panel" aria-labelledby="payoff-label">
+  <p class="muted small" id="payoff-label">{{ 'loans.payoffLabel' | transloco }}</p>
+  @if (!planner.plan()) {
     <p class="big-number">–</p>
     <p class="small muted">{{ 'loans.addToSee' | transloco }}</p>
-  } @else if (sim()?.stuck) {
-    <p class="big-number neg">{{ 'loans.notForeseeable' | transloco }}</p>
-    <p class="small muted">{{ 'loans.stuckHint' | transloco }}</p>
   } @else if (payoff(); as p) {
     <p class="big-number">{{ p.month | faMonth }}</p>
     <p class="small muted">
@@ -14,29 +11,66 @@
           | transloco: { duration: p.duration, interest: (p.interest | money: true) }
       }}
     </p>
+  } @else {
+    <p class="big-number neg">{{ 'loans.notForeseeable' | transloco }}</p>
+    <p class="small muted">{{ 'loans.stuckHint' | transloco }}</p>
   }
-  <div style="margin-top: 14px">
+
+  <div class="budget">
+    <label for="ln-budget">{{ 'loans.budget' | transloco }}</label>
+    <input
+      id="ln-budget"
+      inputmode="decimal"
+      autocomplete="off"
+      [value]="budgetText()"
+      [placeholder]="requiredText()"
+      [attr.aria-invalid]="budgetError()"
+      aria-describedby="ln-budget-hint"
+      (change)="saveBudget($any($event.target).value)"
+    />
+    @if (budgetError()) {
+      <p class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
+    }
+    <p id="ln-budget-hint" class="small muted hint">
+      {{ 'loans.budgetHint' | transloco: { amount: (required() | money) } }}
+    </p>
+  </div>
+
+  @if (planner.thisMonth(); as m) {
+    <dl class="split small">
+      <div>
+        <dt>{{ 'loans.split.regular' | transloco }}</dt>
+        <dd>{{ m.regularCents | money }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'loans.split.deadline' | transloco }}</dt>
+        <dd>{{ m.deadlineCents | money }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'loans.split.extra' | transloco }}</dt>
+        <dd>{{ m.extraCents | money }}</dd>
+      </div>
+    </dl>
+    @if (m.shortfallCents > 0) {
+      <p class="warn" role="status">
+        {{ 'loans.shortThisMonth' | transloco: { amount: (m.shortfallCents | money) } }}
+      </p>
+    } @else if ((planner.plan()?.maxShortfallCents ?? 0) > 0) {
+      <p class="warn" role="status">
+        {{
+          'loans.shortLater' | transloco: { amount: (planner.plan()!.maxShortfallCents | money) }
+        }}
+      </p>
+    }
+  }
+
+  <div class="strategy">
     <p class="label" aria-hidden="true">{{ 'loans.strategy' | transloco }}</p>
     <fa-segmented
       [formControl]="strategy"
       [options]="strategyOptions()"
       [label]="'loans.strategy' | transloco"
     />
-  </div>
-  <div style="margin-top: 10px">
-    <label for="ln-extra">{{ 'loans.extra' | transloco }}</label>
-    <input
-      id="ln-extra"
-      inputmode="decimal"
-      placeholder="0"
-      autocomplete="off"
-      [value]="extraText()"
-      [attr.aria-invalid]="extraError()"
-      (change)="saveExtra($any($event.target).value)"
-    />
-    @if (extraError()) {
-      <p class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
-    }
   </div>
 </section>
 
@@ -54,70 +88,27 @@
 
 <h2 id="loans-title">{{ 'loans.listTitle' | transloco }}</h2>
 <section class="panel" aria-labelledby="loans-title">
-  @for (r of rows(); track r.loan.id) {
-    <article class="loan" [attr.aria-label]="r.loan.name">
-      <div class="loan-top">
-        <div>
-          <h3 class="name">{{ r.loan.name }}</h3>
-          <span class="small muted">
-            {{
-              'loans.terms'
-                | transloco
-                  : { rate: f.percent(r.loan.rateBp), payment: (r.loan.paymentCents | money) }
-            }}
-          </span>
-        </div>
-        <div class="actions">
-          <button
-            class="iconbtn"
-            type="button"
-            (click)="edit(r.loan)"
-            [attr.aria-label]="'loans.editNamed' | transloco: { name: r.loan.name }"
-          >
-            ✎
-          </button>
-          <button
-            class="iconbtn"
-            type="button"
-            (click)="remove(r.loan)"
-            [attr.aria-label]="'loans.deleteNamed' | transloco: { name: r.loan.name }"
-          >
-            ×
-          </button>
-        </div>
-      </div>
-      <div
-        class="progress"
-        role="progressbar"
-        [attr.aria-valuenow]="r.paidRounded"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        [attr.aria-label]="'loans.paidShare' | transloco"
-      >
-        <span [style.width.%]="r.paidPct"></span>
-      </div>
-      <div class="loan-top small">
-        <span>
-          <b>{{ r.loan.balanceCents | money }}</b>
-          <span class="muted">
-            {{ 'loans.open' | transloco }}
-            @if (r.showPaid) {
-              , {{ 'loans.paidPct' | transloco: { pct: r.paidRounded } }}
-            }
-          </span>
-        </span>
-        <span class="muted">
-          @if (r.loan.balanceCents === 0) {
-            {{ 'loans.paidOff' | transloco }}
-          } @else if (r.payoffMonth) {
-            {{ 'loans.goneIn' | transloco: { month: (r.payoffMonth | faMonth: 'short') } }}
-          } @else {
-            –
-          }
-        </span>
-      </div>
-    </article>
+  @for (l of store.loans.items(); track l.id) {
+    <fa-loan-card
+      [loan]="l"
+      [plan]="planner.plan()"
+      [bookedThisMonth]="planner.settledIds().has(l.id)"
+      (edit)="edit(l)"
+      (remove)="remove(l)"
+    />
   } @empty {
     <p class="empty">{{ 'loans.none' | transloco }}</p>
   }
 </section>
+
+@if (openLoans().length > 0) {
+  <h2 id="alloc-title">{{ 'loans.allocation.title' | transloco }}</h2>
+  <section class="panel" aria-labelledby="alloc-title">
+    <p class="small muted" style="margin-bottom: 8px">{{ 'loans.allocation.hint' | transloco }}</p>
+    <fa-allocation-table
+      [plan]="planner.plan()"
+      [loans]="store.loans.items()"
+      [settled]="planner.settledIds()"
+    />
+  </section>
+}

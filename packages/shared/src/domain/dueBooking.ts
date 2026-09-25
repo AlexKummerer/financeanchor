@@ -1,4 +1,4 @@
-import { monthlyInterest, type Cents } from '../money.js';
+import type { Cents } from '../money.js';
 import { dateInMonth, monthOfDate, type IsoDate, type YearMonth } from '../month.js';
 import type {
   SourceType,
@@ -7,7 +7,7 @@ import type {
   TransactionKind,
 } from '../schemas/common.js';
 import { bookingKeys } from './bookingKeys.js';
-import { extraPaymentOrder, type LoanState } from './loans.js';
+import { allocateMonth, type PlanLoan } from './loans.js';
 import { isDue, viaReserve } from './recurring.js';
 import {
   potIdForItem,
@@ -49,6 +49,8 @@ export interface DueLabels {
   reserve: (accountName: string | null) => string;
   transfer: (itemName: string) => string;
   loan: (loanName: string) => string;
+  /** Einmalzahlung bei „Tilgen bis Datum“ */
+  payment: (loanName: string) => string;
   extra: (loanName: string) => string;
 }
 
@@ -56,6 +58,7 @@ export const germanDueLabels: DueLabels = {
   reserve: (account) => (account ? `Rücklage aufs ${account}` : 'Rücklage'),
   transfer: (name) => `Umbuchung Rücklage: ${name}`,
   loan: (name) => `Rate ${name}`,
+  payment: (name) => `Zahlung ${name}`,
   extra: (name) => `Extra-Tilgung ${name}`,
 };
 
@@ -65,8 +68,9 @@ export interface DueInput {
   items: readonly (ReserveItemLike & { name: string; categoryId: string; dueDay: number })[];
   pots: readonly (ReservePotLike & { accountId: string | null; dueDay: number })[];
   accounts: readonly { id: string; name: string }[];
-  loans: readonly (LoanState & { name: string; dueDay: number })[];
-  extraPaymentCents: Cents;
+  loans: readonly (PlanLoan & { name: string; dueDay: number })[];
+  /** Kreditbudget pro Monat; `null` = genau die fälligen Beträge */
+  loanBudgetCents: Cents | null;
   strategy: Strategy;
   systemCategoryIds: Record<SystemCategoryKey, string>;
   /** Bereits gebuchte Schlüssel des Monats mit dem tatsächlich gebuchten Betrag und Datum */
@@ -78,7 +82,7 @@ type Draft = Omit<DueEntry, 'booked' | 'bookable'>;
 
 /**
  * Alle Fälligkeiten eines Monats: monatliche Rücklage je Topf, fällige Posten (über die Rücklage
- * zusätzlich die Umbuchung), Kreditraten und Extra-Tilgung nach Strategie.
+ * zusätzlich die Umbuchung) und die Aufteilung des Kreditbudgets (Raten, Fristen, Extra).
  * Bereits gebuchte Einträge erscheinen mit den tatsächlich gebuchten Werten.
  */
 export function planDue(input: DueInput): DueEntry[] {
@@ -153,59 +157,75 @@ export function planDue(input: DueInput): DueEntry[] {
     }
   }
 
-  // Kreditraten: Zins auf die aktuelle Restschuld, Rate höchstens Restschuld plus Zins.
-  // Ist die Rate schon gebucht, steckt sie bereits in der Restschuld.
-  const afterRegular = new Map<string, Cents>();
-  for (const loan of input.loans) {
-    if (loan.balanceCents <= 0) continue;
-    const key = bookingKeys.loan(loan.id);
-    if (input.booked.has(key)) {
-      afterRegular.set(loan.id, loan.balanceCents);
-      drafts.push(loanDraft(loan, key, 'loan', 0, 0, null, labels, sys.loans, input.month));
-      continue;
-    }
-    const interest = monthlyInterest(loan.balanceCents, loan.rateBp);
-    const payment = Math.min(loan.paymentCents, loan.balanceCents + interest);
-    afterRegular.set(loan.id, loan.balanceCents + interest - payment);
-    drafts.push(
-      loanDraft(
-        loan,
-        key,
-        'loan',
-        payment,
-        interest,
-        loan.balanceCents + interest,
-        labels,
-        sys.loans,
-        input.month,
-      ),
-    );
-  }
-
-  // Extra-Tilgung wird je Monat als Ganzes gebucht.
-  const bookedExtras = [...input.booked.keys()].filter((k) => k.startsWith('extra:'));
-  if (bookedExtras.length) {
-    for (const loan of input.loans) {
-      const key = bookingKeys.extra(loan.id);
-      if (input.booked.has(key)) {
-        drafts.push(loanDraft(loan, key, 'extra', 0, 0, null, labels, sys.loans, input.month));
-      }
-    }
-  } else if (input.extraPaymentCents > 0) {
-    let available = input.extraPaymentCents;
-    const open = input.loans
-      .filter((l) => (afterRegular.get(l.id) ?? 0) > 0)
-      .map((l) => ({ loan: l, balanceCents: afterRegular.get(l.id) ?? 0, rateBp: l.rateBp }));
-    for (const { loan, balanceCents } of extraPaymentOrder(open, input.strategy)) {
-      if (available <= 0) break;
-      const p = Math.min(available, balanceCents);
-      available -= p;
-      const key = bookingKeys.extra(loan.id);
+  // Kredite: Aufteilung des Monatsbudgets (Pflicht, Fristen, Extra). Schon gebuchte Raten stecken
+  // bereits in der Restschuld; gebuchte Tilgung mindert das verbleibende Budget.
+  const loanKeys = [...input.booked.entries()].filter(
+    ([k]) => k.startsWith('loan:') || k.startsWith('extra:'),
+  );
+  const settled = new Set(
+    loanKeys.filter(([k]) => k.startsWith('loan:')).map(([k]) => k.slice('loan:'.length)),
+  );
+  const extraBooked = loanKeys.some(([k]) => k.startsWith('extra:'));
+  const alloc = allocateMonth(input.loans, input.month, input.loanBudgetCents, input.strategy, {
+    settled,
+    spentCents: loanKeys.reduce((s, [, b]) => s + Math.abs(b.amountCents), 0),
+    noExtra: extraBooked,
+  });
+  input.loans.forEach((loan, i) => {
+    const r = alloc.loans[i];
+    if (!r) return;
+    const loanKey = bookingKeys.loan(loan.id);
+    const lump = loan.kind === 'deadline' && loan.paymentMode === 'lump';
+    const label = lump ? labels.payment(loan.name) : labels.loan(loan.name);
+    if (input.booked.has(loanKey)) {
+      drafts.push(loanDraft(loan, loanKey, 'loan', label, 0, 0, null, sys.loans, input.month));
+    } else if (r.regularCents > 0) {
       drafts.push(
-        loanDraft(loan, key, 'extra', p, 0, balanceCents, labels, sys.loans, input.month),
+        loanDraft(
+          loan,
+          loanKey,
+          'loan',
+          label,
+          r.regularCents,
+          r.interestCents,
+          r.balanceBeforeCents + r.interestCents,
+          sys.loans,
+          input.month,
+        ),
       );
     }
-  }
+    const extraKey = bookingKeys.extra(loan.id);
+    const extra = r.deadlineCents + r.extraCents;
+    if (input.booked.has(extraKey)) {
+      drafts.push(
+        loanDraft(
+          loan,
+          extraKey,
+          'extra',
+          labels.extra(loan.name),
+          0,
+          0,
+          null,
+          sys.loans,
+          input.month,
+        ),
+      );
+    } else if (extra > 0) {
+      drafts.push(
+        loanDraft(
+          loan,
+          extraKey,
+          'extra',
+          labels.extra(loan.name),
+          extra,
+          0,
+          r.balanceAfterCents + extra,
+          sys.loans,
+          input.month,
+        ),
+      );
+    }
+  });
 
   return drafts.map((d) => {
     const booked = input.booked.get(d.key);
@@ -223,20 +243,20 @@ export function planDue(input: DueInput): DueEntry[] {
 }
 
 function loanDraft(
-  loan: { id: string; name: string; dueDay: number },
+  loan: { id: string; dueDay: number },
   key: string,
   type: 'loan' | 'extra',
+  name: string,
   payment: Cents,
   interest: Cents,
   maxAmountCents: Cents | null,
-  labels: DueLabels,
   categoryId: string,
   month: YearMonth,
 ): Draft {
   return {
     key,
     type,
-    name: type === 'loan' ? labels.loan(loan.name) : labels.extra(loan.name),
+    name,
     categoryId,
     amountCents: -payment,
     date: dateInMonth(month, loan.dueDay),
