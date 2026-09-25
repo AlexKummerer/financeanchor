@@ -1,9 +1,3 @@
-import { Hono } from 'hono';
+import { createApp } from './app.js';
 
-export type AppEnv = { Bindings: Env };
-
-export const app = new Hono<AppEnv>().basePath('/api');
-
-app.get('/health', (c) => c.json({ ok: true }));
-
-export default app;
+export default createApp();

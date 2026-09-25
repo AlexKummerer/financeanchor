@@ -15,7 +15,8 @@
     "dev:api": "pnpm --filter @financeanchor/api dev",
     "db:generate": "pnpm --filter @financeanchor/api db:generate",
     "db:migrate": "pnpm --filter @financeanchor/api db:migrate",
-    "db:migrate:remote": "pnpm --filter @financeanchor/api db:migrate:remote"
+    "db:migrate:remote": "pnpm --filter @financeanchor/api db:migrate:remote",
+    "db:seed": "pnpm --filter @financeanchor/api db:seed"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

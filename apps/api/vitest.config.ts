@@ -12,6 +12,8 @@ export default defineConfig(async () => {
           bindings: {
             TEST_MIGRATIONS: migrations,
             BETTER_AUTH_SECRET: 'test-secret-mindestens-32-zeichen-lang-0123456789',
+            // In Tests werden Nutzer über die Registrierung angelegt; ein Test prüft die Sperre.
+            ALLOW_SIGNUP: 'true',
           },
         },
       }),

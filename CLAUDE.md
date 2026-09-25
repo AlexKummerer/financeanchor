@@ -26,6 +26,10 @@ Node 24 (`.nvmrc`), pnpm 12.
 | `pnpm lint`      | ESLint + Prettier-Check     |
 | `pnpm format`    | Prettier schreiben          |
 
+## Einrichtung lokal
+
+`cp apps/api/.dev.vars.example apps/api/.dev.vars` und ein eigenes Secret eintragen, dann `pnpm db:migrate` und `pnpm db:seed -- --email …`.
+
 ## Konventionen
 
 - Beträge immer als ganze Cent-Werte (`number`, Integer), Zinsen in Basispunkten. Formatierung nur in der Oberfläche.
@@ -37,3 +41,5 @@ Node 24 (`.nvmrc`), pnpm 12.
 - Datenbank: Verweise zwischen fachlichen Tabellen als zusammengesetzte Fremdschlüssel `(user_id, x_id) → (user_id, id)`; Schemaänderungen nur über neue Migrationen, nie bestehende ändern.
 - Commits klein, mit aussagekräftiger Nachricht auf Deutsch; vor jedem Commit `pnpm lint && pnpm typecheck && pnpm test`.
 - Texte in der Oberfläche auf Deutsch (i18n-Schlüssel), Englisch vorbereitet.
+- API: Routen hinter `requireAuth` und `requireEntitlement('core')`; `/api/me` nur hinter `requireAuth`. Fehler als `AppError` werfen (Format `{ error: { code, message, details? } }`).
+- D1 erlaubt höchstens 100 Parameter pro Abfrage: Mehrzeilige Inserts über `chunkedInsert`, mehrschrittige Vorgänge über `runBatch` (atomar).

@@ -1,0 +1,2 @@
+# Kopieren nach .dev.vars (nicht einchecken). Erzeugen z. B. mit: openssl rand -base64 32
+BETTER_AUTH_SECRET=bitte-ersetzen-mindestens-32-zeichen

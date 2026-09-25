@@ -13,3 +13,4 @@ export * from './domain/loans.js';
 export * from './domain/dueBooking.js';
 export * from './domain/netWorth.js';
 export * from './domain/categories.js';
+export * from './domain/entitlements.js';
