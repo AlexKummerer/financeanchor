@@ -36,3 +36,16 @@ describe('Monate', () => {
     expect(dateInMonth('2026-04', 5)).toBe('2026-04-05');
   });
 });
+
+import { daysBetween, isPlausibleToday } from '../src/index.js';
+
+describe('heute vom Client', () => {
+  const noonUtc = Date.UTC(2026, 8, 25, 12);
+  it('akzeptiert ±1 Tag um das Serverdatum', () => {
+    expect(daysBetween('2026-09-25', '2026-10-01')).toBe(6);
+    expect(isPlausibleToday('2026-09-25', noonUtc)).toBe(true);
+    expect(isPlausibleToday('2026-09-26', noonUtc)).toBe(true);
+    expect(isPlausibleToday('2026-09-24', noonUtc)).toBe(true);
+    expect(isPlausibleToday('2026-09-27', noonUtc)).toBe(false);
+  });
+});

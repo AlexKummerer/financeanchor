@@ -314,3 +314,53 @@ describe('Wirkung der Buchungen', () => {
     expect(accountDeltas.get(RESERVE_ACCOUNT_ID)).toBe(12367 - 3600 - 15000);
   });
 });
+
+describe('Obergrenze bei Kreditbeträgen', () => {
+  it('Rate höchstens Restschuld plus Zins', () => {
+    const plan = planDue(base);
+    const loan = plan.find((e) => e.key === 'loan:Ratenkauf Laptop')!;
+    expect(loan.maxAmountCents).toBe(90000);
+    expect(() =>
+      applyDueOverrides(plan, [{ key: 'loan:Ratenkauf Laptop', amountCents: 90001 }], MONTH, TODAY),
+    ).toThrow(DueBookingError);
+    expect(
+      applyDueOverrides(
+        plan,
+        [{ key: 'loan:Ratenkauf Laptop', amountCents: 90000 }],
+        MONTH,
+        TODAY,
+      ).find((e) => e.key === 'loan:Ratenkauf Laptop')!.loanDelta,
+    ).toEqual({ loanId: 'Ratenkauf Laptop', cents: -90000 });
+  });
+});
+
+describe('Ausgabe gebucht, Umbuchung wieder offen', () => {
+  it('Umbuchung ist dann einzeln und ohne Auswahl buchbar', () => {
+    const plan = planDue({
+      ...base,
+      booked: new Map([
+        ['item:Haftpflicht und Hausrat', { amountCents: -3600, date: '2026-09-01' }],
+      ]),
+    });
+    expect(selectDueForBooking(plan).map((e) => e.key)).toContain(
+      'transfer:Haftpflicht und Hausrat',
+    );
+    expect(
+      selectDueForBooking(plan, ['transfer:Haftpflicht und Hausrat']).map((e) => e.key),
+    ).toEqual(['transfer:Haftpflicht und Hausrat']);
+  });
+});
+
+describe('Umbuchung schon gebucht, Ausgabe wieder offen', () => {
+  it('bucht nur die Ausgabe erneut', () => {
+    const plan = planDue({
+      ...base,
+      booked: new Map([
+        ['transfer:Haftpflicht und Hausrat', { amountCents: 3600, date: '2026-09-01' }],
+      ]),
+    });
+    expect(selectDueForBooking(plan, ['item:Haftpflicht und Hausrat']).map((e) => e.key)).toEqual([
+      'item:Haftpflicht und Hausrat',
+    ]);
+  });
+});

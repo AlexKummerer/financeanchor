@@ -36,6 +36,8 @@ export interface DueEntry {
   loanDelta: { loanId: string; cents: Cents } | null;
   /** Monatszins, der in einer Kreditrate steckt */
   interestCents: Cents;
+  /** Höchstbetrag bei Anpassung (Kredite: offene Restschuld), sonst `null` */
+  maxAmountCents: Cents | null;
   /** Umbuchung gehört zu dieser Posten-Ausgabe und wird immer mit ihr gebucht */
   linkedKey: string | null;
   booked: boolean;
@@ -103,6 +105,7 @@ export function planDue(input: DueInput): DueEntry[] {
       accountDelta: pot.accountId ? { accountId: pot.accountId, cents: amount } : null,
       loanDelta: null,
       interestCents: 0,
+      maxAmountCents: null,
       linkedKey: null,
     });
   }
@@ -124,6 +127,7 @@ export function planDue(input: DueInput): DueEntry[] {
       accountDelta: null,
       loanDelta: null,
       interestCents: 0,
+      maxAmountCents: null,
       linkedKey: null,
     });
     if (viaReserve(item)) {
@@ -143,6 +147,7 @@ export function planDue(input: DueInput): DueEntry[] {
           : null,
         loanDelta: null,
         interestCents: 0,
+        maxAmountCents: null,
         linkedKey: itemKey,
       });
     }
@@ -156,13 +161,25 @@ export function planDue(input: DueInput): DueEntry[] {
     const key = bookingKeys.loan(loan.id);
     if (input.booked.has(key)) {
       afterRegular.set(loan.id, loan.balanceCents);
-      drafts.push(loanDraft(loan, key, 'loan', 0, 0, labels, sys.loans, input.month));
+      drafts.push(loanDraft(loan, key, 'loan', 0, 0, null, labels, sys.loans, input.month));
       continue;
     }
     const interest = monthlyInterest(loan.balanceCents, loan.rateBp);
     const payment = Math.min(loan.paymentCents, loan.balanceCents + interest);
     afterRegular.set(loan.id, loan.balanceCents + interest - payment);
-    drafts.push(loanDraft(loan, key, 'loan', payment, interest, labels, sys.loans, input.month));
+    drafts.push(
+      loanDraft(
+        loan,
+        key,
+        'loan',
+        payment,
+        interest,
+        loan.balanceCents + interest,
+        labels,
+        sys.loans,
+        input.month,
+      ),
+    );
   }
 
   // Extra-Tilgung wird je Monat als Ganzes gebucht.
@@ -171,7 +188,7 @@ export function planDue(input: DueInput): DueEntry[] {
     for (const loan of input.loans) {
       const key = bookingKeys.extra(loan.id);
       if (input.booked.has(key)) {
-        drafts.push(loanDraft(loan, key, 'extra', 0, 0, labels, sys.loans, input.month));
+        drafts.push(loanDraft(loan, key, 'extra', 0, 0, null, labels, sys.loans, input.month));
       }
     }
   } else if (input.extraPaymentCents > 0) {
@@ -184,7 +201,9 @@ export function planDue(input: DueInput): DueEntry[] {
       const p = Math.min(available, balanceCents);
       available -= p;
       const key = bookingKeys.extra(loan.id);
-      drafts.push(loanDraft(loan, key, 'extra', p, 0, labels, sys.loans, input.month));
+      drafts.push(
+        loanDraft(loan, key, 'extra', p, 0, balanceCents, labels, sys.loans, input.month),
+      );
     }
   }
 
@@ -209,6 +228,7 @@ function loanDraft(
   type: 'loan' | 'extra',
   payment: Cents,
   interest: Cents,
+  maxAmountCents: Cents | null,
   labels: DueLabels,
   categoryId: string,
   month: YearMonth,
@@ -226,6 +246,7 @@ function loanDraft(
     accountDelta: null,
     loanDelta: { loanId: loan.id, cents: interest - payment },
     interestCents: interest,
+    maxAmountCents,
     linkedKey: null,
   };
 }
@@ -274,7 +295,9 @@ export function applyDueOverrides(
     }
     if (
       o.amountCents !== undefined &&
-      (!Number.isSafeInteger(o.amountCents) || o.amountCents <= 0)
+      (!Number.isSafeInteger(o.amountCents) ||
+        o.amountCents <= 0 ||
+        (e.maxAmountCents !== null && o.amountCents > e.maxAmountCents))
     ) {
       throw new DueBookingError('invalid_amount', o.key);
     }
@@ -306,22 +329,29 @@ export function selectDueForBooking(
   entries: readonly DueEntry[],
   keys?: readonly string[],
 ): DueEntry[] {
+  const bookedKeys = new Set(entries.filter((e) => e.booked).map((e) => e.key));
+  // Eine Umbuchung ist nur dann einzeln wählbar, wenn ihre Ausgabe schon gebucht ist.
+  const orphan = (e: DueEntry) => e.linkedKey !== null && bookedKeys.has(e.linkedKey);
   let chosen: Set<string>;
   if (keys) {
     chosen = new Set();
     for (const key of keys) {
       const e = entries.find((x) => x.key === key);
       if (!e) throw new DueBookingError('unknown_key', key);
-      if (e.type === 'transfer') throw new DueBookingError('transfer_not_selectable', key);
       if (e.booked) throw new DueBookingError('already_booked', key);
+      if (e.type === 'transfer' && !orphan(e)) {
+        throw new DueBookingError('transfer_not_selectable', key);
+      }
       if (!e.bookable) throw new DueBookingError('not_yet_due', key);
       chosen.add(key);
     }
   } else {
-    chosen = new Set(entries.filter((e) => e.bookable && e.type !== 'transfer').map((e) => e.key));
+    chosen = new Set(
+      entries.filter((e) => e.bookable && (e.type !== 'transfer' || orphan(e))).map((e) => e.key),
+    );
   }
   return entries.filter(
-    (e) => chosen.has(e.key) || (e.linkedKey !== null && chosen.has(e.linkedKey)),
+    (e) => !e.booked && (chosen.has(e.key) || (e.linkedKey !== null && chosen.has(e.linkedKey))),
   );
 }
 

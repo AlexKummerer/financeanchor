@@ -63,3 +63,17 @@ export function dateInMonth(ym: YearMonth, day: number): IsoDate {
   const d = Math.min(Math.max(1, day), daysInMonth(ym));
   return `${ym}-${String(d).padStart(2, '0')}`;
 }
+
+/** Tagesdifferenz zweier Daten (b − a). */
+export function daysBetween(a: IsoDate, b: IsoDate): number {
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * Plausibilität eines vom Client gemeldeten „heute“: höchstens einen Tag vom UTC-Datum des Servers
+ * entfernt (Zeitzonen reichen von UTC−12 bis UTC+14).
+ */
+export function isPlausibleToday(clientToday: IsoDate, serverNow: number): boolean {
+  const serverToday = new Date(serverNow).toISOString().slice(0, 10);
+  return Math.abs(daysBetween(serverToday, clientToday)) <= 1;
+}

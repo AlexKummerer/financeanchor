@@ -1,7 +1,9 @@
 /**
  * Legt einen Account mit vollen Freigaben an (Phase 1: geschlossene Registrierung).
  *
- *   pnpm db:seed -- --email du@example.com [--name "Name"] [--remote]
+ *   pnpm db:seed -- --email du@example.com [--name "Name"] [--demo] [--remote]
+ *
+ * `--demo` ergänzt die Beispieldaten aus dem Prototyp (für lokale Entwicklung und E2E-Tests).
  *
  * Das Passwort kommt aus SEED_PASSWORD oder wird verdeckt abgefragt (nie als Argument, damit es
  * nicht in der Shell-Historie landet).
@@ -15,12 +17,18 @@ import { newId } from '@financeanchor/shared';
 import { hashPassword } from 'better-auth/crypto';
 import {
   account,
+  accounts,
   categories,
   entitlements,
+  loans,
+  netWorthSnapshots,
+  recurringItems,
   reservePots,
+  transactions,
   user,
   userSettings,
 } from '../src/db/schema.js';
+import { demoRows } from '../src/services/demoData.js';
 import { initialUserRows } from '../src/services/userInit.js';
 import { insertSql } from './sql.js';
 
@@ -29,6 +37,7 @@ const { values } = parseArgs({
     email: { type: 'string' },
     name: { type: 'string' },
     remote: { type: 'boolean', default: false },
+    demo: { type: 'boolean', default: false },
   },
 });
 
@@ -60,10 +69,17 @@ export async function buildSeedSql(
   email: string,
   name: string,
   password: string,
+  demo: boolean,
   now = Date.now(),
 ) {
   const userId = newId(now);
   const initial = initialUserRows(userId, now, 'internal');
+  const today = new Date(now).toISOString().slice(0, 10);
+  const d = demo
+    ? demoRows(userId, today, new Map(initial.categories.map((c) => [c.name, c.id])), now)
+    : null;
+  const pot = { ...initial.reservePot, accountId: d?.reserveAccountId ?? null };
+  // Reihenfolge nach Fremdschlüsseln: Nutzer → Konten → Topf/Kategorien → Posten, Buchungen …
   return [
     ...insertSql(user, [
       {
@@ -86,10 +102,15 @@ export async function buildSeedSql(
         updatedAt: new Date(now),
       },
     ]),
+    ...insertSql(accounts, d?.accounts ?? []),
     ...insertSql(categories, initial.categories),
     ...insertSql(userSettings, [initial.settings]),
-    ...insertSql(reservePots, [initial.reservePot]),
+    ...insertSql(reservePots, [pot]),
     ...insertSql(entitlements, [initial.entitlement]),
+    ...insertSql(recurringItems, d?.recurringItems ?? []),
+    ...insertSql(loans, d?.loans ?? []),
+    ...insertSql(transactions, d?.transactions ?? []),
+    ...insertSql(netWorthSnapshots, d?.snapshots ?? []),
   ];
 }
 
@@ -103,6 +124,7 @@ async function main() {
     email,
     values.name ?? email.split('@')[0] ?? email,
     password,
+    values.demo ?? false,
   );
 
   const dir = mkdtempSync(path.join(tmpdir(), 'financeanchor-seed-'));

@@ -11,7 +11,9 @@ import { loginRateLimit, requireAuth } from './middleware/auth.js';
 import type { AppEnv } from './middleware/context.js';
 import { requireEntitlement } from './middleware/entitlement.js';
 import { accountRoutes } from './routes/accounts.js';
+import { backupRoutes } from './routes/backup.js';
 import { categoryRoutes } from './routes/categories.js';
+import { dueRoutes } from './routes/due.js';
 import { loanRoutes } from './routes/loans.js';
 import { meRoutes } from './routes/me.js';
 import { recurringItemRoutes } from './routes/recurringItems.js';
@@ -58,6 +60,8 @@ export function createApp() {
   app.route('/transactions', transactionRoutes);
   app.route('/loans', loanRoutes);
   app.route('/snapshots', snapshotRoutes);
+  app.route('/due', dueRoutes);
+  app.route('/', backupRoutes);
 
   app.onError((err, c) => {
     if (err instanceof AppError) {

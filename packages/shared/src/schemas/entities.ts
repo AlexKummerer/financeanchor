@@ -119,7 +119,11 @@ export const bookedItemSchema = z.object({
   id: idSchema,
   month: yearMonthSchema,
   bookingKey: z.string().min(1).max(100),
-  transactionId: idSchema.nullable(),
+  transactionId: idSchema,
+  accountId: idSchema.nullable(),
+  accountDeltaCents: centsSchema,
+  loanId: idSchema.nullable(),
+  loanDeltaCents: centsSchema,
   ...meta,
 });
 export type BookedItem = z.infer<typeof bookedItemSchema>;

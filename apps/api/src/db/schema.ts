@@ -16,6 +16,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 import {
+  type IntervalMonths,
   accountKinds,
   entitlementSources,
   entitlementStatuses,
@@ -107,7 +108,7 @@ export const recurringItems = sqliteTable(
     ...base,
     name: text('name').notNull(),
     amountCents: integer('amount_cents').notNull(),
-    intervalMonths: integer('interval_months').notNull(),
+    intervalMonths: integer('interval_months').$type<IntervalMonths>().notNull(),
     startMonth: text('start_month').notNull(),
     dueDay: integer('due_day').notNull().default(1),
     kind: text('kind', { enum: recurringKinds }).notNull(),

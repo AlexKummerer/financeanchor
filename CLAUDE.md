@@ -18,13 +18,18 @@ packages/shared  Typen, Zod-Schemas, gesamte Fachlogik (reines TS, Vitest)
 
 Node 24 (`.nvmrc`), pnpm 12.
 
-| Befehl           | Zweck                       |
-| ---------------- | --------------------------- |
-| `pnpm install`   | Abhängigkeiten              |
-| `pnpm test`      | alle Tests                  |
-| `pnpm typecheck` | TypeScript in allen Paketen |
-| `pnpm lint`      | ESLint + Prettier-Check     |
-| `pnpm format`    | Prettier schreiben          |
+| Befehl                                                            | Zweck                                                                                                                                |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm install`                                                    | Abhängigkeiten                                                                                                                       |
+| `pnpm test`                                                       | alle Tests                                                                                                                           |
+| `pnpm typecheck`                                                  | TypeScript in allen Paketen                                                                                                          |
+| `pnpm lint`                                                       | ESLint + Prettier-Check                                                                                                              |
+| `pnpm format`                                                     | Prettier schreiben                                                                                                                   |
+| `pnpm db:generate -- --name <name>`                               | Drizzle-Migration aus `apps/api/src/db/schema.ts` erzeugen                                                                           |
+| `pnpm db:migrate`                                                 | Migrationen auf die lokale D1 anwenden (`db:migrate:remote` für Produktion)                                                          |
+| `pnpm db:seed -- --email <mail> [--name <n>] [--demo] [--remote]` | Account mit vollen Freigaben anlegen, `--demo` mit Beispieldaten des Prototyps; Passwort über `SEED_PASSWORD` oder verdeckte Eingabe |
+| `pnpm dev:api`                                                    | API lokal (`wrangler dev`, Port 8787)                                                                                                |
+| `pnpm --filter @financeanchor/api types`                          | `worker-configuration.d.ts` nach Änderungen an `wrangler.jsonc` neu erzeugen                                                         |
 
 ## Einrichtung lokal
 
