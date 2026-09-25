@@ -191,7 +191,7 @@
     "saveMonthly": "Zurücklegen: {{amount}}/Monat bis {{month}}",
     "savedField": "Schon zurückgelegt (€)",
     "savedHint": "Falls du für die Einmalzahlung schon Geld beiseitegelegt hast.",
-    "plannedThisMonth": "Diesen Monat geplant",
+    "plannedThisMonth": "Geplant im {{month}}",
     "ownExtra": "Eigene Extra-Tilgung: {{amount}}/Monat",
     "targetReached": "Ziel {{month}} wird erreicht",
     "targetGap": "Fertig im {{payoff}} – für dein Ziel {{month}} fehlen {{gap}}/Monat",
@@ -199,7 +199,7 @@
     "extraField": "Zusätzlich pro Monat, freiwillig (€)",
     "extraHint": "Wird wie die Rate jeden Monat eingeplant und unter „Fällige übernehmen“ vorgeschlagen.",
     "advice": {
-      "title": "Vorschläge",
+      "title": "Vorschläge für {{month}}",
       "available": "Verfügbar für Kredite pro Monat (€)",
       "availableHint": "Optional. Ändert nichts an deinen Zahlungen – es dient nur für Vorschläge, was du zusätzlich tilgen könntest.",
       "overCommitted": "Deine geplanten Zahlungen ({{planned}}) sind höher als das verfügbare Geld ({{available}}) – es fehlen {{missing}}.",
@@ -232,7 +232,9 @@
       "freed": "Danach fallen Raten von {{amount}} pro Monat weg – das ist ab nächstem Monat zusätzlich übrig.",
       "interestSaved": "Spart insgesamt {{interest}} Zinsen.",
       "adoptedMany": "Vorschlag übernommen – Extra-Tilgung bei {{n}} Kredit(en) gesetzt",
-      "partOne": "fertig im {{month}} (1 Monat früher)"
+      "partOne": "fertig im {{month}} (1 Monat früher)",
+      "preview": "Verlauf ansehen",
+      "from": "Übernommen gilt die Extra-Tilgung ab {{month}} jeden Monat, bis du sie im Kredit änderst. Frei werdende Raten zeigt die App im Folgemonat als neues übriges Geld."
     }
   },
   "due": {

@@ -7,6 +7,7 @@ import { LoanPlanner } from '../../core/data/loan-planner';
 import { toCentsOrNull } from '../../core/forms/validators';
 import { Formatter } from '../../core/format/formatter';
 import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
+import { AllocationTable } from './allocation-table';
 
 /**
  * Vorschläge für zusätzliche Tilgung aus dem verfügbaren Geld. Reicht es nicht, zeigt das Panel,
@@ -15,7 +16,7 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
  */
 @Component({
   selector: 'fa-advice-panel',
-  imports: [NgTemplateOutlet, TranslocoPipe, MoneyPipe, MonthPipe],
+  imports: [NgTemplateOutlet, TranslocoPipe, MoneyPipe, MonthPipe, AllocationTable],
   template: `
     <div>
       <label for="ln-available">{{ 'loans.advice.available' | transloco }}</label>
@@ -100,12 +101,23 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
                   }}
                 </p>
               }
+              <details class="more">
+                <summary>{{ 'loans.advice.preview' | transloco }}</summary>
+                <fa-allocation-table
+                  [plan]="previews()[$index] ?? null"
+                  [loans]="loans()"
+                  [settled]="planner.settledIds()"
+                />
+              </details>
               <button class="btn ghost" type="button" [disabled]="busy()" (click)="adopt(s)">
                 {{ 'loans.advice.adopt' | transloco }}
               </button>
             </li>
           }
         </ul>
+        <p class="small muted">
+          {{ 'loans.advice.from' | transloco: { month: (planner.month | faMonth) } }}
+        </p>
         @if (advice().baseline; as b) {
           <p class="small muted">
             {{
@@ -249,6 +261,16 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
     .more {
       margin-top: 12px;
     }
+    .suggestions details.more {
+      margin: 4px 0 10px;
+    }
+    .suggestions details.more[open] fa-allocation-table {
+      display: block;
+      margin-top: 6px;
+      padding: 6px;
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+    }
   `,
 })
 export class AdvicePanel {
@@ -256,13 +278,22 @@ export class AdvicePanel {
   readonly adopted = output<{ loanId: string; extraMonthlyCents: number }[]>();
 
   private readonly store = inject(FinanceStore);
-  private readonly planner = inject(LoanPlanner);
+  protected readonly planner = inject(LoanPlanner);
   private readonly t = inject(TranslocoService);
   private readonly f = inject(Formatter);
 
   protected readonly advice = this.planner.advice;
   protected readonly error = signal(false);
   protected readonly busy = signal(false);
+  protected readonly loans = this.store.loans.items;
+  /** Aufteilung pro Monat, als wäre der Vorschlag übernommen */
+  protected readonly previews = computed(() =>
+    this.advice().suggestions.map((s) =>
+      this.planner.planWith(
+        s.parts.map((p) => ({ loanId: p.loanId, extraMonthlyCents: p.newExtraMonthlyCents })),
+      ),
+    ),
+  );
   protected readonly availableText = computed(() => {
     const v = this.store.settings()?.loanBudgetCents ?? null;
     return v === null ? '' : this.f.amountInput(v);

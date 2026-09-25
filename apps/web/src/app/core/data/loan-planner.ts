@@ -1,5 +1,5 @@
 import { Service, computed, inject, signal } from '@angular/core';
-import { loanAdvice, planLoans, type AllocateOptions } from '@financeanchor/shared';
+import { loanAdvice, planLoans, type AllocateOptions, type LoanPlan } from '@financeanchor/shared';
 import { Clock } from '../clock';
 import { DueApi } from './due-api';
 import { FinanceStore } from './finance-store';
@@ -27,6 +27,18 @@ export class LoanPlanner {
       firstMonth: this.bookedThisMonth(),
     }),
   );
+
+  /** Plan, als wären diese Extra-Tilgungen schon übernommen (Vorschau eines Vorschlags). */
+  planWith(extras: readonly { loanId: string; extraMonthlyCents: number }[]): LoanPlan | null {
+    const byId = new Map(extras.map((e) => [e.loanId, e.extraMonthlyCents]));
+    return planLoans(
+      this.store.loans.items().map((l) => {
+        const extra = byId.get(l.id);
+        return extra === undefined ? l : { ...l, extraMonthlyCents: extra };
+      }),
+      { startMonth: this.month, firstMonth: this.bookedThisMonth() },
+    );
+  }
 
   /** Geplante Zahlungen des laufenden Monats nach Art. */
   readonly thisMonth = computed(() => {

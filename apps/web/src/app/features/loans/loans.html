@@ -17,7 +17,9 @@
   }
 
   @if (planner.thisMonth(); as m) {
-    <p class="small muted planned">{{ 'loans.plannedThisMonth' | transloco }}</p>
+    <p class="small muted planned">
+      {{ 'loans.plannedThisMonth' | transloco: { month: (planner.month | faMonth) } }}
+    </p>
     <dl class="split small">
       <div>
         <dt>{{ 'loans.split.regular' | transloco }}</dt>
@@ -36,7 +38,9 @@
 </section>
 
 @if (openLoans().length > 0) {
-  <h2 id="advice-title">{{ 'loans.advice.title' | transloco }}</h2>
+  <h2 id="advice-title">
+    {{ 'loans.advice.title' | transloco: { month: (planner.month | faMonth) } }}
+  </h2>
   <section class="panel" aria-labelledby="advice-title">
     <fa-advice-panel (adopted)="adoptSuggestion($event)" />
   </section>

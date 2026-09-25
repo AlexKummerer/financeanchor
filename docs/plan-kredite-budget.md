@@ -87,3 +87,4 @@ Rückmeldung: Bei 857,77 € übrig kamen nur Ziel-Vorschläge. Ursache: Der jew
 - „Spart am meisten Zinsen“ und „Schnellste Entlastung“ verteilen das Übrige jetzt der Reihe nach: Jeder Kredit bekommt höchstens, was ihn in diesem Monat ablöst, der Rest geht an den nächsten. Ein Vorschlag besteht daher aus mehreren Teilen (`parts`), „Übernehmen“ setzt die Extra-Tilgung bei allen.
 - Angezeigt werden je Kredit der Betrag und die Wirkung („diesen Monat abgelöst“ bzw. „fertig im …“), die dadurch wegfallenden Raten und die Zinsersparnis insgesamt.
 - Frei werdende Raten erscheinen im Folgemonat als zusätzlich übriges Geld und damit in neuen Vorschlägen; sie werden weiterhin nicht automatisch umverteilt.
+- Überschriften nennen den Monat („Geplant im …“, „Vorschläge für …“); jeder Vorschlag hat „Verlauf ansehen“ mit der Aufteilung pro Monat, als wäre er übernommen (`LoanPlanner.planWith`).
