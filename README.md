@@ -26,7 +26,7 @@ Voraussetzungen: Node 24 (`nvm use`), pnpm 12.
 pnpm install
 cp apps/backend/.dev.vars.example apps/backend/.dev.vars   # Secret eintragen: openssl rand -base64 32
 pnpm db:migrate                                            # lokale D1 anlegen
-pnpm db:seed -- --email du@example.com --demo              # Account mit Beispieldaten
+pnpm db:seed --email du@example.com --demo              # Account mit Beispieldaten
 pnpm dev                                                   # http://localhost:4200
 ```
 
@@ -36,7 +36,7 @@ pnpm dev                                                   # http://localhost:42
 | `pnpm test`                                   | Unit-Tests (shared, web) und Integrationstests der API mit lokaler D1                                             |
 | `pnpm test:e2e`                               | Playwright gegen eigene lokale D1 (einmalig: `pnpm --filter @financeanchor/web exec playwright install chromium`) |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | Qualität und Build                                                                                                |
-| `pnpm db:generate -- --name <name>`           | neue Migration aus dem Drizzle-Schema                                                                             |
+| `pnpm db:generate --name <name>`              | neue Migration aus dem Drizzle-Schema                                                                             |
 
 Die Registrierung ist abgeschaltet (`ALLOW_SIGNUP=false`). Accounts entstehen über `pnpm db:seed`.
 
@@ -69,7 +69,7 @@ Das Skript baut die Web-App, wendet neue Migrationen auf die Remote-D1 an und de
 Eigenen Account anlegen (einmalig):
 
 ```sh
-pnpm db:seed -- --email du@example.com --remote
+pnpm db:seed --email du@example.com --remote
 ```
 
 ### Anmelden mit Google, Microsoft oder Apple (optional)

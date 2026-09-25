@@ -18,24 +18,24 @@ packages/shared  Typen, Zod-Schemas, gesamte Fachlogik (reines TS, Vitest)
 
 Node 24 (`.nvmrc`), pnpm 12.
 
-| Befehl                                                            | Zweck                                                                                                                                                                        |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm install`                                                    | Abhängigkeiten                                                                                                                                                               |
-| `pnpm test`                                                       | alle Tests                                                                                                                                                                   |
-| `pnpm test:e2e`                                                   | Playwright-E2E mit eigener lokaler D1 (`apps/backend/.wrangler/e2e`, Ports 4300/8790); Browser einmalig: `pnpm --filter @financeanchor/web exec playwright install chromium` |
-| `pnpm typecheck`                                                  | TypeScript in allen Paketen                                                                                                                                                  |
-| `pnpm lint`                                                       | ESLint + Prettier-Check                                                                                                                                                      |
-| `pnpm format`                                                     | Prettier schreiben                                                                                                                                                           |
-| `pnpm db:generate -- --name <name>`                               | Drizzle-Migration aus `apps/backend/src/db/schema.ts` erzeugen                                                                                                               |
-| `pnpm db:migrate`                                                 | Migrationen auf die lokale D1 anwenden (`db:migrate:remote` für Produktion)                                                                                                  |
-| `pnpm db:seed -- --email <mail> [--name <n>] [--demo] [--remote]` | Account mit vollen Freigaben anlegen, `--demo` mit Beispieldaten des Prototyps; Passwort über `SEED_PASSWORD` oder verdeckte Eingabe                                         |
-| `pnpm dev`                                                        | API und Web parallel (Web: http://localhost:4200, `/api` per Proxy an Port 8787)                                                                                             |
-| `pnpm dev:backend`                                                | API lokal (`wrangler dev`, Port 8787)                                                                                                                                        |
-| `pnpm --filter @financeanchor/backend types`                      | `worker-configuration.d.ts` nach Änderungen an `wrangler.jsonc` neu erzeugen                                                                                                 |
+| Befehl                                                         | Zweck                                                                                                                                                                        |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`                                                 | Abhängigkeiten                                                                                                                                                               |
+| `pnpm test`                                                    | alle Tests                                                                                                                                                                   |
+| `pnpm test:e2e`                                                | Playwright-E2E mit eigener lokaler D1 (`apps/backend/.wrangler/e2e`, Ports 4300/8790); Browser einmalig: `pnpm --filter @financeanchor/web exec playwright install chromium` |
+| `pnpm typecheck`                                               | TypeScript in allen Paketen                                                                                                                                                  |
+| `pnpm lint`                                                    | ESLint + Prettier-Check                                                                                                                                                      |
+| `pnpm format`                                                  | Prettier schreiben                                                                                                                                                           |
+| `pnpm db:generate --name <name>`                               | Drizzle-Migration aus `apps/backend/src/db/schema.ts` erzeugen                                                                                                               |
+| `pnpm db:migrate`                                              | Migrationen auf die lokale D1 anwenden (`db:migrate:remote` für Produktion)                                                                                                  |
+| `pnpm db:seed --email <mail> [--name <n>] [--demo] [--remote]` | Account mit vollen Freigaben anlegen, `--demo` mit Beispieldaten des Prototyps; Passwort über `SEED_PASSWORD` oder verdeckte Eingabe                                         |
+| `pnpm dev`                                                     | API und Web parallel (Web: http://localhost:4200, `/api` per Proxy an Port 8787)                                                                                             |
+| `pnpm dev:backend`                                             | API lokal (`wrangler dev`, Port 8787)                                                                                                                                        |
+| `pnpm --filter @financeanchor/backend types`                   | `worker-configuration.d.ts` nach Änderungen an `wrangler.jsonc` neu erzeugen                                                                                                 |
 
 ## Einrichtung lokal
 
-`cp apps/backend/.dev.vars.example apps/backend/.dev.vars` und ein eigenes Secret eintragen, dann `pnpm db:migrate` und `pnpm db:seed -- --email …`.
+`cp apps/backend/.dev.vars.example apps/backend/.dev.vars` und ein eigenes Secret eintragen, dann `pnpm db:migrate` und `pnpm db:seed --email …`.
 
 ## Konventionen
 

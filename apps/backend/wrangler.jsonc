@@ -5,6 +5,9 @@
   "compatibility_date": "2026-09-25",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Nur die feste Adresse; keine Vorschau-Adressen je Version (gleiche Datenbank)
+  "workers_dev": true,
+  "preview_urls": false,
   // Die Angular-App wird als statische Assets ausgeliefert; nur /api/* läuft durch den Worker.
   // Gleiche Origin für App und API: keine Third-Party-Cookies, CORS nur für Entwicklung/Capacitor.
   "assets": {

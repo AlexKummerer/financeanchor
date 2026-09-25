@@ -1,7 +1,7 @@
 /**
  * Legt einen Account mit vollen Freigaben an (Phase 1: geschlossene Registrierung).
  *
- *   pnpm db:seed -- --email du@example.com [--name "Name"] [--demo] [--remote]
+ *   pnpm db:seed --email du@example.com [--name "Name"] [--demo] [--remote]
  *
  * `--demo` ergänzt die Beispieldaten aus dem Prototyp (für lokale Entwicklung und E2E-Tests).
  *
@@ -32,7 +32,10 @@ import { demoRows } from '../src/services/demoData.js';
 import { initialUserRows } from '../src/services/userInit.js';
 import { insertSql } from './sql.js';
 
+// pnpm 12 reicht ein `--` (pnpm db:seed --email …) wörtlich durch
+const args = process.argv.slice(2).filter((a, i) => !(i === 0 && a === '--'));
 const { values } = parseArgs({
+  args,
   options: {
     email: { type: 'string' },
     name: { type: 'string' },
