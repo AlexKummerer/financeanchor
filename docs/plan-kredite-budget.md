@@ -95,3 +95,8 @@ Rückmeldung: Ist der September schon gebucht, ergeben Vorschläge „für Septe
 
 - Sind im laufenden Monat alle Kreditzahlungen gebucht (Raten, Rücklagen, Extra-Tilgungen), plant und schlägt die App für den nächsten Monat vor (`LoanPlanner.adviceMonth`): „Geplant im …“, „Vorschläge für …“, Ziel-Lücken und nötige Raten auf der Kreditkarte beziehen sich dann darauf.
 - Neue Spalte `loans.extra_from_month` (Migration 0006): Eine übernommene oder im Formular geänderte Extra-Tilgung gilt erst ab dem Planungsmonat, damit sie im schon gebuchten Monat nicht nachträglich fällig wird. Die Kreditkarte zeigt dann „… ab Okt. 2026“.
+
+## Nachtrag 6 (25.09.2026): Kennzahlen und Verlauf im Dialog
+
+- Oben auf der Kredit-Seite: Nettoschulden (Restschuld minus Zurückgelegtes), getilgter Anteil (über die laufenden Kredite, `loanTotals`), Zinsen bis schuldenfrei laut Plan und Zinsen im Planungsmonat.
+- „Verlauf ansehen“ öffnet einen Dialog mit der Aufteilung pro Monat, als wäre der Vorschlag übernommen; dort lässt er sich auch direkt übernehmen.

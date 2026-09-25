@@ -1,3 +1,4 @@
+import { Dialog } from '@angular/cdk/dialog';
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, output, signal } from '@angular/core';
 import type { LoanSuggestion, SuggestionPart } from '@financeanchor/shared';
@@ -7,7 +8,8 @@ import { LoanPlanner } from '../../core/data/loan-planner';
 import { toCentsOrNull } from '../../core/forms/validators';
 import { Formatter } from '../../core/format/formatter';
 import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
-import { AllocationTable } from './allocation-table';
+import { firstValueFrom } from 'rxjs';
+import { PlanPreviewDialog, type PlanPreviewData } from './plan-preview-dialog';
 
 /**
  * Vorschläge für zusätzliche Tilgung aus dem verfügbaren Geld. Reicht es nicht, zeigt das Panel,
@@ -16,7 +18,7 @@ import { AllocationTable } from './allocation-table';
  */
 @Component({
   selector: 'fa-advice-panel',
-  imports: [NgTemplateOutlet, TranslocoPipe, MoneyPipe, MonthPipe, AllocationTable],
+  imports: [NgTemplateOutlet, TranslocoPipe, MoneyPipe, MonthPipe],
   template: `
     <div>
       <label for="ln-available">{{ 'loans.advice.available' | transloco }}</label>
@@ -101,17 +103,14 @@ import { AllocationTable } from './allocation-table';
                   }}
                 </p>
               }
-              <details class="more">
-                <summary>{{ 'loans.advice.preview' | transloco }}</summary>
-                <fa-allocation-table
-                  [plan]="previews()[$index] ?? null"
-                  [loans]="loans()"
-                  [settled]="planner.settledIds()"
-                />
-              </details>
-              <button class="btn ghost" type="button" [disabled]="busy()" (click)="adopt(s)">
-                {{ 'loans.advice.adopt' | transloco }}
-              </button>
+              <div class="btnrow actions">
+                <button class="btn ghost" type="button" [disabled]="busy()" (click)="adopt(s)">
+                  {{ 'loans.advice.adopt' | transloco }}
+                </button>
+                <button class="linkbtn" type="button" (click)="showPreview(s)">
+                  {{ 'loans.advice.preview' | transloco }}
+                </button>
+              </div>
             </li>
           }
         </ul>
@@ -230,12 +229,11 @@ import { AllocationTable } from './allocation-table';
       justify-content: space-between;
       column-gap: 8px;
     }
-    .suggestions > li > .btn {
+    .actions {
       margin-top: auto;
-    }
-    .suggestions > li > p.small + .btn,
-    .parts + .btn {
-      margin-top: 8px;
+      padding-top: 8px;
+      align-items: center;
+      gap: 12px;
     }
     .breakdown {
       width: 100%;
@@ -261,16 +259,6 @@ import { AllocationTable } from './allocation-table';
     .more {
       margin-top: 12px;
     }
-    .suggestions details.more {
-      margin: 4px 0 10px;
-    }
-    .suggestions details.more[open] fa-allocation-table {
-      display: block;
-      margin-top: 6px;
-      padding: 6px;
-      background: var(--surface);
-      border-radius: var(--radius-sm);
-    }
   `,
 })
 export class AdvicePanel {
@@ -279,6 +267,7 @@ export class AdvicePanel {
 
   private readonly store = inject(FinanceStore);
   protected readonly planner = inject(LoanPlanner);
+  private readonly dialog = inject(Dialog);
   private readonly t = inject(TranslocoService);
   private readonly f = inject(Formatter);
 
@@ -286,14 +275,6 @@ export class AdvicePanel {
   protected readonly error = signal(false);
   protected readonly busy = signal(false);
   protected readonly loans = this.store.loans.items;
-  /** Aufteilung pro Monat, als wäre der Vorschlag übernommen */
-  protected readonly previews = computed(() =>
-    this.advice().suggestions.map((s) =>
-      this.planner.planWith(
-        s.parts.map((p) => ({ loanId: p.loanId, extraMonthlyCents: p.newExtraMonthlyCents })),
-      ),
-    ),
-  );
   protected readonly availableText = computed(() => {
     const v = this.store.settings()?.loanBudgetCents ?? null;
     return v === null ? '' : this.f.amountInput(v);
@@ -359,6 +340,31 @@ export class AdvicePanel {
     const invalid = value.trim() !== '' && (cents === null || cents < 0);
     this.error.set(invalid);
     if (!invalid) void this.store.updateSettings({ loanBudgetCents: cents });
+  }
+
+  /** Verlauf im Dialog: Aufteilung pro Monat, als wäre der Vorschlag übernommen. */
+  protected async showPreview(s: LoanSuggestion) {
+    const extras = s.parts.map((p) => ({
+      loanId: p.loanId,
+      extraMonthlyCents: p.newExtraMonthlyCents,
+    }));
+    const ref = this.dialog.open<boolean, PlanPreviewData>(PlanPreviewDialog, {
+      data: {
+        title: this.title(s),
+        summary: s.parts
+          .map((p) => `${this.loanName(p.loanId)} +${this.f.money(p.addCents)}`)
+          .join(' · '),
+        plan: this.planner.planWith(extras),
+        loans: this.loans(),
+        settled: this.planner.settledIds(),
+      },
+      panelClass: ['fa-dialog', 'fa-dialog-wide'],
+      backdropClass: 'fa-backdrop',
+      ariaLabelledBy: 'fa-dialog-title',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+    });
+    if ((await firstValueFrom(ref.closed)) === true) this.adopt(s);
   }
 
   protected adopt(s: LoanSuggestion) {

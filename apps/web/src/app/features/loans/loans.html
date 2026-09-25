@@ -1,3 +1,69 @@
+@if (openLoans().length > 0) {
+  <div class="kpis loan-kpis">
+    <div class="panel">
+      <p class="kpi-label">{{ 'loans.kpi.net' | transloco }}</p>
+      <p class="kpi-value">{{ totals().netCents | money: true }}</p>
+      @if (totals().savedCents > 0) {
+        <p class="small muted">
+          {{
+            'loans.kpi.netDetail'
+              | transloco
+                : {
+                    balance: (totals().balanceCents | money: true),
+                    saved: (totals().savedCents | money: true),
+                  }
+          }}
+        </p>
+      }
+    </div>
+    <div class="panel">
+      <p class="kpi-label">{{ 'loans.kpi.repaid' | transloco }}</p>
+      <p class="kpi-value">{{ totals().repaidPct }} %</p>
+      <div
+        class="progress"
+        role="progressbar"
+        [attr.aria-valuenow]="totals().repaidPct"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        [attr.aria-label]="'loans.kpi.repaid' | transloco"
+      >
+        <span [style.width.%]="totals().repaidPct"></span>
+      </div>
+      <p class="small muted">
+        {{
+          'loans.kpi.repaidDetail'
+            | transloco
+              : {
+                  repaid: (totals().repaidCents | money: true),
+                  original: (totals().originalCents | money: true),
+                }
+        }}
+      </p>
+    </div>
+    <div class="panel">
+      <p class="kpi-label">{{ 'loans.kpi.interestTotal' | transloco }}</p>
+      <p class="kpi-value">
+        @if (payoff(); as p) {
+          {{ p.interest | money: true }}
+        } @else {
+          –
+        }
+      </p>
+      <p class="small muted">{{ 'loans.kpi.interestTotalHint' | transloco }}</p>
+    </div>
+    <div class="panel">
+      <p class="kpi-label">
+        {{
+          'loans.kpi.interestMonth'
+            | transloco: { month: (planner.adviceMonth() | faMonth: 'short') }
+        }}
+      </p>
+      <p class="kpi-value">{{ monthInterest() ?? 0 | money }}</p>
+      <p class="small muted">{{ 'loans.kpi.interestMonthHint' | transloco }}</p>
+    </div>
+  </div>
+}
+
 <section class="panel" aria-labelledby="payoff-label">
   <p class="muted small" id="payoff-label">{{ 'loans.payoffLabel' | transloco }}</p>
   @if (!planner.plan()) {

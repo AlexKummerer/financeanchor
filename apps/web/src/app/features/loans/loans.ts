@@ -1,5 +1,5 @@
 import { Component, DOCUMENT, computed, inject, signal, viewChild } from '@angular/core';
-import { monthsBetween, type Loan } from '@financeanchor/shared';
+import { loanTotals, monthsBetween, type Loan } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { FinanceStore } from '../../core/data/finance-store';
 import { LoanPlanner } from '../../core/data/loan-planner';
@@ -33,6 +33,13 @@ export class LoansPage {
   protected readonly editing = signal<Loan | null>(null);
   protected readonly formOpen = signal(false);
   protected readonly saving = signal(false);
+
+  protected readonly totals = computed(() => loanTotals(this.store.loans.items()));
+  /** Zinsen im Planungsmonat */
+  protected readonly monthInterest = computed(() => {
+    const m = this.planner.plan()?.months.find((x) => x.month === this.planner.adviceMonth());
+    return m ? m.loans.reduce((s, l) => s + l.interestCents, 0) : null;
+  });
 
   protected readonly payoff = computed(() => {
     const plan = this.planner.plan();

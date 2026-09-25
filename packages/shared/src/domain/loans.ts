@@ -330,3 +330,39 @@ export function suggestedScenarios(loan: PlanLoan, month: YearMonth): Scenario[]
   const capped = amounts.filter((a, i) => a < fullPayoff || amounts.indexOf(fullPayoff) === i);
   return capped.map((a) => scenarioFor(loan, a, month));
 }
+
+export interface LoanTotals {
+  /** Offene Restschuld aller noch laufenden Kredite */
+  balanceCents: Cents;
+  /** Für Einmalzahlungen schon zurückgelegt */
+  savedCents: Cents;
+  /** Restschuld minus Zurückgelegtes */
+  netCents: Cents;
+  /** Ursprünglicher Betrag der noch laufenden Kredite */
+  originalCents: Cents;
+  repaidCents: Cents;
+  /** Getilgter Anteil in Prozent (0–100, ganzzahlig abgerundet) */
+  repaidPct: number;
+}
+
+/** Summen über die noch laufenden Kredite; abbezahlte zählen nicht mit. */
+export function loanTotals(
+  loans: readonly { balanceCents: Cents; savedCents?: Cents; originalCents?: Cents }[],
+): LoanTotals {
+  const open = loans.filter((l) => l.balanceCents > 0);
+  const balanceCents = open.reduce((s, l) => s + l.balanceCents, 0);
+  const savedCents = open.reduce((s, l) => s + Math.min(l.savedCents ?? 0, l.balanceCents), 0);
+  const originalCents = open.reduce(
+    (s, l) => s + Math.max(l.originalCents || l.balanceCents, l.balanceCents),
+    0,
+  );
+  const repaidCents = originalCents - balanceCents;
+  return {
+    balanceCents,
+    savedCents,
+    netCents: balanceCents - savedCents,
+    originalCents,
+    repaidCents,
+    repaidPct: originalCents > 0 ? Math.floor((repaidCents / originalCents) * 100) : 0,
+  };
+}

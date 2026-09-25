@@ -38,6 +38,8 @@ test('„Tilgen bis Datum“, Beispielrechnung und Vorschläge zum Übernehmen',
   ).toContainText('3 Monate');
 
   // Verfügbares Geld ändert nichts am Plan; reicht es nicht, zeigt die App die Aufstellung
+  await expect(page.locator('.loan-kpis')).toContainText('Nettoschulden');
+  await expect(page.locator('.loan-kpis')).toContainText('Getilgt');
   const planned = page.locator('dl.split');
   const before = await planned.textContent();
   const available = page.getByLabel('Verfügbar für Kredite pro Monat (€)');
@@ -55,6 +57,14 @@ test('„Tilgen bis Datum“, Beispielrechnung und Vorschläge zum Übernehmen',
   await expect(planned).toHaveText(before ?? '');
 
   const suggestion = panel.locator('li').filter({ hasText: 'Spart am meisten Zinsen' });
+  // Verlauf im Dialog, ohne zu übernehmen
+  await suggestion.getByRole('button', { name: 'Verlauf ansehen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Spart am meisten Zinsen' });
+  await expect(dialog.locator('fa-allocation-table tbody tr').first()).toBeVisible();
+  await dialog.getByRole('button', { name: 'Schließen' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator('dl.split')).toHaveText(before ?? '');
+
   await suggestion.getByRole('button', { name: 'Übernehmen' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'übernommen' })).toBeVisible();
   await expect(page.locator('dl.split')).toContainText('Eigene Extra-Tilgung');

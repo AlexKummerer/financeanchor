@@ -7,6 +7,7 @@ import {
   extraNeededForTarget,
   extraPaymentOrder,
   loanAdvice,
+  loanTotals,
   paidToLoan,
   paymentToPayOff,
   planLoans,
@@ -371,5 +372,28 @@ describe('Beispielrechnungen', () => {
       stuck: true,
       payoffMonth: null,
     });
+  });
+});
+
+describe('Summen', () => {
+  it('Nettoschulden und getilgter Anteil, nur laufende Kredite', () => {
+    const t = loanTotals([
+      { balanceCents: 60000, originalCents: 100000, savedCents: 0 },
+      { balanceCents: 320000, originalCents: 320000, savedCents: 45715 },
+      { balanceCents: 0, originalCents: 50000, savedCents: 0 },
+    ]);
+    expect(t).toEqual({
+      balanceCents: 380000,
+      savedCents: 45715,
+      netCents: 380000 - 45715,
+      originalCents: 420000,
+      repaidCents: 40000,
+      repaidPct: 9,
+    });
+  });
+
+  it('ohne ursprünglichen Betrag zählt die Restschuld', () => {
+    expect(loanTotals([{ balanceCents: 1000, savedCents: 0 }]).repaidPct).toBe(0);
+    expect(loanTotals([]).repaidPct).toBe(0);
   });
 });

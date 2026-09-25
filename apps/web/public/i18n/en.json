@@ -8,7 +8,8 @@
     "skipToContent": "Skip to content",
     "perMonth": "per month",
     "loading": "Loading …",
-    "retry": "Try again"
+    "retry": "Try again",
+    "close": "Close"
   },
   "nav": {
     "main": "Main navigation",
@@ -235,7 +236,18 @@
       "adoptedMany": "Suggestion adopted – extra payment set for {{n}} loan(s)",
       "partOne": "repaid in {{month}} (1 month sooner)",
       "preview": "Show course",
-      "from": "Once adopted, the extra payment applies every month from {{month}} until you change it in the loan. Instalments that go away show up as new money left over in the following month."
+      "from": "Once adopted, the extra payment applies every month from {{month}} until you change it in the loan. Instalments that go away show up as new money left over in the following month.",
+      "previewHint": "This is how payments split month by month if you adopt the suggestion. “–” means the loan is repaid."
+    },
+    "kpi": {
+      "net": "Net debt",
+      "netDetail": "Balance {{balance}} minus set aside {{saved}}",
+      "repaid": "Repaid",
+      "repaidDetail": "{{repaid}} of {{original}}",
+      "interestTotal": "Interest until debt-free",
+      "interestTotalHint": "according to the plan, without suggestions",
+      "interestMonth": "Interest in {{month}}",
+      "interestMonthHint": "this much of the payments goes to interest"
     }
   },
   "due": {

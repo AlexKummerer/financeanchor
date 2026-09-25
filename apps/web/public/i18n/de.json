@@ -8,7 +8,8 @@
     "skipToContent": "Zum Inhalt springen",
     "perMonth": "pro Monat",
     "loading": "Wird geladen …",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "close": "Schließen"
   },
   "nav": {
     "main": "Hauptnavigation",
@@ -235,7 +236,18 @@
       "adoptedMany": "Vorschlag übernommen – Extra-Tilgung bei {{n}} Kredit(en) gesetzt",
       "partOne": "fertig im {{month}} (1 Monat früher)",
       "preview": "Verlauf ansehen",
-      "from": "Übernommen gilt die Extra-Tilgung ab {{month}} jeden Monat, bis du sie im Kredit änderst. Frei werdende Raten zeigt die App im Folgemonat als neues übriges Geld."
+      "from": "Übernommen gilt die Extra-Tilgung ab {{month}} jeden Monat, bis du sie im Kredit änderst. Frei werdende Raten zeigt die App im Folgemonat als neues übriges Geld.",
+      "previewHint": "So verteilen sich die Zahlungen Monat für Monat, wenn du den Vorschlag übernimmst. „–“ heißt: Kredit ist abbezahlt."
+    },
+    "kpi": {
+      "net": "Nettoschulden",
+      "netDetail": "Restschuld {{balance}} minus zurückgelegt {{saved}}",
+      "repaid": "Getilgt",
+      "repaidDetail": "{{repaid}} von {{original}}",
+      "interestTotal": "Zinsen bis schuldenfrei",
+      "interestTotalHint": "laut Plan, ohne Vorschläge",
+      "interestMonth": "Zinsen im {{month}}",
+      "interestMonthHint": "so viel der Zahlungen geht an Zinsen"
     }
   },
   "due": {

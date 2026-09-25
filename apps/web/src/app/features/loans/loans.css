@@ -1,3 +1,9 @@
+.loan-kpis {
+  margin: 0 0 12px;
+}
+.loan-kpis .progress {
+  margin: 6px 0 4px;
+}
 .planned {
   margin-top: 14px;
 }

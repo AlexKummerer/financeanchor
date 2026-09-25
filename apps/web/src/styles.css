@@ -397,6 +397,9 @@ details[open] > summary {
   max-height: calc(100dvh - 32px - var(--safe-top) - var(--safe-bottom));
   overflow: auto;
 }
+.fa-dialog.fa-dialog-wide {
+  width: min(760px, calc(100vw - 32px));
+}
 
 @media (min-width: 640px) {
   .kpis {
