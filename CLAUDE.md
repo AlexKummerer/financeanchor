@@ -10,7 +10,7 @@ Phase 1: produktionsreif für einen Nutzer, aber mandantenfähig (siehe `docs/pl
 
 ```
 apps/web         Angular-PWA (Standalone, Signals, zoneless, Transloco, CDK)
-apps/backend         Cloudflare Worker, Hono, D1, Drizzle, Better Auth
+apps/backend     Cloudflare Worker, Hono, D1, Drizzle, Better Auth; liefert auch die Web-App aus
 packages/shared  Typen, Zod-Schemas, gesamte Fachlogik (reines TS, Vitest)
 ```
 
@@ -53,3 +53,5 @@ Node 24 (`.nvmrc`), pnpm 12.
 - Web: Dienste mit `@Service()`, Komponenten ohne `standalone`/`OnPush`-Angabe (Standard in Angular 22), `input()`/`output()`, native Control-Flow, Reactive Forms (typed). Texte nur über Transloco-Schlüssel (`public/i18n/de.json` und `en.json` gemeinsam pflegen). Beträge über `Formatter`/`money`-Pipe.
 - Web ist Capacitor-tauglich zu halten: kein direkter Zugriff auf `localStorage`, Downloads usw., sondern über `core/platform/*`; API-URLs immer mit `/api/…` (Interceptor setzt Basis-URL, Cookies bzw. später Bearer-Token).
 - Icons neu erzeugen: `node apps/web/scripts/icons.mjs` (aus `public/icons/icon.svg`).
+- Kein Inline-SVG direkt in Layout-Templates vor einem `router-outlet` (Seiten entstanden sonst im SVG-Namensraum und blieben unsichtbar); Icons über `fa-icon`.
+- Deployment: `APP_URL=https://… pnpm deploy` (siehe README). Sicherheits-Header der statischen Dateien in `apps/web/public/_headers`; CSP ohne Inline-Skripte, daher `inlineCritical: false`.

@@ -19,7 +19,8 @@
     "db:seed": "pnpm --filter @financeanchor/backend db:seed",
     "dev": "pnpm --parallel --filter @financeanchor/backend --filter @financeanchor/web dev",
     "dev:web": "pnpm --filter @financeanchor/web dev",
-    "test:e2e": "pnpm --filter @financeanchor/web e2e"
+    "test:e2e": "pnpm --filter @financeanchor/web e2e",
+    "deploy": "node scripts/deploy.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

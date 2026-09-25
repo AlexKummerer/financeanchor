@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "node -e \"require('node:fs').mkdirSync('../web/dist/web/browser',{recursive:true})\" && wrangler dev",
     "test": "vitest run",
     "typecheck": "wrangler types --strict-vars=false --env-file .dev.vars.example --check && tsc --noEmit",
     "types": "wrangler types --strict-vars=false --env-file .dev.vars.example",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.2.4",

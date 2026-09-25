@@ -1,6 +1,6 @@
 // Startet den Worker für E2E-Tests mit eigener, frisch angelegter lokaler D1 und Demo-Account.
 import { spawn, spawnSync } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 const backend = path.resolve(import.meta.dirname, '../../backend');
@@ -18,6 +18,8 @@ const run = (args, env = {}) => {
 };
 
 rmSync(path.join(backend, persist), { recursive: true, force: true });
+// wrangler dev verlangt den Assets-Ordner, auch wenn die Tests die App über ng serve laden.
+mkdirSync(path.resolve(backend, '../web/dist/web/browser'), { recursive: true });
 run(['exec', 'wrangler', 'd1', 'migrations', 'apply', 'DB', '--local', '--persist-to', persist]);
 run(
   [
