@@ -72,7 +72,12 @@ export const transactionRoutes = new Hono<AppEnv>()
       const patch = c.req.valid('json');
       if (patch.amountCents !== undefined) {
         const effects = await bookingEffectsOf(s.db, s.userId, id);
-        if (effects.some((b) => b.accountDeltaCents !== 0 || b.loanDeltaCents !== 0)) {
+        if (
+          effects.some(
+            (b) =>
+              b.accountDeltaCents !== 0 || b.loanDeltaCents !== 0 || b.loanSavedDeltaCents !== 0,
+          )
+        ) {
           // Der Betrag steckt schon in einem Kontostand oder einer Restschuld.
           throw new AppError(
             409,
@@ -101,6 +106,17 @@ export const transactionRoutes = new Hono<AppEnv>()
                 updatedAt: now,
               })
               .where(s.byId(accounts, b.accountId)),
+          ]
+        : []),
+      ...(b.loanId && b.loanSavedDeltaCents
+        ? [
+            s.db
+              .update(loans)
+              .set({
+                savedCents: sql`max(0, ${loans.savedCents} - ${b.loanSavedDeltaCents})`,
+                updatedAt: now,
+              })
+              .where(s.byId(loans, b.loanId)),
           ]
         : []),
       ...(b.loanId && b.loanDeltaCents

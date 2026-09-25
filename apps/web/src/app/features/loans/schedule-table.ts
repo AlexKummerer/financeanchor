@@ -1,5 +1,5 @@
 import { Component, computed, input, signal } from '@angular/core';
-import type { LoanPlan } from '@financeanchor/shared';
+import { paidToLoan, type LoanPlan } from '@financeanchor/shared';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
 
@@ -24,8 +24,12 @@ const FIRST = 12;
             <tr>
               <th scope="col">{{ 'loans.schedule.month' | transloco }}</th>
               <th scope="col">{{ 'loans.schedule.payment' | transloco }}</th>
-              <th scope="col">{{ 'loans.schedule.interest' | transloco }}</th>
-              <th scope="col">{{ 'loans.schedule.principal' | transloco }}</th>
+              @if (saving()) {
+                <th scope="col">{{ 'loans.schedule.saved' | transloco }}</th>
+              } @else {
+                <th scope="col">{{ 'loans.schedule.interest' | transloco }}</th>
+                <th scope="col">{{ 'loans.schedule.principal' | transloco }}</th>
+              }
               <th scope="col">{{ 'loans.schedule.balance' | transloco }}</th>
             </tr>
           </thead>
@@ -34,8 +38,12 @@ const FIRST = 12;
               <tr [class.short]="r.shortfall > 0">
                 <th scope="row">{{ r.month | faMonth: 'short' }}</th>
                 <td>{{ r.paid | money }}</td>
-                <td>{{ r.interest | money }}</td>
-                <td>{{ r.paid - r.interest | money }}</td>
+                @if (saving()) {
+                  <td>{{ r.saved | money }}</td>
+                } @else {
+                  <td>{{ r.interest | money }}</td>
+                  <td>{{ r.paid - r.interest | money }}</td>
+                }
                 <td>{{ r.balance | money }}</td>
               </tr>
             }
@@ -91,6 +99,8 @@ export class ScheduleTable {
   readonly plan = input.required<LoanPlan | null>();
   readonly loanId = input.required<string>();
   readonly name = input.required<string>();
+  /** Einmalzahlung: statt Zins/Tilgung wird das Zurücklegen gezeigt */
+  readonly saving = input(false);
 
   protected readonly first = FIRST;
   protected readonly all = signal(false);
@@ -101,6 +111,7 @@ export class ScheduleTable {
       month: string;
       paid: number;
       interest: number;
+      saved: number;
       balance: number;
       shortfall: number;
     }[] = [];
@@ -109,8 +120,9 @@ export class ScheduleTable {
       if (!l || l.balanceBeforeCents <= 0) continue;
       out.push({
         month: m.month,
-        paid: l.regularCents + l.deadlineCents + l.extraCents,
+        paid: paidToLoan(l),
         interest: l.interestCents,
+        saved: l.savedAfterCents,
         balance: l.balanceAfterCents,
         shortfall: l.shortfallCents,
       });

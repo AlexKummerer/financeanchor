@@ -97,6 +97,21 @@ const requiredDate = (c: AbstractControl<string>) =>
             }}
           </p>
         </div>
+        @if (form.controls.paymentMode.value === 'lump') {
+          <div>
+            <label for="ln-saved">{{ 'loans.savedField' | transloco }}</label>
+            <input
+              id="ln-saved"
+              formControlName="saved"
+              inputmode="decimal"
+              autocomplete="off"
+              placeholder="0"
+              [attr.aria-invalid]="invalid('saved')"
+              aria-describedby="ln-saved-hint"
+            />
+            <p id="ln-saved-hint" class="small muted hint">{{ 'loans.savedHint' | transloco }}</p>
+          </div>
+        }
         <div>
           <label for="ln-rate">{{ 'loans.rateOptional' | transloco }}</label>
           <input
@@ -215,6 +230,7 @@ export class LoanForm {
     targetMonth: ['', optionalMonth],
     dueDate: ['', requiredDate],
     paymentMode: this.fb.control<PaymentMode>('spread'),
+    saved: ['', euroAmount({ min: 0, required: false })],
   });
 
   private readonly kind = toSignal(this.form.controls.kind.valueChanges, {
@@ -249,6 +265,7 @@ export class LoanForm {
         targetMonth: l.targetMonth ?? '',
         dueDate: l.dueDate ?? '',
         paymentMode: l.paymentMode ?? 'spread',
+        saved: l.savedCents ? this.f.amountInput(l.savedCents) : '',
       });
     });
     // Felder der jeweils anderen Art zählen für die Gültigkeit nicht.
@@ -261,7 +278,7 @@ export class LoanForm {
     const deadline = kind === 'deadline';
     for (const ctl of [c.payment, c.dueDay, c.targetMonth])
       (deadline ? ctl.disable : ctl.enable).call(ctl, { emitEvent: false });
-    for (const ctl of [c.dueDate, c.paymentMode])
+    for (const ctl of [c.dueDate, c.paymentMode, c.saved])
       (deadline ? ctl.enable : ctl.disable).call(ctl, { emitEvent: false });
     // Zins ist bei Fristen optional
     c.rate.setValidators(
@@ -290,7 +307,13 @@ export class LoanForm {
     };
     this.saved.emit(
       v.kind === 'deadline'
-        ? { ...common, kind: 'deadline', dueDate: v.dueDate, paymentMode: v.paymentMode }
+        ? {
+            ...common,
+            kind: 'deadline',
+            dueDate: v.dueDate,
+            paymentMode: v.paymentMode,
+            savedCents: v.paymentMode === 'lump' ? (toCentsOrNull(v.saved) ?? 0) : 0,
+          }
         : {
             ...common,
             kind: 'installment',

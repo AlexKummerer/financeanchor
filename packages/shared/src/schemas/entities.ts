@@ -124,6 +124,8 @@ export const bookedItemSchema = z.object({
   accountDeltaCents: centsSchema,
   loanId: idSchema.nullable(),
   loanDeltaCents: centsSchema,
+  /** Änderung am Zurückgelegten eines Kredits (Ansparen für Einmalzahlung) */
+  loanSavedDeltaCents: centsSchema.default(0),
   ...meta,
 });
 export type BookedItem = z.infer<typeof bookedItemSchema>;
@@ -154,6 +156,8 @@ const loanFields = z.object({
   /** Frist; nur bei „Tilgen bis Datum“ */
   dueDate: isoDateSchema.nullable(),
   paymentMode: paymentModeSchema.nullable(),
+  /** Für eine Einmalzahlung schon zurückgelegt */
+  savedCents: nonNegativeCentsSchema.default(0),
   ...meta,
 });
 
@@ -206,6 +210,7 @@ export const loanCreateSchema = z.discriminatedUnion('kind', [
     kind: z.literal('deadline'),
     dueDate: isoDateSchema,
     paymentMode: paymentModeSchema,
+    savedCents: nonNegativeCentsSchema.default(0),
   }),
 ]);
 export type LoanCreate = z.infer<typeof loanCreateSchema>;
@@ -222,6 +227,7 @@ export const loanUpdateSchema = loanFields
     targetMonth: true,
     dueDate: true,
     paymentMode: true,
+    savedCents: true,
   })
   .partial();
 

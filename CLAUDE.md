@@ -57,3 +57,5 @@ Node 24 (`.nvmrc`), pnpm 12.
 - Deployment: `APP_URL=https://… pnpm deploy` (siehe README). Sicherheits-Header der statischen Dateien in `apps/web/public/_headers`; CSP ohne Inline-Skripte, daher `inlineCritical: false`.
 - Kredite: Arten `installment` (Rate, optional `targetMonth`) und `deadline` (`dueDate`, `paymentMode` spread/lump). Verteilung und Simulation nur über `allocateMonth`/`planLoans` in `shared` (`docs/plan-kredite-budget.md`); die Web-App liest den Plan über `LoanPlanner`.
 - drizzle-kit fragt bei Spalten-Umbenennungen interaktiv – in solchen Fällen Hinzufügen und Entfernen auf zwei Migrationen aufteilen und das erzeugte SQL prüfen.
+- `ng serve` bündelt `@financeanchor/shared` nicht vor (`prebundle.exclude` in `angular.json`), sonst werden Änderungen an der Fachlogik im Dev-Server nicht übernommen. Abhängigkeiten von `shared`, die im Web-Code landen (z. B. `zod`), müssen deshalb auch in `apps/web/package.json` stehen.
+- Kredit-Verteilung: Bankraten zuerst, dann Fristen (Teilzahlungen, Ansparen für Einmalzahlungen, Zielaufstockung) nach frühester Frist, dann Extra. Buchungen gelöschter Kredite zählen nicht zum verbrauchten Budget.

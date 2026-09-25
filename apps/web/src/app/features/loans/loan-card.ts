@@ -1,5 +1,6 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import {
+  budgetUsed,
   daysBetween,
   deadlineMonthOf,
   monthsUntil,
@@ -55,6 +56,22 @@ export class LoanCard {
     if (!d || this.isLump() || l.balanceCents <= 0) return null;
     return paymentToPayOff(l.balanceCents, l.rateBp, monthsUntil(this.month, d));
   });
+  /** Beim Ratenkredit mit Ziel: Aufstockung über die Bankrate hinaus. */
+  protected readonly targetTopUp = computed(() => {
+    const need = this.neededMonthly();
+    const rate = this.loan().paymentCents;
+    return this.loan().kind === 'installment' && need !== null && rate !== null
+      ? need - rate
+      : null;
+  });
+  /** Einmalzahlung: pro Monat zurückzulegen bis zur Fälligkeit. */
+  protected readonly savingMonthly = computed(() => {
+    const l = this.loan();
+    const d = this.deadline();
+    if (!this.isLump() || !d || l.balanceCents <= 0) return null;
+    const rest = Math.max(0, l.balanceCents - l.savedCents);
+    return Math.ceil(rest / monthsUntil(this.month, d));
+  });
   protected readonly daysLeft = computed(() => {
     const due = this.loan().dueDate;
     return due ? daysBetween(this.clock.today(), due) : null;
@@ -63,6 +80,6 @@ export class LoanCard {
     const m = this.plan()?.months[0];
     if (!m || m.month !== this.month) return null;
     const x = m.loans.find((l) => l.id === this.loan().id);
-    return x ? x.regularCents + x.deadlineCents + x.extraCents : null;
+    return x ? budgetUsed(x) : null;
   });
 }

@@ -17,7 +17,7 @@ import {
   type ReservePotLike,
 } from './reserve.js';
 
-export type DueEntryType = 'reserve' | 'item' | 'transfer' | 'loan' | 'extra';
+export type DueEntryType = 'reserve' | 'item' | 'transfer' | 'loan' | 'extra' | 'saving';
 
 export interface DueEntry {
   key: string;
@@ -34,6 +34,8 @@ export interface DueEntry {
   accountDelta: { accountId: string; cents: Cents } | null;
   /** Änderung der Restschuld (negativ = Tilgung) */
   loanDelta: { loanId: string; cents: Cents } | null;
+  /** Änderung am Zurückgelegten eines Kredits (Ansparen bzw. Verbrauch bei Fälligkeit) */
+  savingDelta: { loanId: string; cents: Cents } | null;
   /** Monatszins, der in einer Kreditrate steckt */
   interestCents: Cents;
   /** Höchstbetrag bei Anpassung (Kredite: offene Restschuld), sonst `null` */
@@ -51,6 +53,8 @@ export interface DueLabels {
   loan: (loanName: string) => string;
   /** Einmalzahlung bei „Tilgen bis Datum“ */
   payment: (loanName: string) => string;
+  /** Zurücklegen für eine Einmalzahlung */
+  saving: (loanName: string) => string;
   extra: (loanName: string) => string;
 }
 
@@ -59,6 +63,7 @@ export const germanDueLabels: DueLabels = {
   transfer: (name) => `Umbuchung Rücklage: ${name}`,
   loan: (name) => `Rate ${name}`,
   payment: (name) => `Zahlung ${name}`,
+  saving: (name) => `Rücklage für ${name}`,
   extra: (name) => `Extra-Tilgung ${name}`,
 };
 
@@ -108,6 +113,7 @@ export function planDue(input: DueInput): DueEntry[] {
       sourceId: pot.id,
       accountDelta: pot.accountId ? { accountId: pot.accountId, cents: amount } : null,
       loanDelta: null,
+      savingDelta: null,
       interestCents: 0,
       maxAmountCents: null,
       linkedKey: null,
@@ -130,6 +136,7 @@ export function planDue(input: DueInput): DueEntry[] {
       sourceId: item.id,
       accountDelta: null,
       loanDelta: null,
+      savingDelta: null,
       interestCents: 0,
       maxAmountCents: null,
       linkedKey: null,
@@ -150,6 +157,7 @@ export function planDue(input: DueInput): DueEntry[] {
           ? { accountId: pot.accountId, cents: -item.amountCents }
           : null,
         loanDelta: null,
+        savingDelta: null,
         interestCents: 0,
         maxAmountCents: null,
         linkedKey: itemKey,
@@ -157,74 +165,76 @@ export function planDue(input: DueInput): DueEntry[] {
     }
   }
 
-  // Kredite: Aufteilung des Monatsbudgets (Pflicht, Fristen, Extra). Schon gebuchte Raten stecken
-  // bereits in der Restschuld; gebuchte Tilgung mindert das verbleibende Budget.
-  const loanKeys = [...input.booked.entries()].filter(
-    ([k]) => k.startsWith('loan:') || k.startsWith('extra:'),
-  );
+  // Kredite: Aufteilung des Monatsbudgets (Raten, Fristen, Ansparen, Extra). Schon gebuchte Raten
+  // stecken bereits in der Restschuld; gebuchte Beträge mindern das verbleibende Budget. Buchungen
+  // gelöschter Kredite zählen nicht.
+  const loanIds = new Set(input.loans.map((l) => l.id));
+  const loanKeys = [...input.booked.entries()].filter(([k]) => {
+    const [prefix, id] = k.split(':');
+    return (
+      (prefix === 'loan' || prefix === 'extra' || prefix === 'save') &&
+      id !== undefined &&
+      loanIds.has(id)
+    );
+  });
   const settled = new Set(
-    loanKeys.filter(([k]) => k.startsWith('loan:')).map(([k]) => k.slice('loan:'.length)),
+    loanKeys
+      .filter(([k]) => k.startsWith('loan:') || k.startsWith('save:'))
+      .map(([k]) => k.slice(k.indexOf(':') + 1)),
   );
-  const extraBooked = loanKeys.some(([k]) => k.startsWith('extra:'));
   const alloc = allocateMonth(input.loans, input.month, input.loanBudgetCents, input.strategy, {
     settled,
     spentCents: loanKeys.reduce((s, [, b]) => s + Math.abs(b.amountCents), 0),
-    noExtra: extraBooked,
+    noExtra: loanKeys.some(([k]) => k.startsWith('extra:')),
   });
   input.loans.forEach((loan, i) => {
     const r = alloc.loans[i];
     if (!r) return;
-    const loanKey = bookingKeys.loan(loan.id);
+    const installment = loan.kind === 'installment';
     const lump = loan.kind === 'deadline' && loan.paymentMode === 'lump';
-    const label = lump ? labels.payment(loan.name) : labels.loan(loan.name);
-    if (input.booked.has(loanKey)) {
-      drafts.push(loanDraft(loan, loanKey, 'loan', label, 0, 0, null, sys.loans, input.month));
-    } else if (r.regularCents > 0) {
-      drafts.push(
-        loanDraft(
-          loan,
-          loanKey,
-          'loan',
-          label,
-          r.regularCents,
-          r.interestCents,
-          r.balanceBeforeCents + r.interestCents,
-          sys.loans,
-          input.month,
-        ),
-      );
-    }
-    const extraKey = bookingKeys.extra(loan.id);
-    const extra = r.deadlineCents + r.extraCents;
-    if (input.booked.has(extraKey)) {
-      drafts.push(
-        loanDraft(
-          loan,
-          extraKey,
-          'extra',
-          labels.extra(loan.name),
-          0,
-          0,
-          null,
-          sys.loans,
-          input.month,
-        ),
-      );
-    } else if (extra > 0) {
-      drafts.push(
-        loanDraft(
-          loan,
-          extraKey,
-          'extra',
-          labels.extra(loan.name),
-          extra,
-          0,
-          r.balanceAfterCents + extra,
-          sys.loans,
-          input.month,
-        ),
-      );
-    }
+    const push = (
+      key: string,
+      type: 'loan' | 'extra' | 'saving',
+      name: string,
+      amount: Cents,
+      extra: Partial<Draft>,
+    ) => {
+      if (input.booked.has(key)) {
+        drafts.push(loanDraft(loan, key, type, name, 0, 0, null, sys, input.month));
+      } else if (amount > 0) {
+        drafts.push({
+          ...loanDraft(loan, key, type, name, amount, 0, null, sys, input.month),
+          ...extra,
+        });
+      }
+    };
+    // Rate bzw. Zahlung an den Kreditgeber
+    const payment = installment ? r.regularCents : r.deadlineCents + r.fromSavingsCents;
+    push(
+      bookingKeys.loan(loan.id),
+      'loan',
+      lump ? labels.payment(loan.name) : labels.loan(loan.name),
+      payment,
+      {
+        interestCents: r.interestCents,
+        loanDelta: { loanId: loan.id, cents: r.interestCents - payment },
+        maxAmountCents: r.balanceBeforeCents + r.interestCents,
+        savingDelta: r.fromSavingsCents ? { loanId: loan.id, cents: -r.fromSavingsCents } : null,
+      },
+    );
+    // Aufstockung für Ziele und Extra-Tilgung
+    const extra = installment ? r.deadlineCents + r.extraCents : r.extraCents;
+    push(bookingKeys.extra(loan.id), 'extra', labels.extra(loan.name), extra, {
+      maxAmountCents: r.balanceAfterCents + extra,
+    });
+    // Zurücklegen für eine Einmalzahlung
+    push(bookingKeys.save(loan.id), 'saving', labels.saving(loan.name), r.savingCents, {
+      transactionKind: 'reserve',
+      categoryId: sys.reserve,
+      loanDelta: null,
+      savingDelta: { loanId: loan.id, cents: r.savingCents },
+      maxAmountCents: r.balanceBeforeCents + r.interestCents - (r.savedAfterCents - r.savingCents),
+    });
   });
 
   return drafts.map((d) => {
@@ -245,19 +255,19 @@ export function planDue(input: DueInput): DueEntry[] {
 function loanDraft(
   loan: { id: string; dueDay: number },
   key: string,
-  type: 'loan' | 'extra',
+  type: 'loan' | 'extra' | 'saving',
   name: string,
   payment: Cents,
   interest: Cents,
   maxAmountCents: Cents | null,
-  categoryId: string,
+  sys: Record<SystemCategoryKey, string>,
   month: YearMonth,
 ): Draft {
   return {
     key,
     type,
     name,
-    categoryId,
+    categoryId: sys.loans,
     amountCents: -payment,
     date: dateInMonth(month, loan.dueDay),
     transactionKind: 'loan_payment',
@@ -265,6 +275,7 @@ function loanDraft(
     sourceId: loan.id,
     accountDelta: null,
     loanDelta: { loanId: loan.id, cents: interest - payment },
+    savingDelta: null,
     interestCents: interest,
     maxAmountCents,
     linkedKey: null,
@@ -336,6 +347,11 @@ export function applyDueOverrides(
       if (e.loanDelta) {
         next.loanDelta = { ...e.loanDelta, cents: e.interestCents - a };
       }
+      if (e.savingDelta) {
+        // Ansparen: der angepasste Betrag; Zahlung: höchstens das Angesparte wird verbraucht
+        const cents = e.type === 'saving' ? a : -Math.min(-e.savingDelta.cents, a);
+        next.savingDelta = { ...e.savingDelta, cents };
+      }
     }
     return { ...next, bookable: date <= today };
   });
@@ -378,13 +394,19 @@ export function selectDueForBooking(
 export interface BookingEffects {
   accountDeltas: Map<string, Cents>;
   loanDeltas: Map<string, Cents>;
+  savingDeltas: Map<string, Cents>;
 }
 
 /** Summierte Änderungen an Kontoständen und Restschulden. */
 export function bookingEffects(entries: readonly DueEntry[]): BookingEffects {
   const accountDeltas = new Map<string, Cents>();
   const loanDeltas = new Map<string, Cents>();
+  const savingDeltas = new Map<string, Cents>();
   for (const e of entries) {
+    if (e.savingDelta) {
+      const { loanId, cents } = e.savingDelta;
+      savingDeltas.set(loanId, (savingDeltas.get(loanId) ?? 0) + cents);
+    }
     if (e.accountDelta) {
       const { accountId, cents } = e.accountDelta;
       accountDeltas.set(accountId, (accountDeltas.get(accountId) ?? 0) + cents);
@@ -394,5 +416,5 @@ export function bookingEffects(entries: readonly DueEntry[]): BookingEffects {
       loanDeltas.set(loanId, (loanDeltas.get(loanId) ?? 0) + cents);
     }
   }
-  return { accountDeltas, loanDeltas };
+  return { accountDeltas, loanDeltas, savingDeltas };
 }

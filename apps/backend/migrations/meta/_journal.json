@@ -22,6 +22,13 @@
       "when": 1790343394434,
       "tag": "0002_drop_extra_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790346561620,
+      "tag": "0003_loan_savings",
+      "breakpoints": true
     }
   ]
 }

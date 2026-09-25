@@ -5,4 +5,6 @@ export const bookingKeys = {
   transfer: (itemId: string) => `transfer:${itemId}`,
   loan: (loanId: string) => `loan:${loanId}`,
   extra: (loanId: string) => `extra:${loanId}`,
+  /** Ansparen für eine Einmalzahlung */
+  save: (loanId: string) => `save:${loanId}`,
 } as const;

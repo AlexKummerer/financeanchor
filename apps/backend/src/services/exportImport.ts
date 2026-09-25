@@ -120,6 +120,7 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
     transfer: maps.item,
     loan: maps.loan,
     extra: maps.loan,
+    save: maps.loan,
   };
 
   const rows = {

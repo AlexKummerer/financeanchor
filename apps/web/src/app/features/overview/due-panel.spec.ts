@@ -19,6 +19,7 @@ const entry = (over: Partial<DueEntry>): DueEntry => ({
   sourceId: 'x',
   accountDelta: null,
   loanDelta: null,
+  savingDelta: null,
   interestCents: 0,
   maxAmountCents: null,
   linkedKey: null,

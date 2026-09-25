@@ -192,3 +192,51 @@ describe('Fällige übernehmen', () => {
     expect(await balanceOf(alice.api, '/accounts', reserveAccount.id)).toBe(62000);
   });
 });
+
+describe('Ansparen für Einmalzahlungen', () => {
+  it('bucht die Rücklage, erhöht das Zurückgelegte und macht das beim Löschen rückgängig', async () => {
+    const { api } = await newUser();
+    const nextMonth = addMonths(thisMonth, 3);
+    const loan = (
+      await api.post('/loans', {
+        kind: 'deadline',
+        name: 'Privatkredit',
+        balanceCents: 120000,
+        dueDate: `${nextMonth}-01`,
+        paymentMode: 'lump',
+      })
+    ).body;
+    const plan = (await api.get(`/due/${lastMonth}?today=${today}`)).body;
+    const saving = plan.find((e: any) => e.key === `save:${loan.id}`);
+    // Vormonat bis Fälligkeit: fünf Monate → 240 € je Monat
+    expect(saving).toMatchObject({ type: 'saving', amountCents: -24000 });
+
+    await api.post(`/due/${lastMonth}/book`, { today, keys: [saving.key] });
+    const saved = () => api.get('/loans').then((r) => r.body[0]);
+    expect(await saved()).toMatchObject({ savedCents: 24000, balanceCents: 120000 });
+
+    const tx = (await api.get(`/transactions?month=${lastMonth}`)).body.find(
+      (t: any) => t.name === 'Rücklage für Privatkredit',
+    );
+    expect(tx).toMatchObject({ kind: 'reserve', amountCents: -24000 });
+    expect((await api.del(`/transactions/${tx.id}`)).status).toBe(204);
+    expect(await saved()).toMatchObject({ savedCents: 0 });
+  });
+
+  it('Zurückgelegtes lässt sich beim Kredit eintragen; bei Teilzahlungen gibt es keins', async () => {
+    const { api } = await newUser();
+    const loan = (
+      await api.post('/loans', {
+        kind: 'deadline',
+        name: 'FC',
+        balanceCents: 320000,
+        dueDate: '2027-03-01',
+        paymentMode: 'lump',
+        savedCents: 50000,
+      })
+    ).body;
+    expect(loan.savedCents).toBe(50000);
+    const spread = await api.patch(`/loans/${loan.id}`, { paymentMode: 'spread' });
+    expect(spread.body.savedCents).toBe(0);
+  });
+});

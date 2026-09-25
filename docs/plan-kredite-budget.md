@@ -54,3 +54,10 @@ Ergebnis der Simulation: je Monat und Kredit Zins, Mindestrate, Frist-Anteil, Ex
 - Migrationen `0001_loan_kinds_and_budget` (neue Spalten, Umrechnung Extra → Budget) und `0002_drop_extra_payment`. Die von drizzle-kit erzeugten `INSERT … SELECT` wurden von Hand korrigiert (sie lasen neue Spalten aus der alten Tabelle), `PRAGMA foreign_keys` durch `defer_foreign_keys` ersetzt; ein Test prüft die Umrechnung an einer D1 im alten Stand.
 - Bei Teilzahlungen wird die Monatsrate am Tag der Frist gebucht (z. B. am 31. bzw. Monatsletzten).
 - Bereits im laufenden Monat gebuchte Raten werden im Plan als „gebucht“ gezeigt und nicht doppelt eingeplant; das restliche Budget verteilt sich weiter.
+
+## Nachtrag 25.09.2026 (Rückmeldung aus dem ersten Test)
+
+- **Fehler behoben:** Gebuchte Raten inzwischen gelöschter Kredite minderten das Budget (Postbank bekam dadurch weniger als ihre feste Rate).
+- **Reihenfolge geändert:** Die vereinbarten Raten der Bank werden immer zuerst eingeplant; Einmalzahlungen haben keinen Vorrang mehr davor.
+- **Ansparen für Einmalzahlungen:** Bis zur Fälligkeit wird monatlich zurückgelegt (Buchung „Rücklage für …“, Stand im Kredit als `saved_cents`, Migration 0003); im Fälligkeitsmonat wird der ganze Betrag gezahlt und das Angesparte verbraucht. Schon Zurückgelegtes lässt sich im Formular eintragen.
+- **Anzeige Zieldatum:** „Für dein Ziel …: X €/Monat (Rate Y + Z)“ statt „Nötig“.

@@ -93,14 +93,14 @@
     "avalanche": "Höchster Zins zuerst",
     "snowball": "Kleinste Schuld zuerst",
     "budget": "Für Kredite pro Monat insgesamt (€)",
-    "budgetHint": "Leer lassen = nur die fälligen Raten und Fristen (diesen Monat {{amount}}). Mit einem höheren Betrag geht der Rest nach deiner Strategie in die Tilgung, frei werdende Raten rollen weiter.",
+    "budgetHint": "Leer lassen = nur die fälligen Raten, Fristen und Rücklagen (diesen Monat {{amount}}). Mit einem höheren Betrag geht der Rest nach deiner Strategie in die Tilgung, frei werdende Raten rollen weiter.",
     "split": {
       "regular": "Raten",
-      "deadline": "für Fristen",
+      "deadline": "Fristen & Rücklagen",
       "extra": "Extra"
     },
-    "shortThisMonth": "Das Budget reicht diesen Monat nicht für alle Raten und Fristen – es fehlen {{amount}}.",
-    "shortLater": "In manchen Monaten reicht das Budget nicht für Raten und Fristen – es fehlen bis zu {{amount}}.",
+    "shortThisMonth": "Das Budget reicht diesen Monat nicht für alle Raten, Fristen und Rücklagen – es fehlen {{amount}}. Die Raten der Bank werden immer zuerst eingeplant.",
+    "shortLater": "In manchen Monaten reicht das Budget nicht für Raten, Fristen und Rücklagen – es fehlen bis zu {{amount}}.",
     "add": "Kredit hinzufügen",
     "editTitle": "Kredit bearbeiten",
     "kind": "Art",
@@ -116,7 +116,7 @@
     },
     "paymentMode": "Zahlweise",
     "spreadHint": "Jeden Monat wird die nötige Rate eingeplant, damit die Schuld bis zur Frist weg ist.",
-    "lumpHint": "Der ganze Betrag wird am Fälligkeitstag gebucht (z. B. PayPal oder Klarna „später bezahlen“).",
+    "lumpHint": "Bis zur Fälligkeit wird jeden Monat ein Teil zurückgelegt; am Fälligkeitstag wird der ganze Betrag gezahlt (z. B. PayPal, Klarna oder ein Privatkredit mit Rückzahlung in einer Summe).",
     "name": "Name",
     "namePlaceholder": "z. B. Autokredit",
     "namePlaceholderDeadline": "z. B. Privatkredit oder Klarna",
@@ -180,18 +180,25 @@
       "principal": "Tilgung",
       "balance": "Restschuld",
       "all": "Alle {{n}} Monate anzeigen",
-      "less": "Weniger anzeigen"
+      "less": "Weniger anzeigen",
+      "saved": "Zurückgelegt"
     },
     "allocation": {
       "title": "Aufteilung pro Monat",
       "caption": "Aufteilung des Kreditbudgets pro Monat",
       "total": "Summe",
-      "hint": "So verteilt sich dein Budget Monat für Monat auf die Kredite – erst Raten und Fristen, dann der Rest nach Strategie.",
+      "hint": "So verteilt sich dein Budget Monat für Monat: erst die Raten der Bank, dann Fristen und Rücklagen für Einmalzahlungen, der Rest nach Strategie.",
       "shortfallHint": "Rot markierte Monate: Das Budget reicht dort nicht für alle Raten und Fristen.",
       "booked": "gebucht"
     },
     "bookedThisMonth": "Rate für diesen Monat gebucht",
-    "extraThisMonth": "noch {{amount}} extra"
+    "extraThisMonth": "noch {{amount}} extra",
+    "targetNeed": "Für dein Ziel {{month}}: {{amount}}/Monat (Rate {{rate}} + {{extra}})",
+    "targetEnough": "Deine Rate reicht für das Ziel {{month}}",
+    "savedOf": "Zurückgelegt: {{saved}} von {{total}}",
+    "saveMonthly": "Zurücklegen: {{amount}}/Monat bis {{month}}",
+    "savedField": "Schon zurückgelegt (€)",
+    "savedHint": "Falls du für die Einmalzahlung schon Geld beiseitegelegt hast."
   },
   "due": {
     "nothing": "In diesem Monat ist nichts Wiederkehrendes fällig.",
@@ -208,7 +215,8 @@
       "income": "Einnahme",
       "fromReserve": "aus Rücklage",
       "saving": "Sparen",
-      "fixed": "Fixkosten"
+      "fixed": "Fixkosten",
+      "loanSaving": "Rücklage Kredit"
     },
     "adjust": "{{name}} anpassen",
     "date": "Datum",

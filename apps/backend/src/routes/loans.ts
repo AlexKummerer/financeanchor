@@ -37,6 +37,8 @@ export const loanRoutes = new Hono<AppEnv>()
       next.dueDate = null;
       next.paymentMode = null;
     }
+    // Zurückgelegtes gibt es nur bei Einmalzahlungen
+    if (next.paymentMode !== 'lump') next.savedCents = 0;
     const issues = loanShapeIssues(next);
     if (issues.length) throw new AppError(400, 'validation_failed', 'Invalid loan', issues);
     const { id: _id, userId: _u, createdAt: _c, updatedAt: _up, ...values } = next;
@@ -78,6 +80,7 @@ function toRow(body: LoanCreate) {
     targetMonth: null,
     dueDate: body.dueDate,
     paymentMode: body.paymentMode,
+    savedCents: body.paymentMode === 'lump' ? body.savedCents : 0,
   };
 }
 

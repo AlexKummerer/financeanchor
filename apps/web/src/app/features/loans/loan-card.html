@@ -92,12 +92,44 @@
         <li>{{ 'loans.thisMonth' | transloco: { amount: (thisMonth()! | money) } }}</li>
       }
       @if (neededMonthly(); as need) {
+        @if (targetTopUp() !== null) {
+          <li>
+            {{
+              (targetTopUp()! > 0 ? 'loans.targetNeed' : 'loans.targetEnough')
+                | transloco
+                  : {
+                      amount: (need | money),
+                      month: (deadline() | faMonth: 'short'),
+                      rate: (loan().paymentCents | money),
+                      extra: (targetTopUp()! | money),
+                    }
+            }}
+          </li>
+        } @else {
+          <li>
+            {{
+              'loans.needed'
+                | transloco: { amount: (need | money), month: (deadline() | faMonth: 'short') }
+            }}
+          </li>
+        }
+      }
+      @if (isLump()) {
         <li>
           {{
-            'loans.needed'
-              | transloco: { amount: (need | money), month: (deadline() | faMonth: 'short') }
+            'loans.savedOf'
+              | transloco
+                : { saved: (loan().savedCents | money), total: (loan().balanceCents | money) }
           }}
         </li>
+        @if (savingMonthly(); as sm) {
+          <li>
+            {{
+              'loans.saveMonthly'
+                | transloco: { amount: (sm | money), month: (deadline() | faMonth: 'short') }
+            }}
+          </li>
+        }
       }
       @if (isLump() && daysLeft() !== null) {
         <li [class.neg]="daysLeft()! < 0">
@@ -129,7 +161,12 @@
     }
     <details class="more">
       <summary>{{ 'loans.schedule.title' | transloco }}</summary>
-      <fa-schedule-table [plan]="plan()" [loanId]="loan().id" [name]="loan().name" />
+      <fa-schedule-table
+        [plan]="plan()"
+        [loanId]="loan().id"
+        [name]="loan().name"
+        [saving]="isLump()"
+      />
     </details>
   }
 </article>

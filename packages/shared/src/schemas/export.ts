@@ -103,6 +103,7 @@ export const importFileSchema = z
           targetMonth: null,
           dueDate: null,
           paymentMode: null,
+          savedCents: 0,
         })),
       },
     };

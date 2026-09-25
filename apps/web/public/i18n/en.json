@@ -93,14 +93,14 @@
     "avalanche": "Highest interest first",
     "snowball": "Smallest balance first",
     "budget": "Total for loans per month (€)",
-    "budgetHint": "Leave empty to pay only what is due (this month {{amount}}). With a higher amount the rest goes to repayment by your strategy; freed payments roll over.",
+    "budgetHint": "Leave empty to pay only what is due, including deadlines and set-asides (this month {{amount}}). With a higher amount the rest goes to repayment by your strategy; freed payments roll over.",
     "split": {
       "regular": "Payments",
-      "deadline": "for deadlines",
+      "deadline": "Deadlines & set-asides",
       "extra": "Extra"
     },
-    "shortThisMonth": "The budget does not cover all payments and deadlines this month – {{amount}} short.",
-    "shortLater": "In some months the budget does not cover payments and deadlines – up to {{amount}} short.",
+    "shortThisMonth": "The budget does not cover all payments, deadlines and set-asides this month – {{amount}} short. Bank payments are always planned first.",
+    "shortLater": "In some months the budget does not cover payments, deadlines and set-asides – up to {{amount}} short.",
     "add": "Add loan",
     "editTitle": "Edit loan",
     "kind": "Type",
@@ -116,7 +116,7 @@
     },
     "paymentMode": "Payment",
     "spreadHint": "Each month the required amount is planned so the debt is gone by the deadline.",
-    "lumpHint": "The full amount is booked on the due date (e.g. PayPal or Klarna “pay later”).",
+    "lumpHint": "Until the due date a share is set aside each month; the full amount is paid on the due date (e.g. PayPal, Klarna or a private loan repaid in one sum).",
     "name": "Name",
     "namePlaceholder": "e.g. car loan",
     "namePlaceholderDeadline": "e.g. private loan or Klarna",
@@ -180,18 +180,25 @@
       "principal": "Principal",
       "balance": "Balance",
       "all": "Show all {{n}} months",
-      "less": "Show less"
+      "less": "Show less",
+      "saved": "Set aside"
     },
     "allocation": {
       "title": "Split per month",
       "caption": "Loan budget split per month",
       "total": "Total",
-      "hint": "How your budget is split across loans month by month – payments and deadlines first, the rest by strategy.",
+      "hint": "How your budget is split month by month: bank payments first, then deadlines and set-asides for one-time payments, the rest by strategy.",
       "shortfallHint": "Months in red: the budget does not cover all payments and deadlines there.",
       "booked": "booked"
     },
     "bookedThisMonth": "This month's payment booked",
-    "extraThisMonth": "{{amount}} extra still planned"
+    "extraThisMonth": "{{amount}} extra still planned",
+    "targetNeed": "For your target {{month}}: {{amount}}/month (payment {{rate}} + {{extra}})",
+    "targetEnough": "Your payment is enough for the target {{month}}",
+    "savedOf": "Set aside: {{saved}} of {{total}}",
+    "saveMonthly": "Set aside: {{amount}}/month until {{month}}",
+    "savedField": "Already set aside (€)",
+    "savedHint": "If you have already put money aside for the one-time payment."
   },
   "due": {
     "nothing": "Nothing recurring is due this month.",
@@ -208,7 +215,8 @@
       "income": "Income",
       "fromReserve": "from reserve",
       "saving": "Savings",
-      "fixed": "Fixed costs"
+      "fixed": "Fixed costs",
+      "loanSaving": "Loan set-aside"
     },
     "adjust": "Adjust {{name}}",
     "date": "Date",

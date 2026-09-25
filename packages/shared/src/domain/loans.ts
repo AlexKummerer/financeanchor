@@ -13,7 +13,10 @@ export type PlanLoan = Pick<
   | 'targetMonth'
   | 'dueDate'
   | 'paymentMode'
->;
+> & {
+  /** Für eine Einmalzahlung schon zurückgelegt (Standard 0) */
+  savedCents?: Cents;
+};
 
 /** Abbruchgrenze der Simulation (50 Jahre), wie im Prototyp. */
 export const MAX_SIMULATION_MONTHS = 600;
@@ -64,12 +67,17 @@ export interface LoanMonth {
   id: string;
   balanceBeforeCents: Cents;
   interestCents: Cents;
-  /** Pflichtanteil: Mindestrate, Frist-Rate (Teilzahlung) oder Einmalzahlung */
+  /** Vereinbarte Rate eines Ratenkredits (Pflicht) */
   regularCents: Cents;
-  /** Aufstockung, damit ein Ratenkredit sein Zieldatum erreicht */
+  /** Für Fristen: Teilzahlung, Aufstockung für ein Ziel oder Rest einer Einmalzahlung */
   deadlineCents: Cents;
   /** Rest des Budgets nach Strategie, inkl. frei gewordener Raten */
   extraCents: Cents;
+  /** Für eine spätere Einmalzahlung zurückgelegt (mindert die Schuld noch nicht) */
+  savingCents: Cents;
+  /** Bei Fälligkeit aus dem Angesparten gezahlt */
+  fromSavingsCents: Cents;
+  savedAfterCents: Cents;
   balanceAfterCents: Cents;
   /** Was für Pflicht und Frist gefehlt hat */
   shortfallCents: Cents;
@@ -92,11 +100,23 @@ export interface AllocateOptions {
   noExtra?: boolean;
 }
 
+/** Zahlung an den Kreditgeber in diesem Monat (inkl. Angespartem). */
+export function paidToLoan(m: LoanMonth): Cents {
+  return m.regularCents + m.deadlineCents + m.extraCents + m.fromSavingsCents;
+}
+
+/** Was dieser Monat vom Budget verbraucht (inkl. Zurückgelegtem). */
+export function budgetUsed(m: LoanMonth): Cents {
+  return m.regularCents + m.deadlineCents + m.extraCents + m.savingCents;
+}
+
 /**
  * Verteilt das Monatsbudget auf die Kredite:
- * 1. Einmalzahlungen, die in diesem Monat fällig sind, 2. Mindestraten und Frist-Raten,
- * 3. Aufstockung für Zieldaten (frühestes zuerst), 4. Rest nach Strategie.
- * `budgetCents = null` zahlt genau die Pflicht- und Frist-Beträge, ohne Extra.
+ * 1. vereinbarte Raten der Ratenkredite (fallen nie aus),
+ * 2. Fristen, früheste zuerst: Teilzahlungen, Ansparen bzw. Rest einer Einmalzahlung,
+ *    Aufstockung für Zieldaten,
+ * 3. Rest nach Strategie (nie auf Einmalzahlungen).
+ * `budgetCents = null` zahlt genau die Raten und Frist-Beträge, ohne Extra.
  */
 export function allocateMonth(
   loans: readonly PlanLoan[],
@@ -112,9 +132,12 @@ export function allocateMonth(
     const interest = open && !settled ? monthlyInterest(loan.balanceCents, loan.rateBp) : 0;
     const due = loan.balanceCents + interest;
     const deadline = deadlineMonthOf(loan);
+    const saved = Math.min(loan.savedCents ?? 0, due);
+    const lump = loan.kind === 'deadline' && loan.paymentMode === 'lump';
     let required = 0;
     let deadlineNeed = 0;
-    let lump = false;
+    let saveNeed = 0;
+    let fromSavings = 0;
     if (open && !settled) {
       if (loan.kind === 'installment') {
         required = Math.min(loan.paymentCents ?? 0, due);
@@ -125,12 +148,17 @@ export function allocateMonth(
           );
           deadlineNeed = Math.max(0, need - required);
         }
-      } else if (loan.paymentMode === 'lump') {
-        lump = true;
-        if (deadline && m >= monthIndex(deadline)) required = due;
+      } else if (lump) {
+        const remaining = due - saved;
+        if (deadline && m < monthIndex(deadline)) {
+          saveNeed = Math.min(remaining, Math.ceil(remaining / monthsUntil(month, deadline)));
+        } else {
+          fromSavings = saved;
+          deadlineNeed = remaining;
+        }
       } else {
         const n = deadline ? monthsUntil(month, deadline) : 1;
-        required = Math.min(due, paymentToPayOff(loan.balanceCents, loan.rateBp, n));
+        deadlineNeed = Math.min(due, paymentToPayOff(loan.balanceCents, loan.rateBp, n));
       }
     }
     const result: LoanMonth = {
@@ -140,13 +168,16 @@ export function allocateMonth(
       regularCents: 0,
       deadlineCents: 0,
       extraCents: 0,
-      balanceAfterCents: due,
+      savingCents: 0,
+      fromSavingsCents: fromSavings,
+      savedAfterCents: saved - fromSavings,
+      balanceAfterCents: due - fromSavings,
       shortfallCents: 0,
     };
-    return { loan, result, required, deadlineNeed, lump, deadline, settled };
+    return { loan, result, required, deadlineNeed, saveNeed, lump, deadline };
   });
 
-  const obligations = entries.reduce((s, e) => s + e.required + e.deadlineNeed, 0);
+  const obligations = entries.reduce((s, e) => s + e.required + e.deadlineNeed + e.saveNeed, 0);
   let available =
     budgetCents === null ? obligations : Math.max(0, budgetCents - (options.spentCents ?? 0));
   const pay = (want: number) => {
@@ -155,26 +186,32 @@ export function allocateMonth(
     return p;
   };
 
-  // 1. + 2. Pflicht: Einmalzahlungen zuerst, dann Raten in Eingabereihenfolge
-  const byObligation = [...entries.filter((e) => e.lump), ...entries.filter((e) => !e.lump)];
-  for (const e of byObligation) {
+  // 1. Vereinbarte Raten
+  for (const e of entries) {
     if (!e.required) continue;
     const p = pay(e.required);
     e.result.regularCents = p;
     e.result.shortfallCents += e.required - p;
     e.result.balanceAfterCents -= p;
   }
-  // 3. Fristen: frühestes Ziel zuerst
+  // 2. Fristen: früheste zuerst
   const byDeadline = entries
-    .filter((e) => e.deadlineNeed > 0)
+    .filter((e) => e.deadlineNeed > 0 || e.saveNeed > 0)
     .sort((a, b) => monthIndex(a.deadline ?? month) - monthIndex(b.deadline ?? month));
   for (const e of byDeadline) {
-    const p = pay(e.deadlineNeed);
-    e.result.deadlineCents = p;
-    e.result.shortfallCents += e.deadlineNeed - p;
-    e.result.balanceAfterCents -= p;
+    if (e.saveNeed > 0) {
+      const p = pay(e.saveNeed);
+      e.result.savingCents = p;
+      e.result.savedAfterCents += p;
+      e.result.shortfallCents += e.saveNeed - p;
+    } else {
+      const p = pay(e.deadlineNeed);
+      e.result.deadlineCents = p;
+      e.result.shortfallCents += e.deadlineNeed - p;
+      e.result.balanceAfterCents -= p;
+    }
   }
-  // 4. Rest nach Strategie (Einmalzahlungen werden nicht vorzeitig getilgt)
+  // 3. Rest nach Strategie (Einmalzahlungen werden nicht vorzeitig getilgt)
   if (budgetCents !== null && !options.noExtra && available > 0) {
     const candidates = entries
       .filter((e) => !e.lump && e.result.balanceAfterCents > 0)
@@ -191,7 +228,7 @@ export function allocateMonth(
   return {
     month,
     loans: results,
-    paidCents: results.reduce((s, r) => s + r.regularCents + r.deadlineCents + r.extraCents, 0),
+    paidCents: results.reduce((s, r) => s + budgetUsed(r), 0),
     shortfallCents: results.reduce((s, r) => s + r.shortfallCents, 0),
   };
 }
@@ -250,7 +287,7 @@ export function planLoans(loans: readonly PlanLoan[], options: PlanOptions): Loa
       if (!r) return l;
       totalInterestCents += r.interestCents;
       if (r.balanceBeforeCents > 0 && r.balanceAfterCents === 0) payoffMonthById[l.id] = month;
-      return { ...l, balanceCents: r.balanceAfterCents };
+      return { ...l, balanceCents: r.balanceAfterCents, savedCents: r.savedAfterCents };
     });
   }
   const stuck = state.some((l) => l.balanceCents > 0);

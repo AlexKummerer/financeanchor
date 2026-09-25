@@ -15,6 +15,7 @@ const loan: Loan = {
   targetMonth: '2028-06',
   dueDate: null,
   paymentMode: null,
+  savedCents: 0,
   createdAt: 0,
   updatedAt: 0,
 };
@@ -86,6 +87,7 @@ describe('LoanForm', () => {
         rateBp: 0,
         dueDate: '2027-03-31',
         paymentMode: 'spread',
+        savedCents: 0,
       },
     ]);
   });

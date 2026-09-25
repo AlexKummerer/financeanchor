@@ -38,7 +38,7 @@ export class LoanPlanner {
     const sum = (f: (l: (typeof loans)[number]) => number) => loans.reduce((s, l) => s + f(l), 0);
     return {
       regularCents: sum((l) => l.regularCents),
-      deadlineCents: sum((l) => l.deadlineCents),
+      deadlineCents: sum((l) => l.deadlineCents + l.savingCents),
       extraCents: sum((l) => l.extraCents),
       shortfallCents: m.shortfallCents,
       byId: new Map(loans.map((l) => [l.id, l])),
@@ -53,9 +53,13 @@ export class LoanPlanner {
   async refresh(): Promise<void> {
     try {
       const entries = await this.dueApi.plan(this.month, this.clock.today());
-      const booked = entries.filter((e) => e.booked && (e.type === 'loan' || e.type === 'extra'));
+      const booked = entries.filter(
+        (e) => e.booked && (e.type === 'loan' || e.type === 'extra' || e.type === 'saving'),
+      );
       this.bookedThisMonth.set({
-        settled: new Set(booked.filter((e) => e.type === 'loan').map((e) => e.sourceId)),
+        settled: new Set(
+          booked.filter((e) => e.type === 'loan' || e.type === 'saving').map((e) => e.sourceId),
+        ),
         spentCents: booked.reduce((s, e) => s + Math.abs(e.amountCents), 0),
         noExtra: booked.some((e) => e.type === 'extra'),
       });

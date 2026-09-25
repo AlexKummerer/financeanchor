@@ -1,5 +1,5 @@
 import { Component, computed, input, signal } from '@angular/core';
-import type { Loan, LoanPlan } from '@financeanchor/shared';
+import { budgetUsed, type Loan, type LoanPlan } from '@financeanchor/shared';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
 
@@ -120,7 +120,7 @@ export class AllocationTable {
       const cells = this.columns().map((l): number | null | 'booked' => {
         const x = m.loans.find((y) => y.id === l.id);
         if (!x || x.balanceBeforeCents <= 0) return null;
-        const paid = x.regularCents + x.deadlineCents + x.extraCents;
+        const paid = budgetUsed(x);
         return i === 0 && paid === 0 && this.settled().has(l.id) ? 'booked' : paid;
       });
       return { month: m.month, cells, total: m.paidCents, shortfall: m.shortfallCents };

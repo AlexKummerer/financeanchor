@@ -364,3 +364,77 @@ describe('Umbuchung schon gebucht, Ausgabe wieder offen', () => {
     ]);
   });
 });
+
+describe('Kredite mit Frist und Ansparen', () => {
+  const fc = {
+    id: 'fc',
+    name: 'Privatkredit FC',
+    kind: 'deadline' as const,
+    balanceCents: 320000,
+    rateBp: 0,
+    paymentCents: null,
+    dueDay: 1,
+    targetMonth: null,
+    dueDate: '2027-03-01',
+    paymentMode: 'lump' as const,
+    savedCents: 0,
+  };
+
+  it('vor der Fälligkeit: Buchung „Rücklage für …“, die das Zurückgelegte erhöht', () => {
+    const p = planDue({ ...base, loans: [fc] });
+    expect(p.find((e) => e.key === 'save:fc')).toMatchObject({
+      type: 'saving',
+      name: 'Rücklage für Privatkredit FC',
+      amountCents: -45715,
+      categoryId: 'sys-reserve',
+      transactionKind: 'reserve',
+      loanDelta: null,
+      savingDelta: { loanId: 'fc', cents: 45715 },
+    });
+    expect(p.some((e) => e.key === 'loan:fc')).toBe(false);
+  });
+
+  it('im Fälligkeitsmonat: Zahlung des ganzen Betrags, das Angesparte wird verbraucht', () => {
+    const p = planDue({
+      ...base,
+      month: '2027-03',
+      today: '2027-03-05',
+      loans: [{ ...fc, savedCents: 280000 }],
+    });
+    expect(p.find((e) => e.key === 'loan:fc')).toMatchObject({
+      name: 'Zahlung Privatkredit FC',
+      amountCents: -320000,
+      loanDelta: { loanId: 'fc', cents: -320000 },
+      savingDelta: { loanId: 'fc', cents: -280000 },
+    });
+    const effects = bookingEffects(selectDueForBooking(p).filter((e) => e.sourceId === 'fc'));
+    expect(effects.savingDeltas.get('fc')).toBe(-280000);
+    expect(effects.loanDeltas.get('fc')).toBe(-320000);
+  });
+
+  it('Buchungen gelöschter Kredite mindern das Budget nicht', () => {
+    const postbank = {
+      id: 'pb',
+      name: 'Postbank',
+      kind: 'installment' as const,
+      balanceCents: 2342023,
+      rateBp: 1110,
+      paymentCents: 36499,
+      dueDay: 1,
+      targetMonth: null,
+      dueDate: null,
+      paymentMode: null,
+    };
+    const p = planDue({
+      ...base,
+      loans: [postbank],
+      loanBudgetCents: 60000,
+      booked: new Map([
+        ['loan:geloescht1', { amountCents: -26000, date: '2026-09-15' }],
+        ['loan:geloescht2', { amountCents: -7500, date: '2026-09-01' }],
+      ]),
+    });
+    expect(p.find((e) => e.key === 'loan:pb')!.amountCents).toBe(-36499);
+    expect(p.find((e) => e.key === 'extra:pb')!.amountCents).toBe(-(60000 - 36499));
+  });
+});

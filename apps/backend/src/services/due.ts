@@ -133,8 +133,9 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
       transactionId: tx.id,
       accountId: e.accountDelta?.accountId ?? null,
       accountDeltaCents: e.accountDelta?.cents ?? 0,
-      loanId: e.loanDelta?.loanId ?? null,
+      loanId: e.loanDelta?.loanId ?? e.savingDelta?.loanId ?? null,
       loanDeltaCents: e.loanDelta?.cents ?? 0,
+      loanSavedDeltaCents: e.savingDelta?.cents ?? 0,
       createdAt: now,
       updatedAt: now,
     };
@@ -142,7 +143,7 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
   });
   const txRows = pairs.map((p) => p.tx);
   const bookedRows = pairs.map((p) => p.booked);
-  const { accountDeltas, loanDeltas } = bookingEffects(selected);
+  const { accountDeltas, loanDeltas, savingDeltas } = bookingEffects(selected);
   try {
     await runBatch(s.db, [
       ...chunkedInsert(s.db, transactions, txRows),
@@ -152,6 +153,12 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
           .update(accounts)
           .set({ balanceCents: sql`${accounts.balanceCents} + ${delta}`, updatedAt: now })
           .where(s.byId(accounts, id)),
+      ),
+      ...[...savingDeltas].map(([id, delta]) =>
+        s.db
+          .update(loans)
+          .set({ savedCents: sql`max(0, ${loans.savedCents} + ${delta})`, updatedAt: now })
+          .where(s.byId(loans, id)),
       ),
       ...[...loanDeltas].map(([id, delta]) =>
         s.db

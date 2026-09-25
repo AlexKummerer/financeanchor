@@ -177,6 +177,7 @@ export const bookedItems = sqliteTable(
     accountDeltaCents: integer('account_delta_cents').notNull().default(0),
     loanId: text('loan_id'),
     loanDeltaCents: integer('loan_delta_cents').notNull().default(0),
+    loanSavedDeltaCents: integer('loan_saved_delta_cents').notNull().default(0),
   },
   (t) => [
     uniqueIndex('booked_items_key_uq').on(t.userId, t.bookingKey, t.month),
@@ -204,6 +205,8 @@ export const loans = sqliteTable(
     targetMonth: text('target_month'),
     dueDate: text('due_date'),
     paymentMode: text('payment_mode', { enum: paymentModes }),
+    /** Für eine Einmalzahlung schon zurückgelegt */
+    savedCents: integer('saved_cents').notNull().default(0),
   },
   (t) => [
     index('loans_user_idx').on(t.userId),
@@ -212,6 +215,7 @@ export const loans = sqliteTable(
     check('loans_payment_ck', sql`payment_cents is null or payment_cents > 0`),
     check('loans_due_day_ck', sql`due_day between 1 and 31`),
     check('loans_kind_ck', inList('kind', loanKinds)),
+    check('loans_saved_ck', sql`saved_cents >= 0`),
     // Felder passend zur Art (wie loanShapeIssues in shared)
     check(
       'loans_shape_ck',
