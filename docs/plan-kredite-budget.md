@@ -79,3 +79,11 @@ Rückmeldung: Die Auswahl „Welcher Kredit bekommt im Vorschlag das Extra?“ w
 - **Ist Geld übrig:** zwei fertige Vorschläge nebeneinander – „Spart am meisten Zinsen“ (höchster Zins zuerst) und „Schnellste Entlastung“ (kleinste Schuld zuerst, danach fällt die Rate weg), je mit Tilgungsmonat, Monaten früher, Zinsersparnis und „Übernehmen“. Wählen beide denselben Kredit, erscheint er nur einmal. Ein Vorschlag ist nie höher als das, was den Kredit ablöst.
 - **Ziel-Vorschläge** nur, wenn sie ins Übrige passen; sonst bleibt der Hinweis auf der Kreditkarte.
 - Die Strategie-Auswahl ist entfallen (die Einstellung `strategy` bleibt im Schema und im Export, wird aber nicht mehr genutzt).
+
+## Nachtrag 4 (25.09.2026): Übriges der Reihe nach verteilen
+
+Rückmeldung: Bei 857,77 € übrig kamen nur Ziel-Vorschläge. Ursache: Der jeweils erste Kredit der Reihenfolge (Refurbed mit höchstem Zins, Amazon mit kleinster Schuld) war durch die eigene Extra-Tilgung schon abgedeckt, und der Vorschlag entfiel, statt zum nächsten Kredit weiterzugehen.
+
+- „Spart am meisten Zinsen“ und „Schnellste Entlastung“ verteilen das Übrige jetzt der Reihe nach: Jeder Kredit bekommt höchstens, was ihn in diesem Monat ablöst, der Rest geht an den nächsten. Ein Vorschlag besteht daher aus mehreren Teilen (`parts`), „Übernehmen“ setzt die Extra-Tilgung bei allen.
+- Angezeigt werden je Kredit der Betrag und die Wirkung („diesen Monat abgelöst“ bzw. „fertig im …“), die dadurch wegfallenden Raten und die Zinsersparnis insgesamt.
+- Frei werdende Raten erscheinen im Folgemonat als zusätzlich übriges Geld und damit in neuen Vorschlägen; sie werden weiterhin nicht automatisch umverteilt.

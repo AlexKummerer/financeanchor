@@ -205,7 +205,6 @@
       "overCommitted": "Deine geplanten Zahlungen ({{planned}}) sind höher als das verfügbare Geld ({{available}}) – es fehlen {{missing}}.",
       "free": "Nach den geplanten Zahlungen ({{planned}}) bleiben {{amount}} übrig. Du entscheidest, ob und wie du es nutzt:",
       "targetTitle": "Ziel {{month}} erreichen",
-      "effect": "fertig im {{month}} ({{n}} Monate früher), spart {{interest}} Zinsen",
       "adopt": "Übernehmen",
       "adopted": "Extra-Tilgung von {{amount}} pro Monat übernommen",
       "baseline": "Ohne weitere Extra-Tilgung: schuldenfrei im {{month}}, {{interest}} Zinsen.",
@@ -223,12 +222,17 @@
       "plannedTotal": "Geplant",
       "missing": "Es fehlen",
       "interestTitle": "Spart am meisten Zinsen",
-      "interestWhy": "Mehr in {{name}} – höchster Zins ({{rate}} %).",
+      "interestWhy": "Höchster Zins zuerst. Ist ein Kredit abgelöst, geht der Rest an den nächsten.",
       "reliefTitle": "Schnellste Entlastung",
-      "reliefWhy": "Mehr in {{name}} – kleinste Schuld, danach fällt die Rate von {{payment}} weg.",
-      "reliefWhyNoRate": "Mehr in {{name}} – kleinste Schuld, schnell erledigt.",
+      "reliefWhy": "Kleinste Schuld zuerst, damit schnell Raten wegfallen. Ist ein Kredit abgelöst, geht der Rest an den nächsten.",
       "targetWhy": "Genau so viel mehr in {{name}}, dass es bis {{month}} abbezahlt ist.",
-      "effectNoInterest": "fertig im {{month}} ({{n}} Monate früher)"
+      "part": "fertig im {{month}} ({{n}} Monate früher)",
+      "partSame": "fertig im {{month}}",
+      "partNow": "diesen Monat abgelöst",
+      "freed": "Danach fallen Raten von {{amount}} pro Monat weg – das ist ab nächstem Monat zusätzlich übrig.",
+      "interestSaved": "Spart insgesamt {{interest}} Zinsen.",
+      "adoptedMany": "Vorschlag übernommen – Extra-Tilgung bei {{n}} Kredit(en) gesetzt",
+      "partOne": "fertig im {{month}} (1 Monat früher)"
     }
   },
   "due": {

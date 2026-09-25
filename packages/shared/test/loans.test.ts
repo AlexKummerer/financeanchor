@@ -215,21 +215,21 @@ describe('Vorschläge', () => {
     ]);
     expect(advice.freeCents).toBe(60000 - 36499);
     const target = advice.suggestions.find((s) => s.kind === 'target')!;
-    expect(target.loanId).toBe('pb');
-    expect(target.addCents).toBe(extraNeededForTarget(postbank, '2026-09'));
-    expect(target.payoffMonth! <= '2031-12').toBe(true);
+    expect(target.parts).toHaveLength(1);
+    const tp = target.parts[0]!;
+    expect(tp.loanId).toBe('pb');
+    expect(tp.addCents).toBe(extraNeededForTarget(postbank, '2026-09'));
+    expect(tp.payoffMonth! <= '2031-12').toBe(true);
+    expect(tp.monthsSooner).toBeGreaterThan(0);
     expect(target.interestSavedCents).toBeGreaterThan(0);
-    expect(target.monthsSooner).toBeGreaterThan(0);
 
-    // Nur ein Kredit: beide Strategien wählen ihn, also nur ein Vorschlag
+    // Nur ein Kredit: beide Wege wählen dasselbe, also nur ein Vorschlag
     const rest = advice.suggestions.filter((s) => s.kind !== 'target');
     expect(rest).toHaveLength(1);
-    expect(rest[0]).toMatchObject({
-      kind: 'interest',
-      loanId: 'pb',
-      addCents: 23501,
-      newExtraMonthlyCents: 23501,
-    });
+    expect(rest[0]).toMatchObject({ kind: 'interest', addCents: 23501 });
+    expect(rest[0]!.parts).toMatchObject([
+      { loanId: 'pb', addCents: 23501, newExtraMonthlyCents: 23501 },
+    ]);
     expect(rest[0]!.interestSavedCents).toBeGreaterThan(target.interestSavedCents);
     // Der Plan selbst bleibt unverändert
     expect(advice.baseline!.months[0]!.paidCents).toBe(36499);
@@ -274,11 +274,11 @@ describe('Vorschläge', () => {
       deadline('klarna', 100, '2027-01-10', 'lump'),
     ];
     const advice = loanAdvice(ls, { month: START, availableCents: 30000 });
-    expect(advice.suggestions.map((s) => [s.kind, s.loanId])).toEqual([
-      ['interest', 'teuer'],
-      ['relief', 'klein'],
+    expect(advice.suggestions.map((s) => [s.kind, s.parts.map((p) => p.loanId)])).toEqual([
+      ['interest', ['teuer']],
+      ['relief', ['klein']],
     ]);
-    const relief = advice.suggestions[1]!;
+    const relief = advice.suggestions[1]!.parts[0]!;
     expect(relief.freedPaymentCents).toBe(5000);
     expect(relief.monthsSooner).toBeGreaterThan(0);
     expect(extraPaymentOrder([ls[1]!, ls[0]!], 'avalanche').map((l) => l.id)).toEqual([
@@ -287,20 +287,43 @@ describe('Vorschläge', () => {
     ]);
   });
 
-  it('schlägt nie mehr vor, als den Kredit ablöst', () => {
-    const advice = loanAdvice([loan('laptop', 300, 0, 75)], {
+  it('der Rest geht an den nächsten Kredit, wenn einer abgelöst ist', () => {
+    const advice = loanAdvice([loan('laptop', 300, 0, 75), loan('auto', 5000, 5, 200)], {
       month: START,
-      availableCents: 400000,
+      availableCents: 100000,
     });
-    expect(advice.suggestions).toHaveLength(1);
-    expect(advice.suggestions[0]).toMatchObject({ addCents: 30000 - 7500, payoffMonth: START });
+    const relief = advice.suggestions.find((s) => s.kind === 'relief')!;
+    expect(relief.addCents).toBe(100000 - 7500 - 20000);
+    expect(relief.parts.map((p) => [p.loanId, p.addCents, p.payoffMonth])).toEqual([
+      ['laptop', 30000 - 7500, START],
+      ['auto', 100000 - 30000 - 20000, expect.any(String)],
+    ]);
+  });
+
+  it('ist der erste Kredit schon durch die eigene Extra-Tilgung abgelöst, kommen die nächsten dran', () => {
+    // Fall aus dem Test: Refurbed (höchster Zins) und Amazon (kleinste Schuld) sind schon abgedeckt
+    const ls = [
+      loan('amazon', 12.11, 11.49, 11.87, { extraEuro: 0.36 }),
+      loan('db', 169.82, 11.49, 15.28),
+      loan('refurbed', 178.61, 12.47, 54.26, { extraEuro: 918.41 }),
+      loan('normut', 196.18, 11.49, 19.42),
+      postbank,
+    ];
+    const advice = loanAdvice(ls, { month: START, availableCents: 200000 });
+    expect(advice.freeCents).toBeGreaterThan(0);
+    // DB und Normut haben den höheren Zins und die kleinere Schuld: Beide Wege ergeben dasselbe
+    const rest = advice.suggestions.filter((s) => s.kind !== 'target');
+    expect(rest).toHaveLength(1);
+    expect(rest[0]!.addCents).toBe(advice.freeCents);
+    expect(rest[0]!.parts.map((p) => p.loanId)).toEqual(['db', 'normut', 'pb']);
+    expect(rest[0]!.parts.slice(0, 2).every((p) => p.payoffMonth === START)).toBe(true);
   });
 
   it('bestehende Extra-Tilgung wird fortgeschrieben', () => {
     const withExtra = { ...postbank, extraMonthlyCents: 5000 };
     const advice = loanAdvice([withExtra], { month: '2026-09', availableCents: 60000 });
     const all = advice.suggestions.find((s) => s.kind === 'interest')!;
-    expect(all).toMatchObject({
+    expect(all.parts[0]).toMatchObject({
       addCents: 60000 - 36499 - 5000,
       newExtraMonthlyCents: 60000 - 36499,
     });

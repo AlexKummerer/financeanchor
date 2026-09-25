@@ -205,7 +205,6 @@
       "overCommitted": "Your planned payments ({{planned}}) exceed the available money ({{available}}) – {{missing}} is missing.",
       "free": "After the planned payments ({{planned}}) {{amount}} is left. You decide whether and how to use it:",
       "targetTitle": "Reach target {{month}}",
-      "effect": "repaid in {{month}} ({{n}} months sooner), saves {{interest}} interest",
       "adopt": "Adopt",
       "adopted": "Extra payment of {{amount}} per month adopted",
       "baseline": "Without further extra payments: debt-free in {{month}}, {{interest}} interest.",
@@ -223,12 +222,17 @@
       "plannedTotal": "Planned",
       "missing": "Missing",
       "interestTitle": "Saves the most interest",
-      "interestWhy": "More into {{name}} – highest interest ({{rate}} %).",
+      "interestWhy": "Highest interest first. Once a loan is repaid, the rest goes to the next one.",
       "reliefTitle": "Fastest relief",
-      "reliefWhy": "More into {{name}} – smallest balance, then its {{payment}} instalment goes away.",
-      "reliefWhyNoRate": "More into {{name}} – smallest balance, done quickly.",
+      "reliefWhy": "Smallest balance first, so instalments go away quickly. Once a loan is repaid, the rest goes to the next one.",
       "targetWhy": "Just enough extra for {{name}} to be repaid by {{month}}.",
-      "effectNoInterest": "repaid in {{month}} ({{n}} months sooner)"
+      "part": "repaid in {{month}} ({{n}} months sooner)",
+      "partSame": "repaid in {{month}}",
+      "partNow": "repaid this month",
+      "freed": "Afterwards {{amount}} of instalments per month go away – that is extra money left from next month on.",
+      "interestSaved": "Saves {{interest}} interest in total.",
+      "adoptedMany": "Suggestion adopted – extra payment set for {{n}} loan(s)",
+      "partOne": "repaid in {{month}} (1 month sooner)"
     }
   },
   "due": {

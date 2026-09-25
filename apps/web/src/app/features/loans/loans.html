@@ -38,7 +38,7 @@
 @if (openLoans().length > 0) {
   <h2 id="advice-title">{{ 'loans.advice.title' | transloco }}</h2>
   <section class="panel" aria-labelledby="advice-title">
-    <fa-advice-panel (adopted)="setExtra($event)" />
+    <fa-advice-panel (adopted)="adoptSuggestion($event)" />
   </section>
 }
 

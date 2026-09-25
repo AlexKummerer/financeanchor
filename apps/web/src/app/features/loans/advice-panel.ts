@@ -1,6 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, output, signal } from '@angular/core';
-import type { LoanSuggestion } from '@financeanchor/shared';
+import type { LoanSuggestion, SuggestionPart } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { FinanceStore } from '../../core/data/finance-store';
 import { LoanPlanner } from '../../core/data/loan-planner';
@@ -71,7 +71,7 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
 
       @if (advice().suggestions.length) {
         <ul class="suggestions">
-          @for (s of advice().suggestions; track s.kind + s.loanId) {
+          @for (s of advice().suggestions; track $index) {
             <li>
               <p class="title">{{ title(s) }}</p>
               <p class="small">{{ why(s) }}</p>
@@ -79,19 +79,24 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
                 +{{ s.addCents | money
                 }}<span class="muted small"> {{ 'common.perMonth' | transloco }}</span>
               </p>
-              @if (s.payoffMonth) {
+              <ul class="parts small">
+                @for (p of s.parts; track p.loanId) {
+                  <li>
+                    <span>{{ loanName(p.loanId) }} +{{ p.addCents | money }}</span>
+                    <span class="muted">{{ partEffect(p) }}</span>
+                  </li>
+                }
+              </ul>
+              @if (freedNow(s); as freed) {
+                <p class="small">
+                  {{ 'loans.advice.freed' | transloco: { amount: (freed | money) } }}
+                </p>
+              }
+              @if (s.interestSavedCents > 0) {
                 <p class="small muted">
                   {{
-                    (s.interestSavedCents > 0
-                      ? 'loans.advice.effect'
-                      : 'loans.advice.effectNoInterest'
-                    )
-                      | transloco
-                        : {
-                            month: (s.payoffMonth | faMonth: 'short'),
-                            n: s.monthsSooner,
-                            interest: (s.interestSavedCents | money: true),
-                          }
+                    'loans.advice.interestSaved'
+                      | transloco: { interest: (s.interestSavedCents | money: true) }
                   }}
                 </p>
               }
@@ -176,15 +181,15 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 10px;
     }
-    .suggestions li {
+    .suggestions > li {
       display: flex;
       flex-direction: column;
     }
-    .suggestions li .btn {
+    .suggestions > li .btn {
       margin-top: auto;
       align-self: flex-start;
     }
-    .suggestions li {
+    .suggestions > li {
       background: var(--bg);
       border-radius: var(--radius-sm);
       padding: 12px;
@@ -200,8 +205,25 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
     .suggestions .btn {
       background: var(--surface);
     }
-    .amount + .small {
-      margin-bottom: 8px;
+    .parts {
+      list-style: none;
+      padding: 0;
+      margin: 4px 0 8px;
+      display: grid;
+      gap: 2px;
+    }
+    .parts li {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      column-gap: 8px;
+    }
+    .suggestions > li > .btn {
+      margin-top: auto;
+    }
+    .suggestions > li > p.small + .btn,
+    .parts + .btn {
+      margin-top: 8px;
     }
     .breakdown {
       width: 100%;
@@ -230,8 +252,8 @@ import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
   `,
 })
 export class AdvicePanel {
-  /** Ein Vorschlag wurde übernommen (Kredit-ID, neue Extra-Tilgung). */
-  readonly adopted = output<{ loanId: string; extraMonthlyCents: number }>();
+  /** Ein Vorschlag wurde übernommen (je Kredit die neue Extra-Tilgung). */
+  readonly adopted = output<{ loanId: string; extraMonthlyCents: number }[]>();
 
   private readonly store = inject(FinanceStore);
   private readonly planner = inject(LoanPlanner);
@@ -251,12 +273,13 @@ export class AdvicePanel {
   }
 
   protected title(s: LoanSuggestion): string {
-    const loan = this.store.loans.byId().get(s.loanId);
     switch (s.kind) {
-      case 'target':
+      case 'target': {
+        const loan = this.store.loans.byId().get(s.parts[0]?.loanId ?? '');
         return this.t.translate('loans.advice.targetTitle', {
           month: loan?.targetMonth ? this.f.month(loan.targetMonth, 'short') : '',
         });
+      }
       case 'interest':
         return this.t.translate('loans.advice.interestTitle');
       case 'relief':
@@ -265,27 +288,35 @@ export class AdvicePanel {
   }
 
   protected why(s: LoanSuggestion): string {
-    const loan = this.store.loans.byId().get(s.loanId);
-    const name = loan?.name ?? '';
-    switch (s.kind) {
-      case 'target':
-        return this.t.translate('loans.advice.targetWhy', {
-          name,
-          month: loan?.targetMonth ? this.f.month(loan.targetMonth, 'short') : '',
-        });
-      case 'interest':
-        return this.t.translate('loans.advice.interestWhy', {
-          name,
-          rate: this.f.percent(loan?.rateBp ?? 0),
-        });
-      case 'relief':
-        return s.freedPaymentCents > 0
-          ? this.t.translate('loans.advice.reliefWhy', {
-              name,
-              payment: this.f.money(s.freedPaymentCents),
-            })
-          : this.t.translate('loans.advice.reliefWhyNoRate', { name });
-    }
+    if (s.kind !== 'target') return this.t.translate(`loans.advice.${s.kind}Why`);
+    const loan = this.store.loans.byId().get(s.parts[0]?.loanId ?? '');
+    return this.t.translate('loans.advice.targetWhy', {
+      name: loan?.name ?? '',
+      month: loan?.targetMonth ? this.f.month(loan.targetMonth, 'short') : '',
+    });
+  }
+
+  protected partEffect(p: SuggestionPart): string {
+    if (!p.payoffMonth) return '';
+    if (p.payoffMonth === this.planner.month) return this.t.translate('loans.advice.partNow');
+    return this.t.translate(
+      p.monthsSooner > 1
+        ? 'loans.advice.part'
+        : p.monthsSooner === 1
+          ? 'loans.advice.partOne'
+          : 'loans.advice.partSame',
+      {
+        month: this.f.month(p.payoffMonth, 'short'),
+        n: p.monthsSooner,
+      },
+    );
+  }
+
+  /** Raten, die schon nach diesem Monat wegfallen. */
+  protected freedNow(s: LoanSuggestion): number {
+    return s.parts
+      .filter((p) => p.payoffMonth === this.planner.month)
+      .reduce((sum, p) => sum + p.freedPaymentCents, 0);
   }
 
   protected saveAvailable(value: string) {
@@ -296,6 +327,8 @@ export class AdvicePanel {
   }
 
   protected adopt(s: LoanSuggestion) {
-    this.adopted.emit({ loanId: s.loanId, extraMonthlyCents: s.newExtraMonthlyCents });
+    this.adopted.emit(
+      s.parts.map((p) => ({ loanId: p.loanId, extraMonthlyCents: p.newExtraMonthlyCents })),
+    );
   }
 }

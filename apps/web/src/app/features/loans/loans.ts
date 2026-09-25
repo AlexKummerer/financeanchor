@@ -85,6 +85,18 @@ export class LoansPage {
     }
   }
 
+  /** Vorschlag übernehmen: je Kredit eine feste Extra-Tilgung. */
+  protected async adoptSuggestion(parts: { loanId: string; extraMonthlyCents: number }[]) {
+    try {
+      for (const p of parts) {
+        await this.store.loans.update(p.loanId, { extraMonthlyCents: p.extraMonthlyCents });
+      }
+      this.toast.show(this.t.translate('loans.advice.adoptedMany', { n: parts.length }));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    }
+  }
+
   protected async remove(loan: Loan) {
     const ok = await this.dialogs.confirm({
       title: this.t.translate('loans.deleteTitle', { name: loan.name }),
