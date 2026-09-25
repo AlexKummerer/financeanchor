@@ -11,6 +11,7 @@ import {
 } from '@financeanchor/shared';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { Clock } from '../../core/clock';
+import { LoanPlanner } from '../../core/data/loan-planner';
 import { Formatter } from '../../core/format/formatter';
 import { DatePipe, MoneyPipe, MonthPipe } from '../../core/format/pipes';
 import { ScenarioTable } from './scenario-table';
@@ -34,6 +35,7 @@ export class LoanCard {
   readonly setExtra = output<number>();
 
   private readonly clock = inject(Clock);
+  private readonly planner = inject(LoanPlanner);
   protected readonly f = inject(Formatter);
   protected readonly month = this.clock.month();
 
@@ -60,6 +62,11 @@ export class LoanCard {
   });
   /** Ratenkredit mit Ziel: fehlender Betrag pro Monat (0 = Ziel wird erreicht). */
   protected readonly targetGap = computed(() => extraNeededForTarget(this.loan(), this.month));
+  /** Übernehmen nur, wenn die Lücke ins übrige verfügbare Geld passt (oder nichts eingetragen ist). */
+  protected readonly gapFits = computed(() => {
+    const free = this.planner.advice().freeCents;
+    return free === null || (this.targetGap() ?? 0) <= free;
+  });
   /** Einmalzahlung: pro Monat zurückzulegen bis zur Fälligkeit. */
   protected readonly savingMonthly = computed(() => {
     const l = this.loan();

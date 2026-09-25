@@ -195,6 +195,7 @@
     "ownExtra": "Eigene Extra-Tilgung: {{amount}}/Monat",
     "targetReached": "Ziel {{month}} wird erreicht",
     "targetGap": "Fertig im {{payoff}} – für dein Ziel {{month}} fehlen {{gap}}/Monat",
+    "targetGapNoRoom": "dafür ist im verfügbaren Geld gerade kein Platz",
     "extraField": "Zusätzlich pro Monat, freiwillig (€)",
     "extraHint": "Wird wie die Rate jeden Monat eingeplant und unter „Fällige übernehmen“ vorgeschlagen.",
     "advice": {

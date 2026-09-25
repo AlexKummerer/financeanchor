@@ -120,9 +120,13 @@
                       gap: (targetGap()! | money),
                     }
             }}
-            <button class="linkbtn adopt" type="button" (click)="adoptTargetGap()">
-              {{ 'loans.advice.adopt' | transloco }}
-            </button>
+            @if (gapFits()) {
+              <button class="linkbtn adopt" type="button" (click)="adoptTargetGap()">
+                {{ 'loans.advice.adopt' | transloco }}
+              </button>
+            } @else {
+              <span class="muted"> · {{ 'loans.targetGapNoRoom' | transloco }}</span>
+            }
           </li>
         }
       }

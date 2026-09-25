@@ -195,6 +195,7 @@
     "ownExtra": "Own extra payment: {{amount}}/month",
     "targetReached": "Target {{month}} will be reached",
     "targetGap": "Repaid in {{payoff}} – {{gap}}/month missing for your target {{month}}",
+    "targetGapNoRoom": "no room in your available money right now",
     "extraField": "Extra per month, optional (€)",
     "extraHint": "Planned every month like the payment and suggested under “Book due items”.",
     "advice": {
