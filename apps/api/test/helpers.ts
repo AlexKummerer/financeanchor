@@ -42,3 +42,49 @@ export function sessionCookie(res: Response): string {
 }
 
 export { env };
+
+export interface ApiResult<T = unknown> {
+  status: number;
+  body: T;
+}
+
+/** Kleiner JSON-Client mit Session-Cookie. */
+export function api(cookie: string) {
+  const call = async <T = any>(
+    method: string,
+    path: string,
+    body?: unknown,
+  ): Promise<ApiResult<T>> => {
+    const res = await request(`/api${path}`, {
+      method,
+      cookie,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const text = await res.text();
+    return { status: res.status, body: (text ? JSON.parse(text) : null) as T };
+  };
+  return {
+    get: <T = any>(path: string) => call<T>('GET', path),
+    post: <T = any>(path: string, body: unknown) => call<T>('POST', path, body),
+    patch: <T = any>(path: string, body: unknown) => call<T>('PATCH', path, body),
+    del: <T = any>(path: string) => call<T>('DELETE', path),
+  };
+}
+
+export type Api = ReturnType<typeof api>;
+
+let userCounter = 0;
+/** Registrierter Nutzer mit API-Client. */
+export async function newUser(prefix = 'user') {
+  const email = `${prefix}-${++userCounter}-${Date.now()}@example.com`;
+  const { userId, cookie } = await signUp(email);
+  return { userId, cookie, email, api: api(cookie) };
+}
+
+/** ID einer Kategorie nach Namen. */
+export async function categoryId(client: Api, name: string): Promise<string> {
+  const { body } = await client.get<{ id: string; name: string }[]>('/categories');
+  const cat = body.find((c) => c.name === name);
+  if (!cat) throw new Error(`Kategorie ${name} fehlt`);
+  return cat.id;
+}

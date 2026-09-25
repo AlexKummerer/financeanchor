@@ -6,11 +6,19 @@ import { secureHeaders } from 'hono/secure-headers';
 import { ZodError } from 'zod';
 import { allowedOrigins, createAuth } from './auth.js';
 import { createDb } from './db/client.js';
-import { AppError } from './errors.js';
+import { AppError, fromDbError } from './errors.js';
 import { loginRateLimit, requireAuth } from './middleware/auth.js';
 import type { AppEnv } from './middleware/context.js';
 import { requireEntitlement } from './middleware/entitlement.js';
+import { accountRoutes } from './routes/accounts.js';
+import { categoryRoutes } from './routes/categories.js';
+import { loanRoutes } from './routes/loans.js';
 import { meRoutes } from './routes/me.js';
+import { recurringItemRoutes } from './routes/recurringItems.js';
+import { reservePotRoutes } from './routes/reservePots.js';
+import { settingsRoutes } from './routes/settings.js';
+import { snapshotRoutes } from './routes/snapshots.js';
+import { transactionRoutes } from './routes/transactions.js';
 
 export function createApp() {
   const app = new Hono<AppEnv>().basePath('/api');
@@ -42,6 +50,14 @@ export function createApp() {
   app.use('*', requireAuth);
   app.route('/me', meRoutes);
   app.use('*', requireEntitlement('core'));
+  app.route('/settings', settingsRoutes);
+  app.route('/accounts', accountRoutes);
+  app.route('/reserve-pots', reservePotRoutes);
+  app.route('/categories', categoryRoutes);
+  app.route('/recurring-items', recurringItemRoutes);
+  app.route('/transactions', transactionRoutes);
+  app.route('/loans', loanRoutes);
+  app.route('/snapshots', snapshotRoutes);
 
   app.onError((err, c) => {
     if (err instanceof AppError) {
@@ -55,6 +71,10 @@ export function createApp() {
         { error: { code: 'validation_failed', message: 'Invalid input', details: err.issues } },
         400,
       );
+    }
+    const dbError = fromDbError(err, c.req.method);
+    if (dbError) {
+      return c.json({ error: { code: dbError.code, message: dbError.message } }, dbError.status);
     }
     if (err instanceof HTTPException) {
       return c.json({ error: { code: 'http_error', message: err.message } }, err.status);
