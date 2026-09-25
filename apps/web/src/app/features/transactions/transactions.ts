@@ -12,6 +12,7 @@ import {
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 import { Clock } from '../../core/clock';
+import { LoanPlanner } from '../../core/data/loan-planner';
 import { FinanceStore } from '../../core/data/finance-store';
 import { Segmented } from '../../core/forms/segmented';
 import { euroAmount, toCents } from '../../core/forms/validators';
@@ -44,6 +45,7 @@ export class TransactionsPage {
   private readonly t = inject(TranslocoService);
   private readonly toast = inject(ToastService);
   private readonly dialogs = inject(Dialogs);
+  private readonly planner = inject(LoanPlanner);
   private readonly amountEl = viewChild<ElementRef<HTMLInputElement>>('amountInput');
   private readonly categoriesManager = viewChild(CategoriesManager);
 
@@ -154,7 +156,10 @@ export class TransactionsPage {
       this.transactions.reload();
       this.monthsWithData.reload();
       this.categoriesManager()?.refresh();
-      if (tx.kind !== 'normal') await this.store.reloadBalances();
+      if (tx.kind !== 'normal') {
+        await this.store.reloadBalances();
+        void this.planner.refresh();
+      }
       this.toast.show(this.t.translate('tx.deleted'));
     } catch (err) {
       this.toast.show(

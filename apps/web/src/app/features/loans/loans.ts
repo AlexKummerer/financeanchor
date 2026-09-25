@@ -34,6 +34,11 @@ export class LoansPage {
   protected readonly formOpen = signal(false);
   protected readonly saving = signal(false);
 
+  constructor() {
+    // Buchungsstand kann sich auf anderen Seiten geändert haben (Fällige übernehmen, Löschen)
+    void this.planner.refresh();
+  }
+
   protected readonly totals = computed(() => loanTotals(this.store.loans.items()));
   /** Zinsen im Planungsmonat */
   protected readonly monthInterest = computed(() => {

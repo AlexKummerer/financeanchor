@@ -46,7 +46,8 @@ export class OverviewPage {
       items: this.store.items.items(),
       pots: this.store.pots.items(),
       loans: this.store.loans.items(),
-      month: this.month,
+      // Kredite wie auf der Kredit-Seite: ist der Monat schon ganz gebucht, der nächste
+      month: this.planner.adviceMonth(),
     }),
   );
 
