@@ -6,21 +6,21 @@ Stand: 25.09.2026, freigegeben. Grundlage: `docs/auftrag-phase-1.md`, `docs/konz
 
 Geprüft per `npm view` am 25.09.2026. Vor jedem Schritt wird die offizielle Doku (Context7 bzw. Hersteller-Doku) zur jeweiligen API herangezogen.
 
-| Paket                                       | Version                    | Anmerkung                                                                                                |
-| ------------------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Node                                        | **24 LTS** (neu: `.nvmrc`) | Lokal ist 22.22.0 installiert, Angular CLI 22 verlangt ≥ 22.22.3 → Update nötig                          |
-| pnpm                                        | 12.x                       | `packageManager` im Root-`package.json`                                                                  |
-| TypeScript                                  | **6.0.x**                  | 7.0 ist aktuell, aber Angular 22 und typescript-eslint erlauben nur `<6.1`                               |
-| Angular / CDK                               | 22.2                       | Standalone, Signals, zoneless                                                                            |
-| Hono                                        | 4.13                       |                                                                                                          |
-| Drizzle ORM / Kit                           | 0.45 / 0.31                | 1.0 ist noch RC → stabile 0.45                                                                           |
-| Better Auth                                 | 1.7                        |                                                                                                          |
-| Wrangler                                    | 4.x                        |                                                                                                          |
-| Zod                                         | 4.x                        |                                                                                                          |
-| Vitest                                      | **4.1.x**                  | 5.0 ist aktuell, aber `@cloudflare/vitest-pool-workers` verlangt `^4.1` → einheitlich 4.1 im ganzen Repo |
-| Playwright                                  | 1.63                       |                                                                                                          |
-| ESLint / typescript-eslint / angular-eslint | 10 / 8.70 / 22             | Flat Config                                                                                              |
-| Transloco                                   | 8.x                        | Laufzeit-i18n (siehe 6.)                                                                                 |
+| Paket                                       | Version                    | Anmerkung                                                                                                                               |
+| ------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Node                                        | **24 LTS** (neu: `.nvmrc`) | Lokal ist 22.22.0 installiert, Angular CLI 22 verlangt ≥ 22.22.3 → Update nötig                                                         |
+| pnpm                                        | 12.x                       | `packageManager` im Root-`package.json`                                                                                                 |
+| TypeScript                                  | **6.0.x**                  | 7.0 ist aktuell, aber Angular 22 und typescript-eslint erlauben nur `<6.1`                                                              |
+| Angular / CDK                               | 22.2                       | Standalone, Signals, zoneless                                                                                                           |
+| Hono                                        | 4.13                       |                                                                                                                                         |
+| Drizzle ORM / Kit                           | 0.45 / 0.31                | 1.0 ist noch RC → stabile 0.45                                                                                                          |
+| Better Auth                                 | 1.7                        |                                                                                                                                         |
+| Wrangler                                    | 4.x                        |                                                                                                                                         |
+| Zod                                         | 4.x                        |                                                                                                                                         |
+| Vitest                                      | **4.1.x**                  | 5.0 ist aktuell, aber `@cloudflare/vitest-plugin` (Nachfolger von vitest-pool-workers) verlangt `^4.1` → einheitlich 4.1 im ganzen Repo |
+| Playwright                                  | 1.63                       |                                                                                                                                         |
+| ESLint / typescript-eslint / angular-eslint | 10 / 8.70 / 22             | Flat Config                                                                                                                             |
+| Transloco                                   | 8.x                        | Laufzeit-i18n (siehe 6.)                                                                                                                |
 
 ## 2. Repo-Struktur
 
@@ -38,7 +38,7 @@ apps/
       services/                bookDue, categories, exportImport, snapshots
     migrations/                von drizzle-kit erzeugt, versioniert
     scripts/seed.ts            legt deinen Account + Beispieldaten an
-    test/                      Integrationstests (vitest-pool-workers, lokale D1)
+    test/                      Integrationstests (@cloudflare/vitest-plugin, lokale D1)
     wrangler.jsonc
   web/
     src/app/

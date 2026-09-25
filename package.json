@@ -11,7 +11,11 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "build": "pnpm -r --if-present build"
+    "build": "pnpm -r --if-present build",
+    "dev:api": "pnpm --filter @financeanchor/api dev",
+    "db:generate": "pnpm --filter @financeanchor/api db:generate",
+    "db:migrate": "pnpm --filter @financeanchor/api db:migrate",
+    "db:migrate:remote": "pnpm --filter @financeanchor/api db:migrate:remote"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

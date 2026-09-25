@@ -6,7 +6,14 @@ import globals from 'globals';
 
 export default defineConfig(
   {
-    ignores: ['**/dist/**', '**/.wrangler/**', '**/.angular/**', '**/coverage/**', 'prototype/**'],
+    ignores: [
+      '**/dist/**',
+      '**/.wrangler/**',
+      '**/.angular/**',
+      '**/coverage/**',
+      'prototype/**',
+      '**/worker-configuration.d.ts',
+    ],
   },
   js.configs.recommended,
   tseslint.configs.strict,

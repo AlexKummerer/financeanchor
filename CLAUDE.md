@@ -10,7 +10,7 @@ Phase 1: produktionsreif für einen Nutzer, aber mandantenfähig (siehe `docs/pl
 
 ```
 apps/web         Angular-PWA (noch nicht angelegt)
-apps/api         Cloudflare Worker, Hono, D1, Drizzle (noch nicht angelegt)
+apps/api         Cloudflare Worker, Hono, D1, Drizzle, Better Auth
 packages/shared  Typen, Zod-Schemas, gesamte Fachlogik (reines TS, Vitest)
 ```
 
@@ -32,6 +32,8 @@ Node 24 (`.nvmrc`), pnpm 12.
 - Monate als `YearMonth` (`'YYYY-MM'`), Tage als `'YYYY-MM-DD'`. „Heute“ wird der Fachlogik als Parameter übergeben.
 - Fachlogik gehört nach `packages/shared`, ohne Framework-Abhängigkeiten und mit Tests.
 - Jede fachliche Tabelle hat `id`, `user_id`, `created_at`, `updated_at`; jeder Datenzugriff ist auf die `user_id` der Session beschränkt.
-- Versionen: TypeScript bleibt auf 6.0.x (Angular 22), Vitest auf 4.1.x (vitest-pool-workers).
+- Versionen: TypeScript bleibt auf 6.0.x (Angular 22), Vitest auf 4.1.x (`@cloudflare/vitest-plugin`). pnpm hält sehr neue Releases per `minimumReleaseAge` zurück – gewollt.
+- API-Tests laufen im Workers-Runtime mit lokaler D1 (`apps/api/test`, Migrationen werden im Setup angewendet). Integration über `exports.default.fetch` aus `cloudflare:workers`.
+- Datenbank: Verweise zwischen fachlichen Tabellen als zusammengesetzte Fremdschlüssel `(user_id, x_id) → (user_id, id)`; Schemaänderungen nur über neue Migrationen, nie bestehende ändern.
 - Commits klein, mit aussagekräftiger Nachricht auf Deutsch; vor jedem Commit `pnpm lint && pnpm typecheck && pnpm test`.
 - Texte in der Oberfläche auf Deutsch (i18n-Schlüssel), Englisch vorbereitet.
