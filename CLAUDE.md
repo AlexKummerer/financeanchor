@@ -10,7 +10,7 @@ Phase 1: produktionsreif für einen Nutzer, aber mandantenfähig (siehe `docs/pl
 
 ```
 apps/web         Angular-PWA (Standalone, Signals, zoneless, Transloco, CDK)
-apps/api         Cloudflare Worker, Hono, D1, Drizzle, Better Auth
+apps/backend         Cloudflare Worker, Hono, D1, Drizzle, Better Auth
 packages/shared  Typen, Zod-Schemas, gesamte Fachlogik (reines TS, Vitest)
 ```
 
@@ -25,16 +25,16 @@ Node 24 (`.nvmrc`), pnpm 12.
 | `pnpm typecheck`                                                  | TypeScript in allen Paketen                                                                                                          |
 | `pnpm lint`                                                       | ESLint + Prettier-Check                                                                                                              |
 | `pnpm format`                                                     | Prettier schreiben                                                                                                                   |
-| `pnpm db:generate -- --name <name>`                               | Drizzle-Migration aus `apps/api/src/db/schema.ts` erzeugen                                                                           |
+| `pnpm db:generate -- --name <name>`                               | Drizzle-Migration aus `apps/backend/src/db/schema.ts` erzeugen                                                                       |
 | `pnpm db:migrate`                                                 | Migrationen auf die lokale D1 anwenden (`db:migrate:remote` für Produktion)                                                          |
 | `pnpm db:seed -- --email <mail> [--name <n>] [--demo] [--remote]` | Account mit vollen Freigaben anlegen, `--demo` mit Beispieldaten des Prototyps; Passwort über `SEED_PASSWORD` oder verdeckte Eingabe |
 | `pnpm dev`                                                        | API und Web parallel (Web: http://localhost:4200, `/api` per Proxy an Port 8787)                                                     |
-| `pnpm dev:api`                                                    | API lokal (`wrangler dev`, Port 8787)                                                                                                |
-| `pnpm --filter @financeanchor/api types`                          | `worker-configuration.d.ts` nach Änderungen an `wrangler.jsonc` neu erzeugen                                                         |
+| `pnpm dev:backend`                                                | API lokal (`wrangler dev`, Port 8787)                                                                                                |
+| `pnpm --filter @financeanchor/backend types`                      | `worker-configuration.d.ts` nach Änderungen an `wrangler.jsonc` neu erzeugen                                                         |
 
 ## Einrichtung lokal
 
-`cp apps/api/.dev.vars.example apps/api/.dev.vars` und ein eigenes Secret eintragen, dann `pnpm db:migrate` und `pnpm db:seed -- --email …`.
+`cp apps/backend/.dev.vars.example apps/backend/.dev.vars` und ein eigenes Secret eintragen, dann `pnpm db:migrate` und `pnpm db:seed -- --email …`.
 
 ## Konventionen
 
@@ -43,7 +43,7 @@ Node 24 (`.nvmrc`), pnpm 12.
 - Fachlogik gehört nach `packages/shared`, ohne Framework-Abhängigkeiten und mit Tests.
 - Jede fachliche Tabelle hat `id`, `user_id`, `created_at`, `updated_at`; jeder Datenzugriff ist auf die `user_id` der Session beschränkt.
 - Versionen: TypeScript bleibt auf 6.0.x (Angular 22), Vitest auf 4.1.x (`@cloudflare/vitest-plugin`). pnpm hält sehr neue Releases per `minimumReleaseAge` zurück – gewollt.
-- API-Tests laufen im Workers-Runtime mit lokaler D1 (`apps/api/test`, Migrationen werden im Setup angewendet). Integration über `exports.default.fetch` aus `cloudflare:workers`.
+- API-Tests laufen im Workers-Runtime mit lokaler D1 (`apps/backend/test`, Migrationen werden im Setup angewendet). Integration über `exports.default.fetch` aus `cloudflare:workers`.
 - Datenbank: Verweise zwischen fachlichen Tabellen als zusammengesetzte Fremdschlüssel `(user_id, x_id) → (user_id, id)`; Schemaänderungen nur über neue Migrationen, nie bestehende ändern.
 - Commits klein, mit aussagekräftiger Nachricht auf Deutsch; vor jedem Commit `pnpm lint && pnpm typecheck && pnpm test`.
 - Texte in der Oberfläche auf Deutsch (i18n-Schlüssel), Englisch vorbereitet.

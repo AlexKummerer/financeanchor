@@ -12,12 +12,12 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "build": "pnpm -r --if-present build",
-    "dev:api": "pnpm --filter @financeanchor/api dev",
-    "db:generate": "pnpm --filter @financeanchor/api db:generate",
-    "db:migrate": "pnpm --filter @financeanchor/api db:migrate",
-    "db:migrate:remote": "pnpm --filter @financeanchor/api db:migrate:remote",
-    "db:seed": "pnpm --filter @financeanchor/api db:seed",
-    "dev": "pnpm --parallel --filter @financeanchor/api --filter @financeanchor/web dev",
+    "dev:backend": "pnpm --filter @financeanchor/backend dev",
+    "db:generate": "pnpm --filter @financeanchor/backend db:generate",
+    "db:migrate": "pnpm --filter @financeanchor/backend db:migrate",
+    "db:migrate:remote": "pnpm --filter @financeanchor/backend db:migrate:remote",
+    "db:seed": "pnpm --filter @financeanchor/backend db:seed",
+    "dev": "pnpm --parallel --filter @financeanchor/backend --filter @financeanchor/web dev",
     "dev:web": "pnpm --filter @financeanchor/web dev"
   },
   "devDependencies": {

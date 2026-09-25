@@ -22,7 +22,7 @@ pnpm lint
 ```
 apps/
   web/        Angular-PWA, später mit Capacitor als iOS- und Android-App
-  api/        Cloudflare Worker (TypeScript, Hono) mit D1
+  backend/    Cloudflare Worker (TypeScript, Hono) mit D1
 packages/
   shared/     Gemeinsame Typen, Schemas und Fachlogik (Umlage, Rücklage, Tilgung)
 prototype/    Klickbarer Prototyp als Referenz

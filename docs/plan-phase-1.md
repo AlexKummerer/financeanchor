@@ -27,7 +27,7 @@ Geprüft per `npm view` am 25.09.2026. Vor jedem Schritt wird die offizielle Dok
 ```
 .github/workflows/ci.yml       Lint, Typecheck, Unit-, Integrations- und E2E-Tests
 apps/
-  api/
+  backend/
     src/
       index.ts                 Hono-App, Export für den Worker (fetch + Static Assets)
       auth.ts                  Better-Auth-Instanz pro Request (D1-Binding aus env)
@@ -96,7 +96,7 @@ Dazu die Better-Auth-Tabellen (`user`, `session`, `account`, `verification`), er
 
 **Atomarität und Idempotenz bei „Fällige übernehmen“**: Die API liest den Stand, lässt `planDueBookings` rechnen und schreibt alles in _einem_ `db.batch()` (Buchungen, `booked_items`, `UPDATE accounts SET balance_cents = balance_cents + ?`, `UPDATE loans ...`). Klickt jemand doppelt, verletzt der zweite Batch den Unique-Index, D1 rollt ihn komplett zurück, die API antwortet mit dem aktuellen Stand. Kategorie umbenennen ist durch die ID-Referenz trivial; Kategorie löschen mit Ziel = ein Batch (Buchungen und Posten umhängen, dann löschen).
 
-## 5. API (`apps/api`)
+## 5. API (`apps/backend`)
 
 Alle Routen unter `/api`, Eingaben per `@hono/zod-validator` mit Schemas aus `shared`, einheitliches Fehlerformat `{ error: { code, message, details? } }`.
 
@@ -176,3 +176,4 @@ Jeder Schritt endet mit grünen Tests, einem Commit und einem kurzen Bericht.
 6. **Keine Rundung auf volle Euro**: Der automatische Rücklagenbetrag ist der exakte Bedarf (Summe der Umlagen), nur auf den nächsten ganzen Cent aufgerundet, weil Beträge ganze Cent sind.
 7. **Stand festhalten**: höchstens ein Snapshot pro Tag, ein neuer ersetzt den des Tages.
 8. **Kein Import des Prototyp-Formats**: Der Prototyp enthält nur Beispieldaten.
+9. **Ordner `apps/backend`** statt `apps/api` (wie im Auftrag), weil Cloudflare mit dem Namen `api` Probleme macht. Paket `@financeanchor/backend`, Worker-Name bleibt `financeanchor`, Routen bleiben unter `/api`.
