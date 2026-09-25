@@ -167,5 +167,66 @@
     "usedOnce": "1 Verwendung",
     "usedN": "{{n}} Verwendungen",
     "automatic": "wird automatisch vergeben"
+  },
+  "recurring": {
+    "intro": "Alles, was regelmäßig wiederkommt. Vierteljährliche oder jährliche Posten werden automatisch auf den Monat umgelegt.",
+    "add": "Posten hinzufügen",
+    "editTitle": "Posten bearbeiten",
+    "name": "Name",
+    "namePlaceholder": "z. B. Kfz-Versicherung",
+    "amount": "Betrag pro Fälligkeit (€)",
+    "interval": "Rhythmus",
+    "intervals": {
+      "1": "monatlich",
+      "2": "alle 2 Monate",
+      "3": "vierteljährlich",
+      "6": "halbjährlich",
+      "12": "jährlich"
+    },
+    "kind": "Art",
+    "kinds": {
+      "fixed": "Fixkosten",
+      "saving": "Sparen",
+      "income": "Einnahme"
+    },
+    "startMonth": "Erste Fälligkeit (Monat)",
+    "dueDay": "Fälligkeitstag",
+    "dueDayHint": "Tag im Monat; in kürzeren Monaten der letzte Tag.",
+    "category": "Kategorie",
+    "categoryPlaceholder": "z. B. Versicherungen",
+    "save": "Posten speichern",
+    "update": "Änderungen speichern",
+    "saved": "Posten gespeichert",
+    "updated": "Posten geändert",
+    "kpi": {
+      "fixed": "Monatliche Fixkosten",
+      "reserve": "Rücklage / Monat",
+      "saving": "Sparen / Monat",
+      "income": "Einnahmen / Monat"
+    },
+    "listTitle": "Wiederkehrende Posten",
+    "nextDue": "fällig {{month}}",
+    "viaReserve": "über Rücklage",
+    "editNamed": "{{name}} bearbeiten",
+    "deleteNamed": "{{name}} löschen",
+    "deleteTitle": "„{{name}}“ löschen?",
+    "deleteText": "Bisherige Buchungen bleiben erhalten.",
+    "none": "Noch keine Posten. Starte mit deinem Gehalt als Einnahme und der Miete.",
+    "loansHint": "Kreditraten stehen im Bereich Kredite und fließen automatisch in die Übersicht ein."
+  },
+  "reserve": {
+    "title": "Rücklage für nicht-monatliche Kosten",
+    "explain": "Jeden Monat geht ein fester Betrag aufs Rücklagenkonto (als Ausgabe). Ist ein vierteljährlicher, halbjährlicher oder jährlicher Posten fällig, wird er als Ausgabe gebucht und derselbe Betrag als Umbuchung vom Rücklagenkonto zurückgeholt.",
+    "monthly": "Monatliche Rücklage (€)",
+    "auto": "Leer lassen für automatisch ({{amount}})",
+    "account": "Rücklagenkonto",
+    "noAccount": "kein Konto verknüpft",
+    "dueDay": "Buchungstag",
+    "need": "Rechnerisch nötig",
+    "balance": "Aktueller Stand",
+    "belowNeed": "Deine Rücklage von {{amount}} liegt {{gap}} unter dem, was die Posten im Schnitt kosten.",
+    "negative": "Die Rücklage rutscht voraussichtlich auf {{low}}. Rücklagenkonto verknüpfen und Stand prüfen oder den Monatsbetrag erhöhen.",
+    "forecastTitle": "Voraussichtlicher Stand der Rücklage, jeweils nach den Buchungen des Monats",
+    "noItems": "Lege einen Posten mit vierteljährlichem, halbjährlichem oder jährlichem Rhythmus an."
   }
 }

@@ -1,0 +1,86 @@
+<p class="muted intro">{{ 'recurring.intro' | transloco }}</p>
+
+<section class="panel">
+  <details [open]="formOpen() || !!editing()" (toggle)="formOpen.set($any($event.target).open)">
+    <summary>{{ (editing() ? 'recurring.editTitle' : 'recurring.add') | transloco }}</summary>
+    <fa-recurring-form
+      [item]="editing()"
+      [busy]="saving()"
+      (saved)="save($event)"
+      (cancelled)="cancelEdit()"
+    />
+  </details>
+</section>
+
+<div class="kpis">
+  <div class="panel">
+    <p class="kpi-label">{{ 'recurring.kpi.fixed' | transloco }}</p>
+    <p class="kpi-value">{{ breakdown().fixedCents | money: true }}</p>
+  </div>
+  <div class="panel">
+    <p class="kpi-label">{{ 'recurring.kpi.reserve' | transloco }}</p>
+    <p class="kpi-value">{{ breakdown().reserveCents | money }}</p>
+  </div>
+  <div class="panel">
+    <p class="kpi-label">{{ 'recurring.kpi.saving' | transloco }}</p>
+    <p class="kpi-value">{{ breakdown().savingCents | money: true }}</p>
+  </div>
+  <div class="panel">
+    <p class="kpi-label">{{ 'recurring.kpi.income' | transloco }}</p>
+    <p class="kpi-value pos">{{ breakdown().incomeCents | money: true }}</p>
+  </div>
+</div>
+
+<h2 id="reserve-title">{{ 'reserve.title' | transloco }}</h2>
+<section class="panel" aria-labelledby="reserve-title">
+  <fa-reserve-panel />
+</section>
+
+<h2 id="items-title">{{ 'recurring.listTitle' | transloco }}</h2>
+<section class="panel" aria-labelledby="items-title">
+  <ul class="list">
+    @for (r of rows(); track r.item.id) {
+      <li>
+        <div class="grow">
+          <div class="name">{{ r.item.name }}</div>
+          <span class="tag" [class]="'tag ' + r.tagClass">{{
+            r.tagLabel ?? ('recurring.kinds.' + r.item.kind | transloco)
+          }}</span>
+          <span class="small muted">
+            {{ r.item.amountCents | money }}
+            {{ 'recurring.intervals.' + r.item.intervalMonths | transloco }}
+            @if (r.next) {
+              · {{ 'recurring.nextDue' | transloco: { month: (r.next | faMonth: 'short') } }}
+            }
+            @if (r.viaReserve) {
+              · {{ 'recurring.viaReserve' | transloco }}
+            }
+          </span>
+        </div>
+        <div class="amt">
+          {{ r.monthly | money }}
+          <div class="small muted per">{{ 'common.perMonth' | transloco }}</div>
+        </div>
+        <button
+          class="iconbtn"
+          type="button"
+          (click)="edit(r.item)"
+          [attr.aria-label]="'recurring.editNamed' | transloco: { name: r.item.name }"
+        >
+          ✎
+        </button>
+        <button
+          class="iconbtn"
+          type="button"
+          (click)="remove(r.item)"
+          [attr.aria-label]="'recurring.deleteNamed' | transloco: { name: r.item.name }"
+        >
+          ×
+        </button>
+      </li>
+    } @empty {
+      <li class="empty">{{ 'recurring.none' | transloco }}</li>
+    }
+  </ul>
+</section>
+<p class="small muted" style="margin-top: 10px">{{ 'recurring.loansHint' | transloco }}</p>

@@ -167,5 +167,66 @@
     "usedOnce": "1 use",
     "usedN": "{{n}} uses",
     "automatic": "assigned automatically"
+  },
+  "recurring": {
+    "intro": "Everything that comes back regularly. Quarterly or yearly items are spread across the months automatically.",
+    "add": "Add item",
+    "editTitle": "Edit item",
+    "name": "Name",
+    "namePlaceholder": "e.g. car insurance",
+    "amount": "Amount per due date (€)",
+    "interval": "Frequency",
+    "intervals": {
+      "1": "monthly",
+      "2": "every 2 months",
+      "3": "quarterly",
+      "6": "half-yearly",
+      "12": "yearly"
+    },
+    "kind": "Type",
+    "kinds": {
+      "fixed": "Fixed costs",
+      "saving": "Savings",
+      "income": "Income"
+    },
+    "startMonth": "First due (month)",
+    "dueDay": "Due day",
+    "dueDayHint": "Day of month; the last day in shorter months.",
+    "category": "Category",
+    "categoryPlaceholder": "e.g. Insurance",
+    "save": "Save item",
+    "update": "Save changes",
+    "saved": "Item saved",
+    "updated": "Item updated",
+    "kpi": {
+      "fixed": "Monthly fixed costs",
+      "reserve": "Reserve / month",
+      "saving": "Savings / month",
+      "income": "Income / month"
+    },
+    "listTitle": "Recurring items",
+    "nextDue": "due {{month}}",
+    "viaReserve": "via reserve",
+    "editNamed": "Edit {{name}}",
+    "deleteNamed": "Delete {{name}}",
+    "deleteTitle": "Delete “{{name}}”?",
+    "deleteText": "Existing transactions are kept.",
+    "none": "No items yet. Start with your salary as income and your rent.",
+    "loansHint": "Loan payments live under Loans and are included in the overview automatically."
+  },
+  "reserve": {
+    "title": "Reserve for non-monthly costs",
+    "explain": "Every month a fixed amount goes to the reserve account (as an expense). When a quarterly, half-yearly or yearly item is due, it is booked as an expense and the same amount is transferred back from the reserve account.",
+    "monthly": "Monthly reserve (€)",
+    "auto": "Leave empty for automatic ({{amount}})",
+    "account": "Reserve account",
+    "noAccount": "no account linked",
+    "dueDay": "Booking day",
+    "need": "Required",
+    "balance": "Current balance",
+    "belowNeed": "Your reserve of {{amount}} is {{gap}} below what the items cost on average.",
+    "negative": "The reserve is expected to drop to {{low}}. Link the reserve account and check its balance, or raise the monthly amount.",
+    "forecastTitle": "Expected reserve balance after each month's bookings",
+    "noItems": "Add an item with a quarterly, half-yearly or yearly frequency."
   }
 }
