@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
+  bankPresets,
   categoryNameKey,
   detectDelimiter,
   importKeys,
@@ -43,6 +44,11 @@ export class ImportPage {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly planner = inject(LoanPlanner);
+
+  /** Unterstützte Banken aus den eingebauten Vorlagen (Anzeige „Was wird unterstützt?“) */
+  protected readonly banks = bankPresets.map((p) => p.id);
+  /** Ohne CSV-Export: kommen später (PDF bzw. Excel) */
+  protected readonly unsupported = ['barclays', 'hanseatic', 'advanzia'];
 
   /** Konten, zu denen eingelesen werden kann (keine Depots) */
   protected readonly accounts = computed(() =>

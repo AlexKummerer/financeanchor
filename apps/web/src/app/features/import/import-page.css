@@ -123,3 +123,21 @@
   border-color: var(--pine);
   color: var(--on-pine);
 }
+
+.support summary {
+  cursor: pointer;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+.banks {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 10px;
+  display: grid;
+  gap: 6px;
+}
+.banks li {
+  display: grid;
+  gap: 1px;
+}

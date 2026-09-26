@@ -532,7 +532,6 @@
     "accountHint": "For a checking account, card debits are detected and not imported as expenses.",
     "cardHint": "Purchases are assigned to the card (“Paid with”) and count towards the card balance.",
     "file": "CSV file",
-    "fileHint": "Supported: Sparkasse, Volksbank/Raiffeisenbank, DKB, ING, Comdirect, American Express; other formats can be mapped manually.",
     "recognized": "Recognised: {{bank}} · {{n}} transactions",
     "skippedLines": "{{n}} lines skipped (pending or without amount)",
     "section": "Section of the file",
@@ -580,6 +579,33 @@
       "purpose": "Reference"
     },
     "invertSign": "Charges are positive in the file (flip the sign)",
-    "applyMapping": "Apply mapping"
+    "applyMapping": "Apply mapping",
+    "fileHintShort": "CSV export from online banking. Supported banks are listed below.",
+    "support": {
+      "title": "Which banks are supported?",
+      "format": {
+        "sparkasse": "“CSV-CAMT” (V2 or V8) or “CSV-MT940” export; pending transactions are skipped",
+        "volksbank": "CSV export (Volksbanken, Raiffeisenbanken, Sparda banks use the same format)",
+        "dkb": "CSV export of the checking account; pending transactions are skipped",
+        "dkb-visa": "CSV export of the DKB Visa (per documentation, not yet tested with a real file)",
+        "ing": "CSV export (“Umsatzanzeige”), with or without balance",
+        "comdirect": "CSV export; if the file contains checking and Visa, you choose the section",
+        "amex": "CSV export of transactions (“activity.csv”); charges are read correctly as expenses"
+      },
+      "otherTitle": "Other banks",
+      "other": "Automatic detection often works. Otherwise map the columns once; the mapping is saved for the account.",
+      "notYet": "Not yet (no CSV export):",
+      "name": {
+        "barclays": "Barclays",
+        "hanseatic": "Hanseatic Bank",
+        "advanzia": "Advanzia"
+      },
+      "why": {
+        "barclays": "Excel export only – coming later",
+        "hanseatic": "PDF statements only – coming later",
+        "advanzia": "PDF statements only – coming later"
+      },
+      "tip": "Tip: for reconciliation always load a whole statement period; the app recognises rows imported twice."
+    }
   }
 }

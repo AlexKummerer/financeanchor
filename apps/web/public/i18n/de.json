@@ -532,7 +532,6 @@
     "accountHint": "Beim Girokonto werden Kartenabbuchungen erkannt und nicht als Ausgabe übernommen.",
     "cardHint": "Käufe werden der Karte zugeordnet („Bezahlt mit“) und zählen zum Kartenstand.",
     "file": "CSV-Datei",
-    "fileHint": "Unterstützt: Sparkasse, Volksbank/Raiffeisenbank, DKB, ING, Comdirect, American Express; andere Formate lassen sich selbst zuordnen.",
     "recognized": "Erkannt: {{bank}} · {{n}} Umsätze",
     "skippedLines": "{{n}} Zeilen übersprungen (vorgemerkt oder ohne Betrag)",
     "section": "Abschnitt der Datei",
@@ -580,6 +579,33 @@
       "purpose": "Verwendungszweck"
     },
     "invertSign": "Belastungen stehen positiv in der Datei (Vorzeichen umdrehen)",
-    "applyMapping": "Zuordnung anwenden"
+    "applyMapping": "Zuordnung anwenden",
+    "fileHintShort": "CSV-Export aus dem Online-Banking. Welche Banken gehen, steht unten.",
+    "support": {
+      "title": "Welche Banken werden unterstützt?",
+      "format": {
+        "sparkasse": "Export „CSV-CAMT“ (V2 oder V8) oder „CSV-MT940“; vorgemerkte Umsätze werden übersprungen",
+        "volksbank": "CSV-Export (Volksbanken, Raiffeisenbanken, Sparda-Banken im gleichen Format)",
+        "dkb": "CSV-Export des Girokontos; vorgemerkte Umsätze werden übersprungen",
+        "dkb-visa": "CSV-Export der DKB Visa (nach Dokumentation, noch ohne echte Datei getestet)",
+        "ing": "CSV-Export („Umsatzanzeige“), mit oder ohne Saldo",
+        "comdirect": "CSV-Export; enthält die Datei Girokonto und Visa, wählst du den Abschnitt",
+        "amex": "CSV-Export der Umsätze („activity.csv“); Belastungen werden richtig als Ausgabe gelesen"
+      },
+      "otherTitle": "Andere Banken",
+      "other": "Oft klappt die automatische Erkennung. Sonst ordnest du die Spalten einmal selbst zu; die Zuordnung wird für das Konto gespeichert.",
+      "notYet": "Noch nicht (kein CSV-Export):",
+      "name": {
+        "barclays": "Barclays",
+        "hanseatic": "Hanseatic Bank",
+        "advanzia": "Advanzia"
+      },
+      "why": {
+        "barclays": "nur Excel-Export – kommt später",
+        "hanseatic": "nur PDF-Abrechnungen – kommt später",
+        "advanzia": "nur PDF-Abrechnungen – kommt später"
+      },
+      "tip": "Tipp: Lade für den Abgleich immer einen ganzen Abrechnungszeitraum; doppelt Eingelesenes erkennt die App."
+    }
   }
 }
