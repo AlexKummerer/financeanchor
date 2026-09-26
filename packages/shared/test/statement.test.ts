@@ -3,6 +3,7 @@ import {
   cleanSepaPurpose,
   parseStatement,
   parseStatementSections,
+  positiveShare,
   splitComdirectText,
 } from '../src/index.js';
 
@@ -129,6 +130,15 @@ describe('Bank-Exporte', () => {
     ]);
   });
 
+  it('Amex auch in der kurzen Form „Datum, Beschreibung, Betrag“', () => {
+    const short = 'Datum,Beschreibung,Betrag\n01/09/2026,GOOGLE*GOOGLE PLAY,"17,99"';
+    expect(parseStatement(short)?.profile.preset).toBe('amex');
+    expect(brief(short)).toEqual([['2026-09-01', -1799, 'GOOGLE*GOOGLE PLAY', '']]);
+    expect(
+      positiveShare([{ amountCents: 1 }, { amountCents: 2 }, { amountCents: -1 }]),
+    ).toBeCloseTo(2 / 3);
+  });
+
   it('gespeicherte Zuordnung wird wiederverwendet, auch mit eigenen Spaltennamen', () => {
     const text = 'Tag;Wert;Wer\n01.09.2026;-5,00;Bäcker';
     expect(parseStatement(text)).toBeNull();
@@ -138,7 +148,14 @@ describe('Bank-Exporte', () => {
       mapping: { date: 'Tag', amount: 'Wert', counterparty: 'Wer' },
     });
     expect(s?.rows).toEqual([
-      { line: 2, date: '2026-09-01', amountCents: -500, counterparty: 'Bäcker', purpose: '' },
+      {
+        line: 2,
+        date: '2026-09-01',
+        amountCents: -500,
+        fileCents: -500,
+        counterparty: 'Bäcker',
+        purpose: '',
+      },
     ]);
   });
 });

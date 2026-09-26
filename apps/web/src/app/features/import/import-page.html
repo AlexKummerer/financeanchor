@@ -129,6 +129,18 @@
         </div>
       }
 
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="!!s.profile.mapping.invertSign"
+          (change)="setInvert($any($event.target).checked)"
+        />
+        {{ 'import.invertSign' | transloco }}
+      </label>
+      @if (autoInverted()) {
+        <p class="small warn" role="status">{{ 'import.autoInverted' | transloco }}</p>
+      }
+
       @if (s.dateColumns.length > 1) {
         <div>
           <label for="im-date">{{ 'import.dateColumn' | transloco }}</label>

@@ -622,6 +622,7 @@
     "learnedHint": "Name und Kategorie wie beim letzten Mal",
     "dateColumn": "Welches Datum soll gelten?",
     "dateHint": "Das Datum bestimmt, in welchem Monat der Umsatz zählt.",
-    "dateHintCard": "Für den Abgleich mit der Kartenabrechnung zählt meist das Buchungsdatum der Bank; Käufe am Stichtag kannst du unter Vermögen der nächsten Abrechnung zuordnen."
+    "dateHintCard": "Für den Abgleich mit der Kartenabrechnung zählt meist das Buchungsdatum der Bank; Käufe am Stichtag kannst du unter Vermögen der nächsten Abrechnung zuordnen.",
+    "autoInverted": "Auf dieser Karte waren fast alle Beträge positiv – die Bank führt Belastungen offenbar positiv. Die App hat das Vorzeichen umgedreht; prüfe kurz die Beträge."
   }
 }

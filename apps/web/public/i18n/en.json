@@ -622,6 +622,7 @@
     "learnedHint": "Name and category as last time",
     "dateColumn": "Which date should be used?",
     "dateHint": "The date decides in which month the transaction counts.",
-    "dateHintCard": "For reconciling with the card statement the bank’s booking date usually counts; purchases on the closing day can be moved to the next statement under Assets."
+    "dateHintCard": "For reconciling with the card statement the bank’s booking date usually counts; purchases on the closing day can be moved to the next statement under Assets.",
+    "autoInverted": "Almost all amounts on this card were positive – the bank lists charges as positive. The app flipped the sign; please check the amounts."
   }
 }

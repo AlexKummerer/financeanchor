@@ -9,6 +9,7 @@ import {
   importLabel,
   parseCsv,
   parseStatementSections,
+  positiveShare,
   type Category,
   type ExistingTransaction,
   type ImportCommit,
@@ -67,6 +68,8 @@ export class ImportPage {
   protected readonly sectionIndex = signal(0);
   protected readonly section = computed(() => this.sections()[this.sectionIndex()] ?? null);
   protected readonly notRecognized = signal(false);
+  /** Vorzeichen wurde automatisch umgedreht (Kartenimport mit überwiegend positiven Beträgen) */
+  protected readonly autoInverted = signal(false);
 
   /** Eigene Zuordnung, wenn das Format nicht erkannt wird */
   protected readonly rawTable = computed(() => {
@@ -146,13 +149,24 @@ export class ImportPage {
 
   /** Andere Datumsspalte verwenden (z. B. Umsatztag statt Buchungstag); wird mit gespeichert. */
   protected async chooseDateColumn(column: string) {
+    await this.reparse({ date: column });
+  }
+
+  /** Vorzeichen umdrehen (Belastungen stehen positiv in der Datei); wird mit gespeichert. */
+  protected async setInvert(invertSign: boolean) {
+    this.autoInverted.set(false);
+    await this.reparse({ invertSign });
+  }
+
+  /** Aktuellen Abschnitt mit geänderter Zuordnung neu lesen. */
+  private async reparse(patch: Partial<ImportProfile['mapping']>) {
     const text = this.text();
     const section = this.section();
     if (text === null || !section) return;
-    const profile = { ...section.profile, mapping: { ...section.profile.mapping, date: column } };
-    const sections = parseStatementSections(text, profile);
+    const mapping = { ...section.profile.mapping, ...patch };
+    const sections = parseStatementSections(text, { ...section.profile, mapping });
     const index = sections.findIndex(
-      (x) => x.profile.mapping.date === column && x.title === section.title,
+      (x) => x.title === section.title && x.profile.mapping.date === mapping.date,
     );
     this.sections.set(sections);
     this.sectionIndex.set(Math.max(0, index));
@@ -177,6 +191,20 @@ export class ImportPage {
       ),
     );
     this.notRecognized.set(sections.length === 0);
+    // Kreditkarte: Käufe sind die Mehrheit. Sind die meisten Beträge positiv, stehen Belastungen
+    // positiv in der Datei (z. B. Amex) – dann Vorzeichen umdrehen und darauf hinweisen.
+    const section = this.section();
+    this.autoInverted.set(false);
+    if (
+      this.isCard() &&
+      section &&
+      !section.profile.mapping.invertSign &&
+      positiveShare(section.rows) > 0.6
+    ) {
+      this.autoInverted.set(true);
+      await this.reparse({ invertSign: true });
+      return;
+    }
     await this.preview();
   }
 

@@ -17,6 +17,8 @@ export interface StatementRow {
   line: number;
   date: IsoDate;
   amountCents: Cents;
+  /** Betrag wie in der Datei (vor dem Umdrehen des Vorzeichens) – Grundlage des Fingerabdrucks */
+  fileCents?: Cents;
   counterparty: string;
   purpose: string;
 }
@@ -191,7 +193,7 @@ export function readRows(
     } else if (mapping.textFormat === 'sepa') {
       purpose = cleanSepaPurpose(purpose);
     }
-    rows.push({ line, date, amountCents, counterparty, purpose });
+    rows.push({ line, date, amountCents, fileCents: amount, counterparty, purpose });
   }
   return { headers, rows, skipped };
 }
@@ -275,4 +277,13 @@ export function parseStatement(
 export function suggestName(row: Pick<StatementRow, 'counterparty' | 'purpose'>): string {
   const base = row.counterparty || row.purpose || 'Umsatz';
   return base.length > 60 ? `${base.slice(0, 57).trimEnd()}…` : base;
+}
+
+/**
+ * Anteil positiver Beträge. Bei einer Kreditkarte sind Käufe die Mehrheit – ist der Anteil hoch,
+ * stehen Belastungen in der Datei positiv (wie bei Amex) und das Vorzeichen gehört umgedreht.
+ */
+export function positiveShare(rows: readonly Pick<StatementRow, 'amountCents'>[]): number {
+  if (!rows.length) return 0;
+  return rows.filter((r) => r.amountCents > 0).length / rows.length;
 }

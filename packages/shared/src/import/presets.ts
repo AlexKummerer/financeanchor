@@ -80,7 +80,11 @@ export const bankPresets: readonly BankPreset[] = [
     // Belastungen positiv, Zahlungen an die Karte negativ
     id: 'amex',
     label: 'American Express',
-    matches: (h) => has(h, 'Karteninhaber', 'Konto #'),
+    // Voller Export mit Karteninhaber/Konto # oder die kurze Form „Datum, Beschreibung, Betrag“
+    matches: (h) =>
+      has(h, 'Karteninhaber', 'Konto #') ||
+      has(h, 'Erscheint auf Ihrer Abrechnung als') ||
+      (h.filter(Boolean).length === 3 && has(h, 'Datum', 'Beschreibung', 'Betrag')),
     adjust: (m) => ({ ...m, counterparty: 'Beschreibung', purpose: [], invertSign: true }),
   },
 ];

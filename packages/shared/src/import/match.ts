@@ -43,11 +43,16 @@ const squash = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
  */
 export function importKeys(
   scope: string,
-  rows: readonly Pick<StatementRow, 'date' | 'amountCents' | 'counterparty' | 'purpose'>[],
+  rows: readonly Pick<
+    StatementRow,
+    'date' | 'amountCents' | 'fileCents' | 'counterparty' | 'purpose'
+  >[],
 ): string[] {
   const seen = new Map<string, number>();
   return rows.map((r) => {
-    const base = `${scope}|${r.date}|${r.amountCents}|${squash(r.counterparty)}|${squash(r.purpose)}`;
+    // Betrag wie in der Datei: Umdrehen des Vorzeichens ändert den Fingerabdruck nicht
+    const cents = r.fileCents ?? r.amountCents;
+    const base = `${scope}|${r.date}|${cents}|${squash(r.counterparty)}|${squash(r.purpose)}`;
     const n = (seen.get(base) ?? 0) + 1;
     seen.set(base, n);
     return `imp:${fnv1a64(n === 1 ? base : `${base}#${n}`)}`;

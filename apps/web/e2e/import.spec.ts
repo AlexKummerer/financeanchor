@@ -52,3 +52,36 @@ test('CSV einlesen: Vorschau, anhaken, übernehmen, zweites Einlesen erkennt es'
   await page.getByRole('link', { name: 'Zurück zu den Buchungen' }).click();
   await expect(page.locator('.list li').filter({ hasText: 'Bäcker' })).toContainText('-7,40');
 });
+
+test('Amex-Datei auf die Karte: Belastungen werden Ausgaben', async ({ page }) => {
+  await login(page);
+  await page.goto('/vermoegen');
+  await page.getByText('Konto oder Depot hinzufügen', { exact: true }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Amex Import E2E');
+  await page.getByLabel('Art', { exact: true }).selectOption({ label: 'Kreditkarte' });
+  await page.getByLabel('Aktuell offen auf der Karte (€)').fill('0');
+  await page.getByLabel('Abrechnungsstichtag').selectOption({ label: '3.' });
+  await page.getByLabel('Abbuchungstag').selectOption({ label: '4.' });
+  await page.getByRole('button', { name: 'Speichern' }).click();
+
+  await page.goto('/buchungen/einlesen');
+  await page
+    .getByLabel('Zu welchem Konto gehört die Datei?')
+    .selectOption({ label: 'Amex Import E2E (Kreditkarte)' });
+  const csv = [
+    'Datum,Beschreibung,Betrag',
+    '01/09/2026,GOOGLE*GOOGLE PLAY APPS,"17,99"',
+    '02/09/2026,AMAZON WEB SERVICES,"65,12"',
+    '03/09/2026,ZAHLUNG/ÜBERWEISUNG ERHALTEN BESTEN DANK,"-100,00"',
+  ].join('\n');
+  await page.getByLabel('CSV-Datei').setInputFiles({
+    name: 'activity.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  });
+  await expect(page.getByText(/Erkannt: American Express · 3 Umsätze/)).toBeVisible();
+  await expect(page.locator('ul.rows > li').filter({ hasText: 'GOOGLE' })).toContainText('-17,99');
+  await expect(
+    page.getByLabel('Belastungen stehen positiv in der Datei', { exact: false }),
+  ).toBeChecked();
+});

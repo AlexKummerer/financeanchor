@@ -16,6 +16,14 @@ const row = (date: string, amountCents: number, counterparty = 'REWE', purpose =
 });
 
 describe('Fingerabdrücke', () => {
+  it('unabhängig vom Umdrehen des Vorzeichens', () => {
+    const asInFile = importKeys('amex', [{ ...row('2026-09-01', 1799), fileCents: 1799 }]);
+    const flipped = importKeys('amex', [{ ...row('2026-09-01', -1799), fileCents: 1799 }]);
+    expect(flipped).toEqual(asInFile);
+    // Ältere Zeilen ohne fileCents (vor dem Umdrehen gespeichert) passen weiterhin
+    expect(importKeys('amex', [row('2026-09-01', 1799)])).toEqual(asInFile);
+  });
+
   it('stabil, je Konto verschieden, gleiche Zeilen durchnummeriert', () => {
     const rows = [row('2026-09-01', -450), row('2026-09-01', -450), row('2026-09-02', -450)];
     const a = importKeys('giro', rows);
