@@ -13,7 +13,8 @@ if (!appUrl || !/^https:\/\/[^/]+$/.test(appUrl)) {
   process.exit(1);
 }
 const config = readFileSync(new URL('../apps/backend/wrangler.jsonc', import.meta.url), 'utf8');
-if (config.includes('00000000-0000-0000-0000-000000000000')) {
+// Nur die Produktions-ID prüfen; preview_database_id (lokal) darf der Platzhalter sein.
+if (/"database_id":\s*"00000000-0000-0000-0000-000000000000"/.test(config)) {
   console.error(
     'database_id in apps/backend/wrangler.jsonc ist noch der Platzhalter (siehe README, „Deployment“).',
   );
