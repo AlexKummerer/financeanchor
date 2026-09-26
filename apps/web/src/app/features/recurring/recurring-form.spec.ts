@@ -19,6 +19,7 @@ const item: RecurringItem = {
   kind: 'fixed',
   categoryId: 'c-vers',
   reservePotId: null,
+  accountId: null,
   createdAt: 0,
   updatedAt: 0,
 };
@@ -37,6 +38,7 @@ describe('RecurringForm', () => {
           useValue: {
             categories: { items: signal(cats), create },
             userCategories: signal(cats),
+            accounts: { items: signal([]) },
             categoryName: (id: string) => cats.find((c) => c.id === id)?.name ?? '–',
           },
         },
@@ -88,6 +90,7 @@ describe('RecurringForm', () => {
         startMonth: '2026-09',
         dueDay: 1,
         categoryId: 'c-new',
+        accountId: null,
       },
     ]);
   });

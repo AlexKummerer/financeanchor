@@ -137,3 +137,44 @@ export function suggestCategoryId(
   }
   return best?.id ?? null;
 }
+
+/**
+ * Wiedererkennbares Merkmal eines Bank-Texts: ohne wechselnde Nummern und Referenzen, damit
+ * „PAYPAL *DISNEYPLUS 800724235230“ jeden Monat gleich ist. Grundlage fürs Lernen von Name und
+ * Kategorie beim Import. `null`, wenn nichts Aussagekräftiges übrig bleibt.
+ */
+export function importLabel(row: Pick<StatementRow, 'counterparty' | 'purpose'>): string | null {
+  const source = row.counterparty.trim() || row.purpose.trim();
+  const label = squash(
+    source
+      .split(/\s+/)
+      .filter((token) => !/\d/.test(token))
+      .join(' ')
+      .replace(/[.,;:]+$/g, ''),
+  );
+  return label.length >= 3 ? label.slice(0, 100) : null;
+}
+
+/** Zahlung an die Karte auf der Kartenabrechnung (Gegenstück zur Abbuchung vom Girokonto). */
+const CARD_SETTLEMENT = [
+  'zahlung erhalten',
+  'zahlung/überweisung erhalten',
+  'überweisung erhalten',
+  'lastschrift erhalten',
+  'einzahlung',
+  'ausgleich',
+  'kartenabrechnung',
+  'besten dank',
+];
+
+/**
+ * Sieht die Zeile beim Import einer Kreditkarte nach der Zahlung an die Karte aus? Die ist schon
+ * über „Fällige übernehmen“ als Abbuchung gebucht und darf nicht als Einnahme zählen.
+ */
+export function looksLikeCardSettlement(
+  row: Pick<StatementRow, 'amountCents' | 'counterparty' | 'purpose'>,
+): boolean {
+  if (row.amountCents <= 0) return false;
+  const text = squash(`${row.counterparty} ${row.purpose}`);
+  return CARD_SETTLEMENT.some((k) => text.includes(k));
+}

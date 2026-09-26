@@ -60,7 +60,9 @@ describe('CSV-Import', () => {
       importProfile: unknown;
     }[];
     const card = accounts.find((a) => a.id === amex.id)!;
-    expect(card.balanceCents).toBe(-3550);
+    // Käufe mit der Karte (-45,50 + 10,00) und die verknüpfte eigene Buchung (-20,00), die nun
+    // der Karte zugeordnet ist
+    expect(card.balanceCents).toBe(-5550);
     expect(card.importProfile).toEqual(profile);
 
     const check = (
@@ -143,5 +145,70 @@ describe('CSV-Import', () => {
       })
     ).body as { known: string[] };
     expect(check.known).toEqual([]);
+  });
+
+  it('lernt Name und Kategorie je Merkmal; Verknüpfen beim Kartenimport trägt die Karte nach', async () => {
+    const { api } = await newUser();
+    const abos = (await api.post('/categories', { name: 'Streaming Test' })).body;
+    const amex = (
+      await api.post('/accounts', {
+        name: 'Amex',
+        kind: 'credit_card',
+        balanceCents: 0,
+        statementDay: 31,
+        debitDay: 4,
+      })
+    ).body;
+    await api.post('/transactions/import', {
+      accountId: amex.id,
+      items: [
+        {
+          date: '2026-08-15',
+          name: 'Disney+',
+          categoryId: abos.id,
+          amountCents: -899,
+          importKey: 'imp:aug',
+          importLabel: 'paypal *disneyplus',
+        },
+      ],
+      links: [],
+    });
+    const check = (
+      await api.post('/transactions/import/check', {
+        keys: [],
+        labels: ['paypal *disneyplus', 'unbekannt'],
+        from: '2026-09-01',
+        to: '2026-09-30',
+      })
+    ).body as { learned: { label: string; name: string; categoryId: string }[] };
+    expect(check.learned).toEqual([
+      { label: 'paypal *disneyplus', name: 'Disney+', categoryId: abos.id },
+    ]);
+
+    // Von Hand ohne Karte erfasst, dann über den Kartenimport verknüpft
+    const manual = (
+      await api.post('/transactions', {
+        date: '2026-09-15',
+        name: 'Disney+',
+        categoryId: abos.id,
+        amountCents: -899,
+      })
+    ).body;
+    await api.post('/transactions/import', {
+      accountId: amex.id,
+      items: [],
+      links: [
+        { transactionId: manual.id, importKey: 'imp:sep', importLabel: 'paypal *disneyplus' },
+      ],
+    });
+    const september = (await api.get('/transactions?month=2026-09')).body as {
+      id: string;
+      accountId: string | null;
+    }[];
+    expect(september.find((t) => t.id === manual.id)?.accountId).toBe(amex.id);
+    const card = ((await api.get('/accounts')).body as { id: string; balanceCents: number }[]).find(
+      (a) => a.id === amex.id,
+    );
+    expect(card?.balanceCents).toBe(-1798);
   });
 });

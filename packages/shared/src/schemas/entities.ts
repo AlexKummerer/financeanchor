@@ -168,6 +168,8 @@ export const recurringItemSchema = z.object({
   categoryId: idSchema,
   /** `null` = Standardtopf, sofern der Posten über die Rücklage läuft */
   reservePotId: idSchema.nullable(),
+  /** Bezahlt mit (Kreditkarte), z. B. Abos; `null` = vom Konto */
+  accountId: idSchema.nullable().default(null),
   ...meta,
 });
 export type RecurringItem = z.infer<typeof recurringItemSchema>;
@@ -196,6 +198,8 @@ export const transactionSchema = z.object({
   accountId: idSchema.nullable().default(null),
   /** Fingerabdruck der eingelesenen Zeile eines Kontoauszugs (verhindert doppelten Import) */
   importKey: z.string().max(40).nullable().default(null),
+  /** Wiedererkennbarer Bank-Text ohne Nummern (Lernen von Name und Kategorie beim Import) */
+  importLabel: z.string().max(100).nullable().default(null),
   ...meta,
 });
 export type Transaction = z.infer<typeof transactionSchema>;
@@ -400,6 +404,8 @@ export type Me = z.infer<typeof meSchema>;
 // CSV-Import
 export const importCheckSchema = z.object({
   keys: z.array(z.string().max(40)).max(5000),
+  /** Merkmale der Zeilen: dazu früher gewählte Namen und Kategorien liefern */
+  labels: z.array(z.string().max(100)).max(5000).default([]),
   from: isoDateSchema,
   to: isoDateSchema,
 });
@@ -411,12 +417,21 @@ export const importCommitSchema = z.object({
     .array(
       transactionSchema
         .pick({ date: true, name: true, categoryId: true, amountCents: true })
-        .extend({ importKey: z.string().min(1).max(40) }),
+        .extend({
+          importKey: z.string().min(1).max(40),
+          importLabel: z.string().max(100).nullable().default(null),
+        }),
     )
     .max(2000),
   /** Zeilen, die eine vorhandene Buchung sind: nur den Fingerabdruck merken */
   links: z
-    .array(z.object({ transactionId: idSchema, importKey: z.string().min(1).max(40) }))
+    .array(
+      z.object({
+        transactionId: idSchema,
+        importKey: z.string().min(1).max(40),
+        importLabel: z.string().max(100).nullable().default(null),
+      }),
+    )
     .max(2000),
   /** Spaltenzuordnung für das nächste Mal (an diesem Konto) */
   profile: z.object({ accountId: idSchema, profile: importProfileSchema }).nullable().optional(),

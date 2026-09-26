@@ -71,6 +71,13 @@
       "when": 1790408190573,
       "tag": "0009_csv_import",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790412052131,
+      "tag": "0010_learn_and_paid_with",
+      "breakpoints": true
     }
   ]
 }

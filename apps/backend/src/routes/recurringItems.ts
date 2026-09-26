@@ -3,6 +3,7 @@ import { asc } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { recurringItems } from '../db/schema.js';
 import { strip } from '../mappers.js';
+import { assertCardAccount } from '../services/cards.js';
 import type { AppEnv } from '../middleware/context.js';
 import { validate } from '../validation.js';
 import { found, idParam, one, scopedFrom } from './util.js';
@@ -18,9 +19,12 @@ export const recurringItemRoutes = new Hono<AppEnv>()
     return c.json(rows.map(strip));
   })
   .post('/', validate('json', recurringItemCreateSchema), async (c) => {
+    const s = scopedFrom(c);
     const body = c.req.valid('json');
+    // „Bezahlt mit“ nur mit eigener Kreditkarte
+    await assertCardAccount(s, body.accountId);
     const row = one(
-      await scopedFrom(c).insert(recurringItems, {
+      await s.insert(recurringItems, {
         ...body,
         reservePotId: body.reservePotId ?? null,
       }),
@@ -34,6 +38,7 @@ export const recurringItemRoutes = new Hono<AppEnv>()
     validate('json', recurringItemUpdateSchema),
     async (c) => {
       const s = scopedFrom(c);
+      await assertCardAccount(s, c.req.valid('json').accountId);
       const row = one(
         await s.update(recurringItems, c.req.valid('param').id, c.req.valid('json')),
         'recurring item',

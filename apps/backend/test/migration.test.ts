@@ -82,6 +82,9 @@ describe('Migration Kreditkarten', () => {
       db.prepare(
         "insert into booked_items (id, user_id, created_at, updated_at, month, booking_key, transaction_id, account_id, account_delta_cents) values ('b1', 'u1', 0, 0, '2026-09', 'item:r1', 't1', 'a1', 0)",
       ),
+      db.prepare(
+        "insert into recurring_items (id, user_id, created_at, updated_at, name, amount_cents, interval_months, start_month, kind, category_id) values ('r1', 'u1', 0, 0, 'Disney+', 899, 1, '2026-01', 'fixed', 'c1')",
+      ),
     ]);
     await applyD1Migrations(db, env.TEST_MIGRATIONS.slice(idx), 'm_cards');
 
@@ -97,6 +100,12 @@ describe('Migration Kreditkarten', () => {
       await db.prepare('select id, booking_key, transaction_id from booked_items').all(),
     ).toMatchObject({
       results: [{ id: 'b1', booking_key: 'item:r1', transaction_id: 't1' }],
+    });
+    // Migration 0010 baut recurring_items neu auf: Posten bleibt, „Bezahlt mit“ ist leer
+    expect(await db.prepare('select id, name, account_id from recurring_items').first()).toEqual({
+      id: 'r1',
+      name: 'Disney+',
+      account_id: null,
     });
     expect(await db.prepare('select account_id from reserve_pots').first()).toEqual({
       account_id: 'a1',

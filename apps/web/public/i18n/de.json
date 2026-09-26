@@ -427,7 +427,8 @@
     "deleteTitle": "„{{name}}“ löschen?",
     "deleteText": "Bisherige Buchungen bleiben erhalten.",
     "none": "Noch keine Posten. Starte mit deinem Gehalt als Einnahme und der Miete.",
-    "loansHint": "Kreditraten stehen im Bereich Kredite und fließen automatisch in die Übersicht ein."
+    "loansHint": "Kreditraten stehen im Bereich Kredite und fließen automatisch in die Übersicht ein.",
+    "paidWithHint": "Abos oder Beiträge, die über eine Kreditkarte laufen: Die Buchung zählt dann zum Kartenstand und zur Abrechnung."
   },
   "reserve": {
     "title": "Rücklage für nicht-monatliche Kosten",
@@ -551,13 +552,13 @@
     "filter": {
       "new": "Neu",
       "match": "Schon gebucht?",
-      "card": "Kartenabbuchungen",
+      "card": "Karte/Abbuchung",
       "known": "Übernommen"
     },
     "filterHint": {
       "new": "Noch nicht in der App. Anhaken, Name und Kategorie prüfen, dann übernehmen.",
       "match": "Passt zu einer vorhandenen Buchung (gleicher Betrag, bis 3 Tage Abstand). Angehakt wird nur verknüpft, nichts doppelt angelegt.",
-      "card": "Abbuchungen einer Kreditkarte sind keine Ausgabe – buche sie über „Fällige übernehmen“; die Käufe liest du über die Karte ein.",
+      "card": "Abbuchungen einer Kreditkarte vom Girokonto und Zahlungen an die Karte sind keine Ausgabe bzw. Einnahme – sie laufen über „Fällige übernehmen“.",
       "known": "Diese Zeilen wurden schon früher übernommen."
     },
     "select": "{{name}} übernehmen",
@@ -606,6 +607,8 @@
         "advanzia": "nur PDF-Abrechnungen – kommt später"
       },
       "tip": "Tipp: Lade für den Abgleich immer einen ganzen Abrechnungszeitraum; doppelt Eingelesenes erkennt die App."
-    }
+    },
+    "cardSettlementHint": "Zahlung an die Karte – ist schon als Abbuchung über „Fällige übernehmen“ erfasst",
+    "learnedHint": "Name und Kategorie wie beim letzten Mal"
   }
 }

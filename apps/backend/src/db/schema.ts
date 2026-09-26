@@ -132,6 +132,8 @@ export const recurringItems = sqliteTable(
     kind: text('kind', { enum: recurringKinds }).notNull(),
     categoryId: text('category_id').notNull(),
     reservePotId: text('reserve_pot_id'),
+    /** Bezahlt mit (Kreditkarte) */
+    accountId: text('account_id'),
   },
   (t) => [
     index('recurring_items_user_idx').on(t.userId),
@@ -139,6 +141,11 @@ export const recurringItems = sqliteTable(
       name: 'recurring_items_category_fk',
       columns: [t.userId, t.categoryId],
       foreignColumns: [categories.userId, categories.id],
+    }),
+    foreignKey({
+      name: 'recurring_items_account_fk',
+      columns: [t.userId, t.accountId],
+      foreignColumns: [accounts.userId, accounts.id],
     }),
     foreignKey({
       name: 'recurring_items_pot_fk',
@@ -167,8 +174,11 @@ export const transactions = sqliteTable(
     accountId: text('account_id'),
     /** Fingerabdruck der eingelesenen Zeile eines Kontoauszugs */
     importKey: text('import_key'),
+    /** Wiedererkennbarer Bank-Text (ohne Nummern) für Vorschläge beim nächsten Import */
+    importLabel: text('import_label'),
   },
   (t) => [
+    index('transactions_import_label_idx').on(t.userId, t.importLabel),
     uniqueIndex('transactions_import_key_uq')
       .on(t.userId, t.importKey)
       .where(sql`import_key is not null`),

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   findLikelyMatch,
   importKeys,
+  importLabel,
+  looksLikeCardSettlement,
   looksLikeCardPayment,
   suggestCategoryId,
 } from '../src/index.js';
@@ -78,4 +80,32 @@ describe('Kategorie vorschlagen', () => {
     expect(sugg('PREWE GmbH')).toBeNull();
   });
   const sugg = (t: string) => suggestCategoryId(t, known);
+});
+
+describe('Merkmal zum Wiedererkennen', () => {
+  it('ohne wechselnde Nummern', () => {
+    expect(importLabel(row('2026-09-01', -899, 'PAYPAL *DISNEYPLUS 800724235230'))).toBe(
+      'paypal *disneyplus',
+    );
+    expect(importLabel(row('2026-10-01', -899, 'PAYPAL *DISNEYPLUS 811111111111'))).toBe(
+      'paypal *disneyplus',
+    );
+    expect(importLabel(row('2026-09-01', -4210, 'LIDL 4691           OLCHING'))).toBe(
+      'lidl olching',
+    );
+    expect(importLabel(row('2026-09-01', -500, '', 'Miete Oktober'))).toBe('miete oktober');
+    expect(importLabel(row('2026-09-01', -500, '12345', ''))).toBeNull();
+  });
+});
+
+describe('Zahlung an die Karte', () => {
+  it('nur Gutschriften mit typischem Text', () => {
+    expect(
+      looksLikeCardSettlement(row('2026-09-15', 50000, 'ZAHLUNG/ÜBERWEISUNG ERHALTEN BESTEN DANK')),
+    ).toBe(true);
+    expect(
+      looksLikeCardSettlement(row('2026-09-15', 1999, 'AMAZON EU', 'Gutschrift Retoure')),
+    ).toBe(false);
+    expect(looksLikeCardSettlement(row('2026-09-15', -50000, 'ZAHLUNG ERHALTEN'))).toBe(false);
+  });
 });

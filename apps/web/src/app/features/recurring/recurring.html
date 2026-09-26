@@ -55,6 +55,9 @@
             @if (r.viaReserve) {
               · {{ 'recurring.viaReserve' | transloco }}
             }
+            @if (r.item.accountId && store.accounts.byId().get(r.item.accountId); as card) {
+              · {{ card.name }}
+            }
           </span>
         </div>
         <div class="amt">

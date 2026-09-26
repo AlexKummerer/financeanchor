@@ -172,4 +172,37 @@ describe('Kreditkarten', () => {
     expect(st!.previous.transactions.map((t) => t.amountCents)).toEqual([-4550, -1000]);
     expect((await api.get('/accounts/card-statements')).status).toBe(400);
   });
+
+  it('Fixkosten „Bezahlt mit“ Karte: Fällige übernehmen bucht auf die Karte', async () => {
+    const { api } = await newUser();
+    const { giro, amex } = await setup(api);
+    const abos = (await api.post('/categories', { name: 'Streaming Test' })).body;
+    const base = {
+      name: 'Disney+',
+      amountCents: 899,
+      intervalMonths: 1,
+      startMonth: lastMonth,
+      kind: 'fixed',
+      categoryId: abos.id,
+      dueDay: 1,
+    };
+    expect((await api.post('/recurring-items', { ...base, accountId: giro.id })).status).toBe(400);
+    const item = (await api.post('/recurring-items', { ...base, accountId: amex.id })).body;
+    expect(item.accountId).toBe(amex.id);
+
+    const res = await api.post(`/due/${lastMonth}/book`, { today, keys: [`item:${item.id}`] });
+    expect(res.status).toBe(200);
+    const tx = (
+      (await api.get(`/transactions?month=${lastMonth}`)).body as {
+        name: string;
+        accountId: string | null;
+      }[]
+    ).find((t) => t.name === 'Disney+');
+    expect(tx?.accountId).toBe(amex.id);
+    expect((await accountById(api, amex.id)).balanceCents).toBe(-899);
+    // Umbenennen lässt „Bezahlt mit“ stehen
+    expect(
+      (await api.patch(`/recurring-items/${item.id}`, { name: 'Disney Plus' })).body.accountId,
+    ).toBe(amex.id);
+  });
 });

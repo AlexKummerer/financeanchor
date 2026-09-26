@@ -15,7 +15,7 @@ import { and, asc, eq, gte, isNotNull, like } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { runBatch } from '../db/client.js';
-import { accounts, bookedItems, reservePots, transactions } from '../db/schema.js';
+import { accounts, bookedItems, recurringItems, reservePots, transactions } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { strip } from '../mappers.js';
 import type { AppEnv } from '../middleware/context.js';
@@ -154,6 +154,10 @@ export const accountRoutes = new Hono<AppEnv>()
         .update(transactions)
         .set({ accountId: null, updatedAt: now })
         .where(s.own(transactions, eq(transactions.accountId, id))),
+      s.db
+        .update(recurringItems)
+        .set({ accountId: null, updatedAt: now })
+        .where(s.own(recurringItems, eq(recurringItems.accountId, id))),
       s.db
         .update(accounts)
         .set({ debitAccountId: null, updatedAt: now })

@@ -1,7 +1,9 @@
 import {
   findLikelyMatch,
   importKeys,
+  importLabel,
   looksLikeCardPayment,
+  looksLikeCardSettlement,
   suggestCategoryId,
   suggestName,
   type ExistingTransaction,
@@ -13,7 +15,8 @@ import {
  * - `new`: neu, kann übernommen werden
  * - `match`: passt zu einer vorhandenen Buchung (z. B. aus „Fällige übernehmen“) – beim Übernehmen
  *   wird nur verknüpft, nichts doppelt angelegt
- * - `card`: Abbuchung einer Kreditkarte auf dem Girokonto – keine Ausgabe
+ * - `card`: Abbuchung einer Kreditkarte auf dem Girokonto bzw. Zahlung an die Karte auf der
+ *   Kartenabrechnung – keine Ausgabe/Einnahme, läuft über „Fällige übernehmen“
  * - `known`: schon früher übernommen
  */
 export type RowStatus = 'new' | 'match' | 'card' | 'known';
@@ -23,6 +26,10 @@ export interface PreviewRow extends StatementRow {
   status: RowStatus;
   match: ExistingTransaction | null;
   selected: boolean;
+  /** Wiedererkennbarer Bank-Text (zum Lernen) */
+  label: string | null;
+  /** Name und Kategorie kommen aus einem früheren Import mit gleichem Merkmal */
+  learned: boolean;
   /** Bearbeitbar vor dem Übernehmen */
   name: string;
   category: string;
@@ -38,6 +45,8 @@ export interface PreviewInput {
   known: ReadonlySet<string>;
   existing: readonly ExistingTransaction[];
   suggestions: readonly { name: string; categoryId: string }[];
+  /** Früher gewählter Name und Kategorie je Merkmal */
+  learned: ReadonlyMap<string, { name: string; categoryId: string }>;
   categoryName: (id: string) => string;
 }
 
@@ -50,14 +59,20 @@ export function buildPreview(input: PreviewInput): PreviewRow[] {
     const name = suggestName(row);
     const match = input.known.has(key) ? null : findLikelyMatch(row, input.existing, taken);
     if (match) taken.add(match.id);
+    const card = input.isCard
+      ? looksLikeCardSettlement(row)
+      : looksLikeCardPayment(row, input.cardNames);
     const status: RowStatus = input.known.has(key)
       ? 'known'
       : match
         ? 'match'
-        : !input.isCard && looksLikeCardPayment(row, input.cardNames)
+        : card
           ? 'card'
           : 'new';
+    const label = importLabel(row);
+    const learned = label ? input.learned.get(label) : undefined;
     const categoryId =
+      learned?.categoryId ??
       suggestCategoryId(name, input.suggestions) ??
       suggestCategoryId(`${row.counterparty} ${row.purpose}`, input.suggestions);
     return {
@@ -66,7 +81,9 @@ export function buildPreview(input: PreviewInput): PreviewRow[] {
       status,
       match,
       selected: false,
-      name,
+      label,
+      learned: !!learned,
+      name: learned?.name ?? name,
       category: categoryId ? input.categoryName(categoryId) : '',
     };
   });

@@ -16,7 +16,8 @@ describe('buildPreview', () => {
     known: new Set<string>(),
     existing: [],
     suggestions: [{ name: 'REWE', categoryId: 'c-food' }],
-    categoryName: (id: string) => (id === 'c-food' ? 'Lebensmittel' : '?'),
+    learned: new Map([['paypal *disneyplus', { name: 'Disney+', categoryId: 'c-abo' }]]),
+    categoryName: (id: string) => ({ 'c-food': 'Lebensmittel', 'c-abo': 'Abos' })[id] ?? '?',
   };
 
   it('Status, Vorschläge; nichts ist ausgewählt', () => {
@@ -59,5 +60,23 @@ describe('buildPreview', () => {
       to: '2026-09-10',
     });
     expect(dateRange([])).toBeNull();
+  });
+
+  it('Gelerntes: Name und Kategorie wie beim letzten Mal', () => {
+    const [r] = buildPreview({
+      ...base,
+      isCard: true,
+      rows: [row('2026-10-15', -899, 'PAYPAL *DISNEYPLUS 811111111111')],
+    });
+    expect(r).toMatchObject({ status: 'new', learned: true, name: 'Disney+', category: 'Abos' });
+  });
+
+  it('Kartenimport: Zahlung an die Karte ist keine Einnahme', () => {
+    const [r] = buildPreview({
+      ...base,
+      isCard: true,
+      rows: [row('2026-09-15', 50000, 'ZAHLUNG/ÜBERWEISUNG ERHALTEN BESTEN DANK')],
+    });
+    expect(r?.status).toBe('card');
   });
 });

@@ -185,7 +185,13 @@
                   }}
                 </p>
               } @else if (r.status === 'card') {
-                <p class="small hint-match">{{ 'import.cardPaymentHint' | transloco }}</p>
+                <p class="small hint-match">
+                  {{
+                    (isCard() ? 'import.cardSettlementHint' : 'import.cardPaymentHint') | transloco
+                  }}
+                </p>
+              } @else if (r.learned && r.status === 'new') {
+                <p class="small hint-match">{{ 'import.learnedHint' | transloco }}</p>
               }
               @if (r.selected && r.status !== 'match') {
                 <div class="edit">

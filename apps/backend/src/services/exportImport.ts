@@ -157,6 +157,7 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
       id: ref(maps.item, i.id, 'Posten'),
       categoryId: ref(maps.category, i.categoryId, 'Posten → Kategorie'),
       reservePotId: optRef(maps.pot, i.reservePotId, 'Posten → Topf'),
+      accountId: optRef(maps.account, i.accountId, 'Posten → Karte'),
     })),
     transactions: d.transactions.map((t) => ({
       ...t,

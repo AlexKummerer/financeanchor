@@ -59,7 +59,7 @@ export const transactionRoutes = new Hono<AppEnv>()
    */
   .post('/import/check', validate('json', importCheckSchema), async (c) => {
     const s = scopedFrom(c);
-    const { keys, from, to } = c.req.valid('json');
+    const { keys, labels, from, to } = c.req.valid('json');
     const known: string[] = [];
     // D1 erlaubt höchstens 100 Parameter je Abfrage
     for (let i = 0; i < keys.length; i += 90) {
@@ -88,7 +88,24 @@ export const transactionRoutes = new Hono<AppEnv>()
           ),
         ),
       );
-    return c.json({ known, existing });
+    // Gelernt: zu jedem Merkmal Name und Kategorie der jüngsten Buchung damit
+    const wanted = [...new Set(labels)];
+    const learned = new Map<string, { label: string; name: string; categoryId: string }>();
+    for (let i = 0; i < wanted.length; i += 90) {
+      const rows = await s.db
+        .select({
+          label: transactions.importLabel,
+          name: transactions.name,
+          categoryId: transactions.categoryId,
+        })
+        .from(transactions)
+        .where(s.own(transactions, inArray(transactions.importLabel, wanted.slice(i, i + 90))))
+        .orderBy(desc(transactions.date), desc(transactions.createdAt));
+      for (const r of rows) {
+        if (r.label && !learned.has(r.label)) learned.set(r.label, { ...r, label: r.label });
+      }
+    }
+    return c.json({ known, existing, learned: [...learned.values()] });
   })
   /**
    * CSV-Import, Schritt 2: bestätigte Zeilen atomar übernehmen – neue Buchungen anlegen und bei
@@ -119,7 +136,17 @@ export const transactionRoutes = new Hono<AppEnv>()
         ...body.links.map((l) =>
           s.db
             .update(transactions)
-            .set({ importKey: l.importKey, updatedAt: now })
+            .set({
+              importKey: l.importKey,
+              importLabel: l.importLabel,
+              // Beim Karten-Import: vorhandene eigene Buchung ohne Karte der Karte zuordnen
+              ...(body.accountId
+                ? {
+                    accountId: sql`case when ${transactions.kind} = 'normal' then coalesce(${transactions.accountId}, ${body.accountId}) else ${transactions.accountId} end`,
+                  }
+                : {}),
+              updatedAt: now,
+            })
             .where(
               s.own(
                 transactions,

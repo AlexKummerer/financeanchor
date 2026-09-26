@@ -6,6 +6,7 @@ import {
   categoryNameKey,
   detectDelimiter,
   importKeys,
+  importLabel,
   parseCsv,
   parseStatementSections,
   type Category,
@@ -175,12 +176,14 @@ export class ImportPage {
     try {
       const scope = this.accountId() || 'none';
       const keys = importKeys(scope, section.rows);
+      const labels = section.rows.map((r) => importLabel(r)).filter((l): l is string => !!l);
       const [check, suggestions] = await Promise.all([
         firstValueFrom(
-          this.http.post<{ known: string[]; existing: ExistingTransaction[] }>(
-            '/api/transactions/import/check',
-            { keys, ...range },
-          ),
+          this.http.post<{
+            known: string[];
+            existing: ExistingTransaction[];
+            learned: { label: string; name: string; categoryId: string }[];
+          }>('/api/transactions/import/check', { keys, labels, ...range }),
         ),
         firstValueFrom(
           this.http.get<{ name: string; categoryId: string }[]>('/api/transactions/suggestions'),
@@ -198,6 +201,7 @@ export class ImportPage {
           known: new Set(check.known),
           existing: check.existing,
           suggestions,
+          learned: new Map(check.learned.map((l) => [l.label, l])),
           categoryName: (id) => this.store.categoryName(id),
         }),
       );
@@ -277,7 +281,7 @@ export class ImportPage {
       const links: ImportCommit['links'] = [];
       for (const r of chosen) {
         if (r.status === 'match' && r.match) {
-          links.push({ transactionId: r.match.id, importKey: r.key });
+          links.push({ transactionId: r.match.id, importKey: r.key, importLabel: r.label });
           continue;
         }
         const key = categoryNameKey(r.category);
@@ -289,6 +293,7 @@ export class ImportPage {
           categoryId: category.id,
           amountCents: r.amountCents,
           importKey: r.key,
+          importLabel: r.label,
         });
       }
       const section = this.section();

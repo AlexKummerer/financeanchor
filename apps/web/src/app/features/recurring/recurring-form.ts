@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   categoryNameKey,
@@ -22,6 +22,8 @@ export interface RecurringFormValue {
   startMonth: string;
   dueDay: number;
   categoryId: string;
+  /** Bezahlt mit (Kreditkarte), z. B. Abos */
+  accountId: string | null;
 }
 
 /** Formular für einen wiederkehrenden Posten (Anlegen und Bearbeiten). */
@@ -119,6 +121,20 @@ export interface RecurringFormValue {
           }
         </datalist>
       </div>
+      @if (cards().length && form.controls.kind.value !== 'income') {
+        <div class="full">
+          <label for="rc-paid">{{ 'tx.paidWith' | transloco }}</label>
+          <select id="rc-paid" formControlName="accountId" aria-describedby="rc-paid-hint">
+            <option [ngValue]="null">{{ 'tx.paidAccount' | transloco }}</option>
+            @for (c of cards(); track c.id) {
+              <option [ngValue]="c.id">{{ c.name }}</option>
+            }
+          </select>
+          <p id="rc-paid-hint" class="small muted" style="margin-top: 4px">
+            {{ 'recurring.paidWithHint' | transloco }}
+          </p>
+        </div>
+      }
       <div class="full btnrow">
         <button class="btn" type="submit" [disabled]="busy()">
           {{ (item() ? 'recurring.update' : 'recurring.save') | transloco }}
@@ -160,7 +176,11 @@ export class RecurringForm {
     ],
     dueDay: [1, [Validators.required, Validators.min(1), Validators.max(31)]],
     category: ['', [Validators.required, Validators.maxLength(100)]],
+    accountId: this.fb.control<string | null>(null),
   });
+  protected readonly cards = computed(() =>
+    this.store.accounts.items().filter((a) => a.kind === 'credit_card'),
+  );
 
   constructor() {
     effect(() => {
@@ -183,6 +203,7 @@ export class RecurringForm {
         startMonth: it.startMonth,
         dueDay: it.dueDay,
         category: this.store.categoryName(it.categoryId),
+        accountId: it.accountId,
       });
     });
   }
@@ -208,6 +229,7 @@ export class RecurringForm {
       startMonth: v.startMonth,
       dueDay: v.dueDay,
       categoryId: category.id,
+      accountId: v.kind === 'income' ? null : v.accountId,
     });
   }
 

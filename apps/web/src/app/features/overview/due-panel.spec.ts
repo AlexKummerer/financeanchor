@@ -24,6 +24,7 @@ const entry = (over: Partial<DueEntry>): DueEntry => ({
   interestCents: 0,
   maxAmountCents: null,
   linkedKey: null,
+  paidWith: null,
   booked: false,
   bookable: true,
   ...over,

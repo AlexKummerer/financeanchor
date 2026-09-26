@@ -38,3 +38,10 @@ Wunsch (26.09.2026): Umsätze der Banken und Karten einlesen statt abtippen – 
 - Nicht per CSV: Barclays (nur Excel), Hanseatic und Advanzia (nur PDF) – später.
 - Oberfläche: Buchungen → „Umsätze aus CSV einlesen“ (`/buchungen/einlesen`). Kartenabbuchungen auf dem Girokonto lassen sich nicht als Ausgabe übernehmen; ist die Abbuchung schon gebucht, erscheint sie unter „Schon gebucht?“ zum Verknüpfen.
 - Unbekanntes Format: Spalten selbst zuordnen; die Zuordnung wird beim Übernehmen am Konto gespeichert.
+
+## Nachtrag (26.09.2026): Lernen und Karten-Abos
+
+- **Lernen:** Jede übernommene oder verknüpfte Zeile speichert ein Merkmal des Bank-Texts ohne Nummern (`transactions.import_label`, z. B. „paypal *disneyplus“). Beim nächsten Import werden Name und Kategorie der jüngsten Buchung mit gleichem Merkmal vorbelegt („wie beim letzten Mal“). Übernommen wird weiterhin nur Angehaktes.
+- **Fixkosten „Bezahlt mit“** (`recurring_items.account_id`, Migration 0010): „Fällige übernehmen“ bucht solche Posten auf die Karte; sie zählen zu Kartenstand und Abrechnung.
+- **Verknüpfen beim Karten-Import** trägt die Karte bei eigenen Buchungen ohne Karte nach.
+- **Zahlung an die Karte** („ZAHLUNG/ÜBERWEISUNG ERHALTEN …“) wird beim Karten-Import erkannt und nicht als Einnahme angeboten.

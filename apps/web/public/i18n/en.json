@@ -427,7 +427,8 @@
     "deleteTitle": "Delete “{{name}}”?",
     "deleteText": "Existing transactions are kept.",
     "none": "No items yet. Start with your salary as income and your rent.",
-    "loansHint": "Loan payments live under Loans and are included in the overview automatically."
+    "loansHint": "Loan payments live under Loans and are included in the overview automatically.",
+    "paidWithHint": "Subscriptions or fees paid by credit card: the booking then counts towards the card balance and statement."
   },
   "reserve": {
     "title": "Reserve for non-monthly costs",
@@ -551,13 +552,13 @@
     "filter": {
       "new": "New",
       "match": "Already booked?",
-      "card": "Card debits",
+      "card": "Card/debit",
       "known": "Imported"
     },
     "filterHint": {
       "new": "Not in the app yet. Tick, check name and category, then import.",
       "match": "Matches an existing transaction (same amount, up to 3 days apart). Ticked rows are only linked, nothing is created twice.",
-      "card": "Credit card debits are not expenses – book them via “Book due items”; import the purchases from the card.",
+      "card": "Card debits from the checking account and payments to the card are neither expense nor income – they go via “Book due items”.",
       "known": "These rows were imported earlier."
     },
     "select": "Import {{name}}",
@@ -606,6 +607,8 @@
         "advanzia": "PDF statements only – coming later"
       },
       "tip": "Tip: for reconciliation always load a whole statement period; the app recognises rows imported twice."
-    }
+    },
+    "cardSettlementHint": "Payment to the card – already recorded as the debit via “Book due items”",
+    "learnedHint": "Name and category as last time"
   }
 }

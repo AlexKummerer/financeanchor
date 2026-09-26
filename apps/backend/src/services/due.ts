@@ -152,6 +152,7 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
       kind: e.transactionKind,
       sourceType: e.sourceType,
       sourceId: e.sourceId,
+      accountId: e.paidWith,
       createdAt: now,
       updatedAt: now,
     };

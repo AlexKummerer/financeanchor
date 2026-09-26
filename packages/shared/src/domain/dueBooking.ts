@@ -39,6 +39,8 @@ export interface DueEntry {
   maxAmountCents: Cents | null;
   /** Umbuchung gehört zu dieser Posten-Ausgabe und wird immer mit ihr gebucht */
   linkedKey: string | null;
+  /** Bezahlt mit (Kreditkarte): die Buchung zählt zum Kartenstand */
+  paidWith: string | null;
   booked: boolean;
   /** Offen und bis heute fällig */
   bookable: boolean;
@@ -70,7 +72,12 @@ export const germanDueLabels: DueLabels = {
 export interface DueInput {
   month: YearMonth;
   today: IsoDate;
-  items: readonly (ReserveItemLike & { name: string; categoryId: string; dueDay: number })[];
+  items: readonly (ReserveItemLike & {
+    name: string;
+    categoryId: string;
+    dueDay: number;
+    accountId?: string | null;
+  })[];
   pots: readonly (ReservePotLike & { accountId: string | null; dueDay: number })[];
   accounts: readonly (Pick<Account, 'id' | 'name'> &
     Partial<Pick<Account, 'kind' | 'statementDay' | 'debitDay' | 'debitAccountId'>>)[];
@@ -117,6 +124,7 @@ export function planDue(input: DueInput): DueEntry[] {
       interestCents: 0,
       maxAmountCents: null,
       linkedKey: null,
+      paidWith: null,
     });
   }
 
@@ -140,6 +148,7 @@ export function planDue(input: DueInput): DueEntry[] {
       interestCents: 0,
       maxAmountCents: null,
       linkedKey: null,
+      paidWith: item.accountId ?? null,
     });
     if (viaReserve(item)) {
       const pot = potById.get(potIdForItem(item, defaultPotId));
@@ -161,6 +170,7 @@ export function planDue(input: DueInput): DueEntry[] {
         interestCents: 0,
         maxAmountCents: null,
         linkedKey: itemKey,
+        paidWith: null,
       });
     }
   }
@@ -258,6 +268,7 @@ export function planDue(input: DueInput): DueEntry[] {
       interestCents: 0,
       maxAmountCents: null,
       linkedKey: null,
+      paidWith: null,
     });
   }
 
@@ -303,6 +314,7 @@ function loanDraft(
     interestCents: interest,
     maxAmountCents,
     linkedKey: null,
+    paidWith: null,
   };
 }
 
