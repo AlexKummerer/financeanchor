@@ -357,7 +357,8 @@
     "deleteManagedTitle": "Automatisch gebuchte Buchung löschen?",
     "deleteManagedText": "Änderungen am Rücklagenkonto bzw. an der Restschuld werden rückgängig gemacht und der Posten ist in diesem Monat wieder offen.",
     "paidWith": "Bezahlt mit",
-    "paidAccount": "Konto / bar"
+    "paidAccount": "Konto / bar",
+    "cardPaymentNote": "Umbuchung – keine Ausgabe (die Käufe zählen einzeln)"
   },
   "categories": {
     "title": "Kategorien",

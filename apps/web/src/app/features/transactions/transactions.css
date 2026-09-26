@@ -18,3 +18,9 @@
 .tag {
   margin-left: 6px;
 }
+
+/* Kartenabbuchung: Umbuchung, zählt nicht als Ausgabe */
+.amt.transfer {
+  color: var(--muted);
+  font-weight: 500;
+}

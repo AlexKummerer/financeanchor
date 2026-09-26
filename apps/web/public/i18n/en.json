@@ -357,7 +357,8 @@
     "deleteManagedTitle": "Delete automatically booked transaction?",
     "deleteManagedText": "Changes to the reserve account or loan balance are reverted and the item is open again this month.",
     "paidWith": "Paid with",
-    "paidAccount": "Account / cash"
+    "paidAccount": "Account / cash",
+    "cardPaymentNote": "Transfer – not an expense (purchases count individually)"
   },
   "categories": {
     "title": "Categories",

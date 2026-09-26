@@ -132,8 +132,17 @@
             @if (cardName(tx.accountId); as card) {
               <span class="tag card">{{ card }}</span>
             }
+            @if (tx.kind === 'card_payment') {
+              <span class="small muted">· {{ 'tx.cardPaymentNote' | transloco }}</span>
+            }
           </div>
-          <div class="amt" [class.pos]="tx.amountCents > 0">{{ tx.amountCents | money }}</div>
+          <div
+            class="amt"
+            [class.pos]="tx.amountCents > 0 && tx.kind !== 'card_payment'"
+            [class.transfer]="tx.kind === 'card_payment'"
+          >
+            {{ tx.amountCents | money }}
+          </div>
           <button
             class="iconbtn"
             type="button"
