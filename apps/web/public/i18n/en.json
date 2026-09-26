@@ -521,5 +521,65 @@
     "settings": "Settings",
     "settingsNamed": "Settings of {{name}}",
     "entry": "1 entry"
+  },
+  "import": {
+    "title": "Import transactions",
+    "open": "Import transactions from CSV",
+    "back": "Back to transactions",
+    "intro": "Load the CSV export of your bank or credit card. The file stays on your device; only what you tick is imported.",
+    "account": "Which account does the file belong to?",
+    "noAccount": "– no account in the app –",
+    "accountHint": "For a checking account, card debits are detected and not imported as expenses.",
+    "cardHint": "Purchases are assigned to the card (“Paid with”) and count towards the card balance.",
+    "file": "CSV file",
+    "fileHint": "Supported: Sparkasse, Volksbank/Raiffeisenbank, DKB, ING, Comdirect, American Express; other formats can be mapped manually.",
+    "recognized": "Recognised: {{bank}} · {{n}} transactions",
+    "skippedLines": "{{n}} lines skipped (pending or without amount)",
+    "section": "Section of the file",
+    "preset": {
+      "sparkasse": "Sparkasse",
+      "volksbank": "Volksbank / Raiffeisenbank",
+      "dkb": "DKB",
+      "dkb-visa": "DKB Visa",
+      "ing": "ING",
+      "comdirect": "Comdirect",
+      "amex": "American Express",
+      "auto": "unknown bank (columns detected)",
+      "saved": "saved mapping",
+      "custom": "custom mapping"
+    },
+    "filterLabel": "Show",
+    "filter": {
+      "new": "New",
+      "match": "Already booked?",
+      "card": "Card debits",
+      "known": "Imported"
+    },
+    "filterHint": {
+      "new": "Not in the app yet. Tick, check name and category, then import.",
+      "match": "Matches an existing transaction (same amount, up to 3 days apart). Ticked rows are only linked, nothing is created twice.",
+      "card": "Credit card debits are not expenses – book them via “Book due items”; import the purchases from the card.",
+      "known": "These rows were imported earlier."
+    },
+    "select": "Import {{name}}",
+    "matchHint": "Probably already booked: {{name}} ({{date}})",
+    "cardPaymentHint": "Card debit – book via “Book due items”",
+    "noneInFilter": "No transactions in this view.",
+    "noRows": "No transactions found in the file.",
+    "commit": "Import {{n}}",
+    "done": "{{created}} transactions imported, {{linked}} linked",
+    "missingFields": "Please enter name and category for every ticked row.",
+    "alreadyImported": "Some rows were imported in the meantime. The list has been updated.",
+    "manualTitle": "Format not recognised",
+    "manualHint": "Map the columns once – the mapping is saved for this account when importing.",
+    "headerRow": "Row with the column names",
+    "column": {
+      "date": "Date",
+      "amount": "Amount",
+      "counterparty": "Payee / payer",
+      "purpose": "Reference"
+    },
+    "invertSign": "Charges are positive in the file (flip the sign)",
+    "applyMapping": "Apply mapping"
   }
 }

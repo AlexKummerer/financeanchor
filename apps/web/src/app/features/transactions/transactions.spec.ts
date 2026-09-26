@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import type { Category } from '@financeanchor/shared';
 import { translocoTesting } from '../../../testing/transloco';
 import { Clock } from '../../core/clock';
@@ -27,6 +28,7 @@ describe('TransactionsPage', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: Clock, useValue: { today: () => '2026-09-25', month: () => '2026-09' } },
         {
           provide: FinanceStore,

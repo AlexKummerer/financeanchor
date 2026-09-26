@@ -1,0 +1,125 @@
+.hint {
+  margin-top: 4px;
+}
+.subtitle {
+  margin: 0;
+  font-size: 1rem;
+  word-break: break-all;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.tools {
+  display: flex;
+  justify-content: flex-end;
+}
+.tools .linkbtn {
+  min-height: 44px;
+}
+.rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.rows > li {
+  /* Platz für den festen Übernehmen-Button beim Scrollen (Tastatur, Fokus) */
+  scroll-margin-bottom: 160px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  border: 1px solid transparent;
+}
+.rows > li.chosen {
+  border-color: var(--pine);
+}
+.rows > li.known {
+  opacity: 0.7;
+}
+.line1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+.rows input,
+.line1 input[type='checkbox'] {
+  scroll-margin-bottom: 160px;
+}
+.line1 input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: none;
+}
+.date {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.original {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.amt {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.purpose {
+  margin: 2px 0 0 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hint-match {
+  margin: 4px 0 0 28px;
+  color: var(--pine);
+}
+.edit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin: 8px 0 2px 28px;
+}
+.commit {
+  position: sticky;
+  bottom: calc(72px + var(--safe-bottom));
+  padding-top: 8px;
+  background: var(--surface);
+}
+.commit .btn {
+  width: 100%;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  min-height: 36px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+.chip.active {
+  background: var(--pine);
+  border-color: var(--pine);
+  color: var(--on-pine);
+}

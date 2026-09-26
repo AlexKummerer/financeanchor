@@ -25,6 +25,11 @@ export const routes: Routes = [
           import('./features/transactions/transactions').then((m) => m.TransactionsPage),
       },
       {
+        path: 'buchungen/einlesen',
+        data: { titleKey: 'import.title' },
+        loadComponent: () => import('./features/import/import-page').then((m) => m.ImportPage),
+      },
+      {
         path: 'fixkosten',
         data: { titleKey: 'nav.recurring' },
         loadComponent: () => import('./features/recurring/recurring').then((m) => m.RecurringPage),

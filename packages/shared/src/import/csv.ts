@@ -43,7 +43,7 @@ export function parseCsv(text: string, delimiter: Delimiter): string[][] {
   return rows.map((r) => r.map((f) => f.trim()));
 }
 
-/** Trennzeichen raten: das, das in den ersten Zeilen am häufigsten gleich oft vorkommt. */
+/** Trennzeichen raten: das, mit dem die meisten Zeilen gleich viele (und viele) Spalten haben. */
 export function detectDelimiter(text: string): Delimiter {
   const lines = text
     .replace(/^\uFEFF/, '')
@@ -58,7 +58,8 @@ export function detectDelimiter(text: string): Delimiter {
     const freq = new Map<number, number>();
     for (const c of counts) if (c > 1) freq.set(c, (freq.get(c) ?? 0) + 1);
     const [cols, n] = [...freq].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0] ?? [0, 0];
-    const score = n * 100 + cols;
+    // Viele Zeilen mit vielen Spalten: ein Komma im Betrag („-13,98“) ergibt nur zwei Spalten
+    const score = n * cols;
     if (score > bestScore) {
       bestScore = score;
       best = d;

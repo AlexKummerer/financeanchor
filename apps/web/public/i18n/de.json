@@ -521,5 +521,65 @@
     "settings": "Einstellungen",
     "settingsNamed": "Einstellungen von {{name}}",
     "entry": "1 Buchung"
+  },
+  "import": {
+    "title": "Umsätze einlesen",
+    "open": "Umsätze aus CSV einlesen",
+    "back": "Zurück zu den Buchungen",
+    "intro": "Lade den CSV-Export deiner Bank oder Kreditkarte. Die Datei bleibt auf deinem Gerät; übernommen wird nur, was du anhakst.",
+    "account": "Zu welchem Konto gehört die Datei?",
+    "noAccount": "– kein Konto in der App –",
+    "accountHint": "Beim Girokonto werden Kartenabbuchungen erkannt und nicht als Ausgabe übernommen.",
+    "cardHint": "Käufe werden der Karte zugeordnet („Bezahlt mit“) und zählen zum Kartenstand.",
+    "file": "CSV-Datei",
+    "fileHint": "Unterstützt: Sparkasse, Volksbank/Raiffeisenbank, DKB, ING, Comdirect, American Express; andere Formate lassen sich selbst zuordnen.",
+    "recognized": "Erkannt: {{bank}} · {{n}} Umsätze",
+    "skippedLines": "{{n}} Zeilen übersprungen (vorgemerkt oder ohne Betrag)",
+    "section": "Abschnitt der Datei",
+    "preset": {
+      "sparkasse": "Sparkasse",
+      "volksbank": "Volksbank / Raiffeisenbank",
+      "dkb": "DKB",
+      "dkb-visa": "DKB Visa",
+      "ing": "ING",
+      "comdirect": "Comdirect",
+      "amex": "American Express",
+      "auto": "unbekannte Bank (Spalten erkannt)",
+      "saved": "gespeicherte Zuordnung",
+      "custom": "eigene Zuordnung"
+    },
+    "filterLabel": "Anzeigen",
+    "filter": {
+      "new": "Neu",
+      "match": "Schon gebucht?",
+      "card": "Kartenabbuchungen",
+      "known": "Übernommen"
+    },
+    "filterHint": {
+      "new": "Noch nicht in der App. Anhaken, Name und Kategorie prüfen, dann übernehmen.",
+      "match": "Passt zu einer vorhandenen Buchung (gleicher Betrag, bis 3 Tage Abstand). Angehakt wird nur verknüpft, nichts doppelt angelegt.",
+      "card": "Abbuchungen einer Kreditkarte sind keine Ausgabe – buche sie über „Fällige übernehmen“; die Käufe liest du über die Karte ein.",
+      "known": "Diese Zeilen wurden schon früher übernommen."
+    },
+    "select": "{{name}} übernehmen",
+    "matchHint": "Wahrscheinlich schon gebucht: {{name}} ({{date}})",
+    "cardPaymentHint": "Kartenabbuchung – über „Fällige übernehmen“ buchen",
+    "noneInFilter": "Keine Umsätze in dieser Ansicht.",
+    "noRows": "Keine Umsätze in der Datei gefunden.",
+    "commit": "{{n}} übernehmen",
+    "done": "{{created}} Buchungen übernommen, {{linked}} verknüpft",
+    "missingFields": "Bitte bei allen angehakten Umsätzen Name und Kategorie angeben.",
+    "alreadyImported": "Einige Umsätze wurden inzwischen schon übernommen. Die Liste ist aktualisiert.",
+    "manualTitle": "Format nicht erkannt",
+    "manualHint": "Ordne die Spalten einmal zu – die Zuordnung wird beim Übernehmen für dieses Konto gespeichert.",
+    "headerRow": "Zeile mit den Spaltennamen",
+    "column": {
+      "date": "Datum",
+      "amount": "Betrag",
+      "counterparty": "Empfänger / Auftraggeber",
+      "purpose": "Verwendungszweck"
+    },
+    "invertSign": "Belastungen stehen positiv in der Datei (Vorzeichen umdrehen)",
+    "applyMapping": "Zuordnung anwenden"
   }
 }

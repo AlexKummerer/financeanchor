@@ -1,0 +1,215 @@
+<p class="small">
+  <a routerLink="/buchungen">← {{ 'import.back' | transloco }}</a>
+</p>
+
+<section class="panel stack">
+  <p class="small muted">{{ 'import.intro' | transloco }}</p>
+  <div>
+    <label for="im-account">{{ 'import.account' | transloco }}</label>
+    <select id="im-account" [value]="accountId()" (change)="setAccount($any($event.target).value)">
+      <option value="">{{ 'import.noAccount' | transloco }}</option>
+      @for (a of accounts(); track a.id) {
+        <option [value]="a.id">{{ a.name }} ({{ 'assets.kinds.' + a.kind | transloco }})</option>
+      }
+    </select>
+    <p class="small muted hint">
+      {{ (isCard() ? 'import.cardHint' : 'import.accountHint') | transloco }}
+    </p>
+  </div>
+  <div>
+    <label for="im-file">{{ 'import.file' | transloco }}</label>
+    <input
+      #fileInput
+      id="im-file"
+      type="file"
+      accept=".csv,text/csv,text/plain"
+      (change)="pickFile(fileInput)"
+    />
+    <p class="small muted hint">{{ 'import.fileHint' | transloco }}</p>
+  </div>
+</section>
+
+@if (fileName()) {
+  @if (notRecognized()) {
+    <section class="panel stack" style="margin-top: 12px" aria-labelledby="im-manual-title">
+      <h2 id="im-manual-title" class="subtitle">{{ 'import.manualTitle' | transloco }}</h2>
+      <p class="small muted">{{ 'import.manualHint' | transloco }}</p>
+      <div>
+        <label for="im-header">{{ 'import.headerRow' | transloco }}</label>
+        <select
+          id="im-header"
+          [value]="manualHeader()"
+          (change)="manualHeader.set(+$any($event.target).value)"
+        >
+          @for (r of rawTable().rows; track $index) {
+            <option [value]="$index">{{ $index + 1 }}: {{ r.join(' · ').slice(0, 80) }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-grid">
+        @for (f of columnFields; track f) {
+          <div>
+            <label [for]="'im-col-' + f">{{ 'import.column.' + f | transloco }}</label>
+            <select [id]="'im-col-' + f" (change)="setColumn(f, $any($event.target).value)">
+              <option value="">–</option>
+              @for (c of manualColumns(); track $index) {
+                <option [value]="c">{{ c }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="manual().invertSign"
+          (change)="setManual({ invertSign: $any($event.target).checked })"
+        />
+        {{ 'import.invertSign' | transloco }}
+      </label>
+      <div class="btnrow">
+        <button
+          class="btn"
+          type="button"
+          [disabled]="!manual().date || !manual().amount"
+          (click)="applyManual()"
+        >
+          {{ 'import.applyMapping' | transloco }}
+        </button>
+      </div>
+    </section>
+  } @else if (section(); as s) {
+    <section class="panel stack" style="margin-top: 12px" aria-labelledby="im-result-title">
+      <h2 id="im-result-title" class="subtitle">{{ fileName() }}</h2>
+      <p class="small muted">
+        {{ 'import.recognized' | transloco: { bank: presetLabel(), n: s.rows.length } }}
+        @if (s.skipped.length) {
+          · {{ 'import.skippedLines' | transloco: { n: s.skipped.length } }}
+        }
+      </p>
+      @if (sections().length > 1) {
+        <div>
+          <label for="im-section">{{ 'import.section' | transloco }}</label>
+          <select
+            id="im-section"
+            [value]="sectionIndex()"
+            (change)="chooseSection(+$any($event.target).value)"
+          >
+            @for (x of sections(); track $index) {
+              <option [value]="$index">{{ x.title ?? $index + 1 }} ({{ x.rows.length }})</option>
+            }
+          </select>
+        </div>
+      }
+
+      @if (checking()) {
+        <p class="muted small">{{ 'common.loading' | transloco }}</p>
+      } @else if (rows().length) {
+        <div class="chips" role="group" [attr.aria-label]="'import.filterLabel' | transloco">
+          @for (o of filterOptions(); track o.value) {
+            <button
+              type="button"
+              class="chip"
+              [class.active]="filter() === o.value"
+              [attr.aria-pressed]="filter() === o.value"
+              (click)="filter.set(o.value)"
+            >
+              {{ o.label }}
+            </button>
+          }
+        </div>
+        <p class="small muted">{{ 'import.filterHint.' + filter() | transloco }}</p>
+
+        @if (canSelectVisible()) {
+          <div class="tools">
+            <button class="linkbtn" type="button" (click)="toggleAll()">
+              {{ (allVisibleSelected() ? 'due.selectNone' : 'due.selectAll') | transloco }}
+            </button>
+          </div>
+        }
+
+        <ul class="rows">
+          @for (r of visible(); track r.key) {
+            <li [class.chosen]="r.selected" [class.known]="!selectable(r)">
+              <div class="line1">
+                @if (selectable(r)) {
+                  <input
+                    type="checkbox"
+                    [id]="'im-sel-' + r.key"
+                    [checked]="r.selected"
+                    (change)="update(r.key, { selected: $any($event.target).checked })"
+                    [attr.aria-label]="'import.select' | transloco: { name: r.name }"
+                  />
+                }
+                <span class="date">{{ r.date | faDate: 'dayMonth' }}</span>
+                <span class="grow original" [title]="r.counterparty + ' ' + r.purpose">
+                  {{ r.counterparty || r.purpose }}
+                </span>
+                <span class="amt" [class.pos]="r.amountCents > 0">{{ r.amountCents | money }}</span>
+              </div>
+              @if (r.purpose && r.counterparty) {
+                <p class="small muted purpose">{{ r.purpose }}</p>
+              }
+              @if (r.status === 'match' && r.match; as m) {
+                <p class="small hint-match">
+                  {{
+                    'import.matchHint'
+                      | transloco: { name: m.name, date: (m.date | faDate: 'dayMonth') }
+                  }}
+                </p>
+              } @else if (r.status === 'card') {
+                <p class="small hint-match">{{ 'import.cardPaymentHint' | transloco }}</p>
+              }
+              @if (r.selected && r.status !== 'match') {
+                <div class="edit">
+                  <div>
+                    <label [for]="'im-name-' + r.key">{{ 'tx.name' | transloco }}</label>
+                    <input
+                      [id]="'im-name-' + r.key"
+                      [value]="r.name"
+                      (input)="update(r.key, { name: $any($event.target).value })"
+                      autocomplete="off"
+                      [attr.aria-invalid]="showErrors() && !r.name.trim()"
+                    />
+                  </div>
+                  <div>
+                    <label [for]="'im-cat-' + r.key">{{ 'tx.category' | transloco }}</label>
+                    <input
+                      [id]="'im-cat-' + r.key"
+                      [value]="r.category"
+                      list="im-cats"
+                      (input)="update(r.key, { category: $any($event.target).value })"
+                      autocomplete="off"
+                      [placeholder]="'tx.categoryPlaceholder' | transloco"
+                      [attr.aria-invalid]="showErrors() && !r.category.trim()"
+                    />
+                  </div>
+                </div>
+              }
+            </li>
+          } @empty {
+            <li class="empty">{{ 'import.noneInFilter' | transloco }}</li>
+          }
+        </ul>
+        <datalist id="im-cats">
+          @for (c of store.userCategories(); track c.id) {
+            <option [value]="c.name"></option>
+          }
+        </datalist>
+
+        <div class="commit">
+          <button
+            class="btn"
+            type="button"
+            [disabled]="!selectedCount() || busy()"
+            (click)="commit()"
+          >
+            {{ 'import.commit' | transloco: { n: selectedCount() } }}
+          </button>
+        </div>
+      } @else {
+        <p class="empty">{{ 'import.noRows' | transloco }}</p>
+      }
+    </section>
+  }
+}

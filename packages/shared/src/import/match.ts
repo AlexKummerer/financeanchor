@@ -113,3 +113,27 @@ export function looksLikeCardPayment(
     new RegExp(`(^|[^a-z])${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z]|$)`).test(text),
   );
 }
+
+/**
+ * Kategorie aus früheren Buchungen vorschlagen: gleicher Name, sonst ein früherer Name, der im
+ * Text vorkommt (z. B. „REWE“ in „REWE 0887 OLCHING“). Längere Treffer gewinnen.
+ */
+export function suggestCategoryId(
+  text: string,
+  known: readonly { name: string; categoryId: string }[],
+): string | null {
+  const t = squash(text);
+  if (!t) return null;
+  const exact = known.find((k) => squash(k.name) === t);
+  if (exact) return exact.categoryId;
+  let best: { len: number; id: string } | null = null;
+  for (const k of known) {
+    const n = squash(k.name);
+    if (n.length < 3) continue;
+    const re = new RegExp(
+      `(^|[^a-z0-9äöüß])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z0-9äöüß]|$)`,
+    );
+    if (re.test(t) && (!best || n.length > best.len)) best = { len: n.length, id: k.categoryId };
+  }
+  return best?.id ?? null;
+}

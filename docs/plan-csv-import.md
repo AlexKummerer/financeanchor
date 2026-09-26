@@ -31,3 +31,10 @@ Wunsch (26.09.2026): Umsätze der Banken und Karten einlesen statt abtippen – 
 1. Fachlogik (`shared`): CSV lesen, Kopfzeile und Bank erkennen, Zeilen normalisieren (Datum, Betrag, Text), Fingerabdruck, Abgleich mit vorhandenen Buchungen – mit Testdateien je Bank.
 2. Backend: Migration, `POST /api/transactions/import/check` (welche Fingerabdrücke/ähnlichen Buchungen gibt es schon), `POST /api/transactions/import` (bestätigte Zeilen atomar anlegen, Doppelte ablehnen), Import-Profil am Konto; Export/Import der Sicherung.
 3. Oberfläche: Buchungen → „Umsätze einlesen“: Konto wählen, Datei wählen, Vorschau mit Bearbeiten, Filter (neu / schon gebucht / übersprungen), Übernehmen.
+
+## Umgesetzt (26.09.2026)
+
+- Unterstützt und an echten, anonymisierten Exporten geprüft (nicht im Repo): Sparkasse (CAMT V2/V8, MT940), Volksbank/Raiffeisenbank, DKB (Giro; Visa nach Doku), ING (mit und ohne Saldo), Comdirect (mehrere Abschnitte), American Express. Im Repo liegen eigene Testdaten mit denselben Kopfzeilen (`packages/shared/test/statement.test.ts`).
+- Nicht per CSV: Barclays (nur Excel), Hanseatic und Advanzia (nur PDF) – später.
+- Oberfläche: Buchungen → „Umsätze aus CSV einlesen“ (`/buchungen/einlesen`). Kartenabbuchungen auf dem Girokonto lassen sich nicht als Ausgabe übernehmen; ist die Abbuchung schon gebucht, erscheint sie unter „Schon gebucht?“ zum Verknüpfen.
+- Unbekanntes Format: Spalten selbst zuordnen; die Zuordnung wird beim Übernehmen am Konto gespeichert.

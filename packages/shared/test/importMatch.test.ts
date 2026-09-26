@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findLikelyMatch, importKeys, looksLikeCardPayment } from '../src/index.js';
+import {
+  findLikelyMatch,
+  importKeys,
+  looksLikeCardPayment,
+  suggestCategoryId,
+} from '../src/index.js';
 
 const row = (date: string, amountCents: number, counterparty = 'REWE', purpose = 'Einkauf') => ({
   date,
@@ -56,4 +61,21 @@ describe('Kartenabbuchung auf dem Girokonto', () => {
     );
     expect(looksLikeCardPayment(row('2026-09-24', -5000, 'REWE', 'Einkauf Karte'))).toBe(false);
   });
+});
+
+describe('Kategorie vorschlagen', () => {
+  const known = [
+    { name: 'REWE', categoryId: 'essen' },
+    { name: 'Stadtwerke Strom', categoryId: 'wohnen' },
+    { name: 'Stadtwerke', categoryId: 'sonst' },
+    { name: 'Ab', categoryId: 'kurz' },
+  ];
+  it('gleicher Name, sonst längster enthaltener Name', () => {
+    expect(suggestCategoryId('rewe', known)).toBe('essen');
+    expect(suggestCategoryId('REWE 0887 OLCHING', known)).toBe('essen');
+    expect(suggestCategoryId('Stadtwerke Strom Abschlag', known)).toBe('wohnen');
+    expect(suggestCategoryId('Abo Netflix', known)).toBeNull();
+    expect(sugg('PREWE GmbH')).toBeNull();
+  });
+  const sugg = (t: string) => suggestCategoryId(t, known);
 });

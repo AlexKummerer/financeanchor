@@ -52,7 +52,11 @@ export const importProfileSchema = z.object({
     debit: columnName.optional(),
     credit: columnName.optional(),
     counterparty: columnName.optional(),
+    /** Gegenpart bei Gutschriften, wenn er in einer anderen Spalte steht (DKB) */
+    counterpartyCredit: columnName.optional(),
     purpose: z.array(columnName).max(10).optional(),
+    /** Text aufbereiten: SEPA-Kürzel entfernen bzw. Comdirect-Buchungstext zerlegen */
+    textFormat: z.enum(['sepa', 'comdirect']).optional(),
     invertSign: z.boolean().optional(),
     skip: z.object({ column: columnName, values: z.array(z.string().max(100)).max(20) }).optional(),
   }),

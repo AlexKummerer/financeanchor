@@ -2,6 +2,7 @@ import type { Cents } from '../money.js';
 import type { IsoDate } from '../month.js';
 import type { ImportProfile } from '../schemas/entities.js';
 import { detectDelimiter, parseAmount, parseCsv, parseDate } from './csv.js';
+import { cleanSepaPurpose, detectPreset, splitComdirectText } from './presets.js';
 
 /**
  * Welche Spalte was bedeutet. Spalten werden über ihren Namen in der Kopfzeile angesprochen, damit
@@ -69,7 +70,8 @@ function findColumn(headers: string[], names: readonly string[], exclude: string
   const usable = headers.filter((h) => !exclude.includes(h));
   for (const match of [
     (h: string, name: string) => norm(h) === name,
-    (h: string, name: string) => norm(h).startsWith(name),
+    // Präfix nur bei kurzen Namen („Betrag (€)“), nicht bei Sätzen wie „Datei erstellt am“
+    (h: string, name: string) => norm(h).startsWith(name) && norm(h).length <= name.length + 6,
   ]) {
     for (const name of names) {
       const hit = usable.find((h) => match(h, name));
@@ -81,6 +83,18 @@ function findColumn(headers: string[], names: readonly string[], exclude: string
 
 /** Zuordnung aus der Kopfzeile ableiten, soweit die Spaltennamen bekannt sind. */
 export function guessMapping(headers: string[]): ImportMapping | null {
+  // Kopfzeilen enthalten keine Daten: kein Datum, kein Betrag, nur kurze Namen
+  if (
+    headers.some(
+      (h) =>
+        h.length > 60 ||
+        parseDate(h) !== null ||
+        parseAmount(h) !== null ||
+        /\d{2}\.\d{2}\./.test(h),
+    )
+  ) {
+    return null;
+  }
   const date = findColumn(headers, CANDIDATES.date);
   if (!date) return null;
   const amount = findColumn(headers, CANDIDATES.amount);
@@ -112,7 +126,14 @@ export function findHeader(table: string[][]): { index: number; mapping: ImportM
   return null;
 }
 
-/** Zeilen nach einer Zuordnung lesen. */
+const squashSpaces = (s: string) => s.replace(/\s+/g, ' ').trim();
+
+/** Titelzeile eines Abschnitts (Comdirect: „Umsätze Girokonto“, „Umsätze Visa-Karte“ …). */
+function isSectionTitle(cells: readonly string[]): boolean {
+  return /^Ums(ä|ae)tze\b/.test(cells[0] ?? '');
+}
+
+/** Zeilen nach einer Zuordnung lesen (bis zum nächsten Abschnitt). */
 export function readRows(
   table: string[][],
   headerIndex: number,
@@ -125,6 +146,7 @@ export function readRows(
   const iDebit = col(mapping.debit);
   const iCredit = col(mapping.credit);
   const iCounter = col(mapping.counterparty);
+  const iCounterCredit = col(mapping.counterpartyCredit);
   const iPurpose = (mapping.purpose ?? []).map(col).filter((i) => i >= 0);
   const iSkip = col(mapping.skip?.column);
   const skipValues = (mapping.skip?.values ?? []).map(norm);
@@ -133,6 +155,8 @@ export function readRows(
 
   for (const [offset, cells] of table.slice(headerIndex + 1).entries()) {
     const line = headerIndex + offset + 2;
+    // Nächster Abschnitt (Comdirect: „Umsätze Visa-Karte“) oder neue Kopfzeile: hier endet es
+    if (isSectionTitle(cells) || guessMapping(cells)) break;
     if (iSkip >= 0 && skipValues.includes(norm(cells[iSkip] ?? ''))) {
       skipped.push({ line, reason: 'filtered' });
       continue;
@@ -153,50 +177,79 @@ export function readRows(
       skipped.push({ line, reason: 'no_amount' });
       continue;
     }
-    rows.push({
-      line,
-      date,
-      amountCents: mapping.invertSign ? -amount : amount,
-      counterparty: iCounter >= 0 ? (cells[iCounter] ?? '').replace(/\s+/g, ' ') : '',
-      purpose: iPurpose
+    const amountCents = mapping.invertSign ? -amount : amount;
+    const counterCol = amountCents > 0 && iCounterCredit >= 0 ? iCounterCredit : iCounter;
+    let counterparty = counterCol >= 0 ? squashSpaces(cells[counterCol] ?? '') : '';
+    let purpose = squashSpaces(
+      iPurpose
         .map((i) => cells[i] ?? '')
         .filter(Boolean)
-        .join(' · ')
-        .replace(/\s+/g, ' '),
-    });
+        .join(' · '),
+    );
+    if (mapping.textFormat === 'comdirect') {
+      ({ counterparty, purpose } = splitComdirectText(counterparty));
+    } else if (mapping.textFormat === 'sepa') {
+      purpose = cleanSepaPurpose(purpose);
+    }
+    rows.push({ line, date, amountCents, counterparty, purpose });
   }
   return { headers, rows, skipped };
 }
 
+export interface StatementSection extends ParsedStatement {
+  /** Abschnittstitel, wenn die Datei mehrere enthält (Comdirect), sonst `null` */
+  title: string | null;
+  profile: ImportProfile;
+}
+
 /**
- * Eine Kontoauszugs-Datei lesen. Mit gespeichertem Profil wird dessen Zuordnung verwendet,
- * sonst die Kopfzeile erkannt. `null`, wenn keine Kopfzeile passt (dann selbst zuordnen).
+ * Eine Kontoauszugs-Datei lesen – alle Abschnitte mit ihren Zeilen. Mit gespeichertem Profil wird
+ * dessen Zuordnung verwendet, sonst Kopfzeile und Bank erkannt. Leer, wenn keine Kopfzeile passt
+ * (dann Spalten selbst zuordnen).
  */
-export function parseStatement(
+export function parseStatementSections(
   text: string,
-  profile?: Pick<ImportProfile, 'delimiter' | 'mapping'> | null,
-): (ParsedStatement & { profile: ImportProfile }) | null {
+  profile?: Pick<ImportProfile, 'delimiter' | 'mapping' | 'preset'> | null,
+): StatementSection[] {
   const delimiter = profile?.delimiter ?? detectDelimiter(text);
   const table = parseCsv(text, delimiter);
-  // Gespeicherte Zuordnung: Kopfzeile ist die erste Zeile mit ihren Spalten
-  if (profile) {
-    const needed = [profile.mapping.date, profile.mapping.amount ?? profile.mapping.debit].filter(
-      (c): c is string => !!c,
-    );
-    const index = table.slice(0, 40).findIndex((row) => needed.every((c) => row.includes(c)));
-    if (index >= 0) {
-      return {
-        ...readRows(table, index, profile.mapping),
-        profile: { preset: 'saved', delimiter, mapping: profile.mapping },
+  const sections: StatementSection[] = [];
+  let title: string | null = null;
+  for (const [index, row] of table.entries()) {
+    if (isSectionTitle(row)) {
+      title = row[0] ?? null;
+      continue;
+    }
+    const own =
+      profile &&
+      [profile.mapping.date, profile.mapping.amount ?? profile.mapping.debit].every(
+        (c) => !!c && row.includes(c),
+      );
+    const guessed = own ? null : guessMapping(row);
+    if (!own && !guessed) continue;
+    let result: ImportProfile;
+    if (own && profile) result = { preset: profile.preset, delimiter, mapping: profile.mapping };
+    else {
+      const preset = detectPreset(row);
+      const base = guessed as ImportMapping;
+      result = {
+        preset: preset?.id ?? 'auto',
+        delimiter,
+        mapping: preset ? preset.adjust(base) : base,
       };
     }
+    sections.push({ title, ...readRows(table, index, result.mapping), profile: result });
   }
-  const found = findHeader(table);
-  if (!found) return null;
-  return {
-    ...readRows(table, found.index, found.mapping),
-    profile: { preset: 'auto', delimiter, mapping: found.mapping },
-  };
+  return sections;
+}
+
+/** Erster Abschnitt mit Umsätzen (die meisten Banken haben nur einen). */
+export function parseStatement(
+  text: string,
+  profile?: Pick<ImportProfile, 'delimiter' | 'mapping' | 'preset'> | null,
+): StatementSection | null {
+  const sections = parseStatementSections(text, profile);
+  return sections.find((s) => s.rows.length > 0) ?? sections[0] ?? null;
 }
 
 /** Vorschlag für den Buchungstext: Empfänger, sonst der Anfang des Verwendungszwecks. */

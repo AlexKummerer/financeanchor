@@ -9,6 +9,7 @@ import {
   type Transaction,
   type YearMonth,
 } from '@financeanchor/shared';
+import { RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 import { Clock } from '../../core/clock';
@@ -27,6 +28,7 @@ type Kind = 'out' | 'in';
 @Component({
   selector: 'fa-transactions',
   imports: [
+    RouterLink,
     ReactiveFormsModule,
     TranslocoPipe,
     MoneyPipe,
