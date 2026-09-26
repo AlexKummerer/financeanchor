@@ -72,6 +72,21 @@ Eigenen Account anlegen (einmalig):
 pnpm db:seed --email du@example.com --remote
 ```
 
+### Automatisches Deployment über GitHub
+
+Jeder Push auf `main` deployt automatisch, **nachdem** Lint, Tests und E2E in der CI grün sind (Job `deploy` in `.github/workflows/ci.yml`, führt `pnpm run deploy` aus).
+
+Einmalig einrichten:
+
+1. **API-Token** im Cloudflare-Dashboard: Mein Profil → API-Tokens → Token erstellen → Vorlage „Cloudflare Workers bearbeiten“, zusätzlich Berechtigung **Konto → D1 → Bearbeiten**; auf das eigene Konto beschränken.
+2. In GitHub unter Settings → Secrets and variables → Actions:
+   - Secret `CLOUDFLARE_API_TOKEN` = der Token aus Schritt 1
+   - Secret `CLOUDFLARE_ACCOUNT_ID` = Konto-ID (`wrangler whoami`)
+   - Variable `APP_URL` = öffentliche Adresse, z. B. `https://financeanchor.alexander-122.workers.dev`
+3. Eine direkte GitHub-Verbindung im Cloudflare-Dashboard (Workers Builds) wieder trennen, damit nicht zusätzlich ohne Tests deployt wird.
+
+Von Hand geht es weiterhin mit `APP_URL=… pnpm run deploy`.
+
 ### Anmelden mit Google, Microsoft oder Apple (optional)
 
 Ein Anbieter erscheint auf der Login-Seite, sobald seine Zugangsdaten als Secrets gesetzt sind (lokal in `apps/backend/.dev.vars`). Neue Konten entstehen darüber nicht: Man meldet sich einmal mit E-Mail und Passwort an und verbindet den Anbieter unter **Einstellungen → Konto → Anmelden mit**. Eine automatische Verknüpfung über die gleiche E-Mail-Adresse gibt es bewusst nicht.
