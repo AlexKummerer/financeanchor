@@ -41,6 +41,25 @@ export function patchSchema<S extends z.ZodRawShape>(schema: z.ZodObject<S>) {
 
 const meta = { createdAt: timestampSchema, updatedAt: timestampSchema };
 
+// Import von Kontoauszügen (CSV): gespeicherte Spaltenzuordnung je Konto
+const columnName = z.string().max(200);
+export const importProfileSchema = z.object({
+  preset: z.string().max(40),
+  delimiter: z.enum([';', ',', '\t']),
+  mapping: z.object({
+    date: columnName,
+    amount: columnName.optional(),
+    debit: columnName.optional(),
+    credit: columnName.optional(),
+    counterparty: columnName.optional(),
+    purpose: z.array(columnName).max(10).optional(),
+    invertSign: z.boolean().optional(),
+    skip: z.object({ column: columnName, values: z.array(z.string().max(100)).max(20) }).optional(),
+  }),
+});
+
+export type ImportProfile = z.infer<typeof importProfileSchema>;
+
 // Konten und Depots
 export const accountSchema = z.object({
   id: idSchema,
@@ -55,6 +74,8 @@ export const accountSchema = z.object({
   debitDay: dueDaySchema.nullable().default(null),
   /** Kreditkarte: Konto, von dem abgebucht wird */
   debitAccountId: idSchema.nullable().default(null),
+  /** Zuletzt verwendete Spaltenzuordnung beim CSV-Import */
+  importProfile: importProfileSchema.nullable().default(null),
   ...meta,
 });
 export type Account = z.infer<typeof accountSchema>;
@@ -96,6 +117,7 @@ export const accountUpdateSchema = patchSchema(
     statementDay: true,
     debitDay: true,
     debitAccountId: true,
+    importProfile: true,
   }),
 );
 
@@ -168,6 +190,8 @@ export const transactionSchema = z.object({
   sourceId: idSchema.nullable(),
   /** Bezahlt mit (Kreditkarte); ohne Angabe wie bisher */
   accountId: idSchema.nullable().default(null),
+  /** Fingerabdruck der eingelesenen Zeile eines Kontoauszugs (verhindert doppelten Import) */
+  importKey: z.string().max(40).nullable().default(null),
   ...meta,
 });
 export type Transaction = z.infer<typeof transactionSchema>;
@@ -368,3 +392,29 @@ export const meSchema = z.object({
   entitlement: entitlementSchema.extend({ active: z.boolean() }).nullable(),
 });
 export type Me = z.infer<typeof meSchema>;
+
+// CSV-Import
+export const importCheckSchema = z.object({
+  keys: z.array(z.string().max(40)).max(5000),
+  from: isoDateSchema,
+  to: isoDateSchema,
+});
+export const importCommitSchema = z.object({
+  /** Kreditkarte, deren Abrechnung eingelesen wird (Käufe „bezahlt mit“); beim Girokonto leer */
+  accountId: idSchema.nullable(),
+  /** Neue Buchungen */
+  items: z
+    .array(
+      transactionSchema
+        .pick({ date: true, name: true, categoryId: true, amountCents: true })
+        .extend({ importKey: z.string().min(1).max(40) }),
+    )
+    .max(2000),
+  /** Zeilen, die eine vorhandene Buchung sind: nur den Fingerabdruck merken */
+  links: z
+    .array(z.object({ transactionId: idSchema, importKey: z.string().min(1).max(40) }))
+    .max(2000),
+  /** Spaltenzuordnung für das nächste Mal (an diesem Konto) */
+  profile: z.object({ accountId: idSchema, profile: importProfileSchema }).nullable().optional(),
+});
+export type ImportCommit = z.infer<typeof importCommitSchema>;

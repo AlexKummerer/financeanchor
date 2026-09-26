@@ -16,6 +16,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 import {
+  type ImportProfile,
   type IntervalMonths,
   accountKinds,
   entitlementSources,
@@ -59,6 +60,7 @@ export const accounts = sqliteTable(
     statementDay: integer('statement_day'),
     debitDay: integer('debit_day'),
     debitAccountId: text('debit_account_id'),
+    importProfile: text('import_profile', { mode: 'json' }).$type<ImportProfile>(),
   },
   (t) => [
     uniqueIndex('accounts_user_id_id_uq').on(t.userId, t.id),
@@ -163,8 +165,13 @@ export const transactions = sqliteTable(
     sourceId: text('source_id'),
     /** Bezahlt mit (Kreditkarte) */
     accountId: text('account_id'),
+    /** Fingerabdruck der eingelesenen Zeile eines Kontoauszugs */
+    importKey: text('import_key'),
   },
   (t) => [
+    uniqueIndex('transactions_import_key_uq')
+      .on(t.userId, t.importKey)
+      .where(sql`import_key is not null`),
     uniqueIndex('transactions_user_id_id_uq').on(t.userId, t.id),
     index('transactions_user_account_idx').on(t.userId, t.accountId),
     foreignKey({
