@@ -110,6 +110,15 @@ describe('Bank-Exporte', () => {
       purpose: 'Einkauf',
     });
     expect(sections[1]?.rows[0]).toMatchObject({ amountCents: -1999, counterparty: 'AMAZON EU' });
+    // Visa-Abschnitt hat Buchungs- und Umsatztag zur Auswahl
+    expect(sections[1]?.dateColumns).toEqual(['Buchungstag', 'Umsatztag']);
+    const byPurchase = parseStatementSections(files.comdirect, {
+      ...sections[1]!.profile,
+      mapping: { ...sections[1]!.profile.mapping, date: 'Umsatztag' },
+    });
+    expect(byPurchase.find((x) => x.profile.mapping.date === 'Umsatztag')?.rows[0]?.date).toBe(
+      '2026-09-06',
+    );
   });
 
   it('Amex: Komma getrennt, Belastungen positiv, mehrzeilige Adresse', () => {

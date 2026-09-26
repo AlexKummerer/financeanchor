@@ -40,3 +40,9 @@ Wunsch (25.09.2026): Zwei Kreditkarten – eine rechnet bis zum 24. ab und wird 
 - Alle drei Schritte. Zusätzlich: `/api/accounts/card-statements?today=` liefert laufende und letzte Abrechnung je Karte mit Buchungen und ob die Abbuchung gebucht ist; der Abgleich-Betrag der Bank wird nur im Browser verglichen, nicht gespeichert.
 - Nebenbei behoben: Teiländerungen (PATCH) setzten fehlende Felder mit Standardwert zurück (`patchSchema` in `shared`).
 - E2E-Tests nutzen eine Sitzung weiter (`login()` in `e2e/fixtures.ts`), damit die Login-Sperre (10/Minute) nicht greift.
+
+## Nachtrag (26.09.2026): Stichtag genauer
+
+- **Kauf am Stichtag:** Banken trennen am Stichtag nach Uhrzeit, die in keiner CSV steht. Käufe am Stichtag zählen zunächst zur alten Abrechnung; in der Kartenansicht lassen sie sich per „→ gehört zur nächsten Abrechnung“ verschieben (`transactions.statement_month`, Migration 0011). Die nächste Abrechnung wird angezeigt, sobald dort Käufe liegen.
+- **Schwankender Stichtag:** Je Abrechnung lassen sich Stichtag und Abbuchung laut Bank eintragen (`card_statement_dates`, Migration 0012; `PUT/DELETE /api/accounts/:id/statements/:closeMonth`). Zeitraum, Summe, Abgleich und die Abbuchung unter „Fällige übernehmen“ rechnen damit; die Folgeabrechnung beginnt am Tag danach.
+- **Datumsspalte beim Import:** Hat die Datei mehrere Datumsspalten (z. B. Buchungs- und Umsatztag), wird gewählt, welche gilt; die Wahl wird mit der Zuordnung gespeichert.

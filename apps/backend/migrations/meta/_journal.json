@@ -78,6 +78,20 @@
       "when": 1790412052131,
       "tag": "0010_learn_and_paid_with",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790413066014,
+      "tag": "0011_statement_month",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790413219278,
+      "tag": "0012_card_statement_dates",
+      "breakpoints": true
     }
   ]
 }

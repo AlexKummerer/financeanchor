@@ -14,6 +14,7 @@ import {
 import {
   accountSchema,
   bookedItemSchema,
+  cardStatementDateSchema,
   categorySchema,
   loanSchema,
   netWorthSnapshotSchema,
@@ -34,6 +35,8 @@ const common = {
   transactions: z.array(transactionSchema),
   bookedItems: z.array(bookedItemSchema),
   snapshots: z.array(netWorthSnapshotSchema),
+  /** Seit den Kreditkarten; ältere Sicherungen haben keine */
+  cardStatementDates: z.array(cardStatementDateSchema).default([]),
 };
 
 /** Vollständige Sicherung aller Daten eines Nutzers (Version 2). */

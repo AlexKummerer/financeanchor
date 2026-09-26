@@ -16,6 +16,7 @@ export function cardMovements(s: Scoped) {
       accountId: transactions.accountId,
       sourceType: transactions.sourceType,
       sourceId: transactions.sourceId,
+      statementMonth: transactions.statementMonth,
     })
     .from(transactions)
     .where(

@@ -138,6 +138,39 @@ export class AssetsPage {
     }
   }
 
+  /** Kauf am Stichtag der nächsten Abrechnung zuordnen bzw. zurück (Bank trennt nach Uhrzeit). */
+  protected async moveToStatement(e: { id: string; statementMonth: string | null }) {
+    try {
+      await firstValueFrom(
+        this.http.patch(`/api/transactions/${e.id}`, { statementMonth: e.statementMonth }),
+      );
+      this.statements.reload();
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    }
+  }
+
+  /** Stichtag/Abbuchung einer Abrechnung laut Bank; `closingDate: null` setzt zurück. */
+  protected async setStatementDates(
+    cardId: string,
+    e: { closeMonth: string; closingDate: string | null; debitDate: string | null },
+  ) {
+    const url = `/api/accounts/${cardId}/statements/${e.closeMonth}`;
+    try {
+      await firstValueFrom(
+        e.closingDate
+          ? this.http.put(url, { closingDate: e.closingDate, debitDate: e.debitDate })
+          : this.http.delete(url),
+      );
+      this.statements.reload();
+    } catch (err) {
+      this.toast.show(
+        this.t.translate(err instanceof ApiError ? 'cards.datesInvalid' : 'errors.saveFailed'),
+        'error',
+      );
+    }
+  }
+
   protected async editCard(card: Account) {
     const ref = this.dialog.open<CardSettings>(CardSettingsDialog, {
       data: { card, accounts: this.debitAccounts() },

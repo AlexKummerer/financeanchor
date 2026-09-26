@@ -521,7 +521,17 @@
     "noDebitAccount": "– no account –",
     "settings": "Settings",
     "settingsNamed": "Settings of {{name}}",
-    "entry": "1 entry"
+    "entry": "1 entry",
+    "moveNext": "→ belongs to the next statement",
+    "moveBack": "↩ undo",
+    "movedHere": "moved from closing day",
+    "closingDate": "Closing date per bank",
+    "debitDate": "Debit date per bank",
+    "resetDates": "Reset",
+    "customDates": "Dates per bank",
+    "editDates": "Adjust closing date per bank",
+    "datesInvalid": "The closing date must be in the statement month, the debit after it.",
+    "next": "Next statement"
   },
   "import": {
     "title": "Import transactions",
@@ -609,6 +619,9 @@
       "tip": "Tip: for reconciliation always load a whole statement period; the app recognises rows imported twice."
     },
     "cardSettlementHint": "Payment to the card – already recorded as the debit via “Book due items”",
-    "learnedHint": "Name and category as last time"
+    "learnedHint": "Name and category as last time",
+    "dateColumn": "Which date should be used?",
+    "dateHint": "The date decides in which month the transaction counts.",
+    "dateHintCard": "For reconciling with the card statement the bank’s booking date usually counts; purchases on the closing day can be moved to the next statement under Assets."
   }
 }

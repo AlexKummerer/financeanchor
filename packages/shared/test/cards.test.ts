@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bookedBreakdown,
   cardBalance,
+  inStatement,
   monthTotals,
   planDue,
   spendingByCategory,
@@ -141,5 +142,40 @@ describe('Fällige übernehmen', () => {
 
   it('ohne Käufe im Zeitraum keine Abbuchung', () => {
     expect(planDue({ ...base, month: '2026-09' })).toEqual([]);
+  });
+});
+
+describe('Kauf am Stichtag auf der nächsten Abrechnung', () => {
+  it('festgehaltene Abrechnung schlägt das Datum', () => {
+    const sep = statementClosingIn(visa, '2026-09');
+    const oct = statementClosingIn(visa, '2026-10');
+    const morning = { ...buy('2026-09-24', -1000, 'visa'), statementMonth: null };
+    const evening = { ...buy('2026-09-24', -2000, 'visa'), statementMonth: '2026-10' };
+    expect(inStatement(morning, sep)).toBe(true);
+    expect(inStatement(evening, sep)).toBe(false);
+    expect(inStatement(evening, oct)).toBe(true);
+    expect(statementTotal([morning, evening], 'visa', sep).amountCents).toBe(1000);
+    expect(statementTotal([morning, evening], 'visa', oct).amountCents).toBe(2000);
+  });
+});
+
+describe('Abrechnungsdatum laut Bank', () => {
+  const amexMid = { id: 'amex', statementDay: 15, debitDay: 4 };
+  const dates = [{ closeMonth: '2026-09', closingDate: '2026-09-17', debitDate: '2026-10-06' }];
+
+  it('abweichender Stichtag verschiebt Ende dieser und Anfang der nächsten Abrechnung', () => {
+    expect(statementClosingIn(amexMid, '2026-09', dates)).toEqual({
+      closeMonth: '2026-09',
+      from: '2026-08-16',
+      to: '2026-09-17',
+      debitDate: '2026-10-06',
+    });
+    expect(statementClosingIn(amexMid, '2026-10', dates)).toMatchObject({
+      from: '2026-09-18',
+      to: '2026-10-15',
+    });
+    expect(statementFor(amexMid, '2026-09-16', dates).closeMonth).toBe('2026-09');
+    expect(statementFor(amexMid, '2026-09-18', dates).closeMonth).toBe('2026-10');
+    expect(statementDebitedIn(amexMid, '2026-10', dates).closeMonth).toBe('2026-09');
   });
 });

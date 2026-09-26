@@ -200,6 +200,11 @@ export const transactionSchema = z.object({
   importKey: z.string().max(40).nullable().default(null),
   /** Wiedererkennbarer Bank-Text ohne Nummern (Lernen von Name und Kategorie beim Import) */
   importLabel: z.string().max(100).nullable().default(null),
+  /**
+   * Kreditkarte: Abrechnung, zu der der Kauf gehört (Monat ihres Stichtags), wenn sie vom Datum
+   * abweicht – z. B. Kauf am Stichtag, den die Bank schon der nächsten Abrechnung zuordnet
+   */
+  statementMonth: yearMonthSchema.nullable().default(null),
   ...meta,
 });
 export type Transaction = z.infer<typeof transactionSchema>;
@@ -214,6 +219,7 @@ export const transactionUpdateSchema = patchSchema(
     categoryId: true,
     amountCents: true,
     accountId: true,
+    statementMonth: true,
   }),
 );
 
@@ -347,6 +353,23 @@ export const loanUpdateSchema = patchSchema(
     saveUp: true,
   }),
 );
+
+// Tatsächliche Abrechnungsdaten einer Kreditkarte (wenn der Stichtag schwankt)
+export const cardStatementDateSchema = z.object({
+  id: idSchema,
+  accountId: idSchema,
+  closeMonth: yearMonthSchema,
+  closingDate: isoDateSchema,
+  debitDate: isoDateSchema.nullable(),
+  ...meta,
+});
+export type CardStatementDate = z.infer<typeof cardStatementDateSchema>;
+export const cardStatementDatePutSchema = z
+  .object({ closingDate: isoDateSchema, debitDate: isoDateSchema.nullable() })
+  .refine((d) => d.debitDate === null || d.debitDate >= d.closingDate, {
+    path: ['debitDate'],
+    message: 'Abbuchung vor dem Stichtag',
+  });
 
 // Vermögensstände
 export const netWorthSnapshotSchema = z.object({

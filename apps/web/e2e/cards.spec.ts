@@ -40,4 +40,34 @@ test('Kreditkarte: anlegen, mit Karte buchen, Stand und Abgleich', async ({ page
   await expect(current.getByRole('status')).toContainText('fehlt eine Buchung');
   await bank.fill('45,50');
   await expect(current.getByRole('status')).toContainText('Stimmt überein');
+
+  // Kauf am Stichtag: Karte mit Stichtag heute, Kauf auf die nächste Abrechnung verschieben
+  const todayDay = new Date().getDate();
+  await nav.getByRole('link', { name: 'Vermögen' }).click();
+  await page.getByText('Konto oder Depot hinzufügen', { exact: true }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Visa E2E');
+  await page.getByLabel('Art', { exact: true }).selectOption({ label: 'Kreditkarte' });
+  await page.getByLabel('Aktuell offen auf der Karte (€)').fill('0');
+  await page
+    .getByLabel('Abrechnungsstichtag')
+    .selectOption({ label: todayDay === 31 ? 'Monatsende' : `${todayDay}.` });
+  await page.getByLabel('Abbuchungstag').selectOption({ label: `${todayDay}.` });
+  await page.getByRole('button', { name: 'Speichern' }).click();
+
+  await nav.getByRole('link', { name: 'Buchungen' }).click();
+  await page.getByLabel('Betrag (€)', { exact: true }).fill('9,90');
+  await page.getByLabel('Name', { exact: true }).fill('Abendkauf E2E');
+  await page.getByLabel('Kategorie', { exact: true }).fill('Freizeit');
+  await page.getByLabel('Bezahlt mit').selectOption({ label: 'Visa E2E' });
+  await page.getByRole('button', { name: 'Buchung speichern' }).click();
+  await expect(page.locator('.list li').filter({ hasText: 'Abendkauf E2E' })).toBeVisible();
+
+  await nav.getByRole('link', { name: 'Vermögen' }).click();
+  const visa = page.locator('fa-card-statements').filter({ hasText: 'Visa E2E' });
+  const running = visa.locator('details').filter({ hasText: 'Laufende Abrechnung' });
+  await running.locator('summary').click();
+  await running.getByRole('button', { name: /gehört zur nächsten Abrechnung/ }).click();
+  const next = visa.locator('details').filter({ hasText: 'Nächste Abrechnung' });
+  await expect(next.locator('summary')).toContainText('9,90');
+  await expect(running.locator('summary')).toContainText('0,00');
 });

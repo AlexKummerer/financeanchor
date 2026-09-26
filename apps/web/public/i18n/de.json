@@ -521,7 +521,17 @@
     "noDebitAccount": "– kein Konto –",
     "settings": "Einstellungen",
     "settingsNamed": "Einstellungen von {{name}}",
-    "entry": "1 Buchung"
+    "entry": "1 Buchung",
+    "moveNext": "→ gehört zur nächsten Abrechnung",
+    "moveBack": "↩ zurück",
+    "movedHere": "vom Stichtag verschoben",
+    "closingDate": "Stichtag laut Bank",
+    "debitDate": "Abbuchung laut Bank",
+    "resetDates": "Zurücksetzen",
+    "customDates": "Daten laut Bank",
+    "editDates": "Stichtag laut Bank anpassen",
+    "datesInvalid": "Der Stichtag muss im Monat der Abrechnung liegen, die Abbuchung danach.",
+    "next": "Nächste Abrechnung"
   },
   "import": {
     "title": "Umsätze einlesen",
@@ -609,6 +619,9 @@
       "tip": "Tipp: Lade für den Abgleich immer einen ganzen Abrechnungszeitraum; doppelt Eingelesenes erkennt die App."
     },
     "cardSettlementHint": "Zahlung an die Karte – ist schon als Abbuchung über „Fällige übernehmen“ erfasst",
-    "learnedHint": "Name und Kategorie wie beim letzten Mal"
+    "learnedHint": "Name und Kategorie wie beim letzten Mal",
+    "dateColumn": "Welches Datum soll gelten?",
+    "dateHint": "Das Datum bestimmt, in welchem Monat der Umsatz zählt.",
+    "dateHintCard": "Für den Abgleich mit der Kartenabrechnung zählt meist das Buchungsdatum der Bank; Käufe am Stichtag kannst du unter Vermögen der nächsten Abrechnung zuordnen."
   }
 }

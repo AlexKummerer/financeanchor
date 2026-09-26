@@ -11,6 +11,7 @@ import { chunkedInsert, runBatch } from '../db/client.js';
 import {
   accounts,
   bookedItems,
+  cardStatementDates,
   categories,
   loans,
   netWorthSnapshots,
@@ -25,7 +26,7 @@ import { categoryToApi, strip } from '../mappers.js';
 
 export async function exportUserData(s: Scoped, now = new Date()): Promise<ExportFile> {
   const { db } = s;
-  const [settings, accs, pots, cats, items, txs, booked, ls, snaps] = await db.batch([
+  const [settings, accs, pots, cats, items, txs, booked, ls, snaps, cardDates] = await db.batch([
     db.select().from(userSettings).where(eq(userSettings.userId, s.userId)),
     db.select().from(accounts).where(s.own(accounts)),
     db.select().from(reservePots).where(s.own(reservePots)),
@@ -35,6 +36,7 @@ export async function exportUserData(s: Scoped, now = new Date()): Promise<Expor
     db.select().from(bookedItems).where(s.own(bookedItems)),
     db.select().from(loans).where(s.own(loans)),
     db.select().from(netWorthSnapshots).where(s.own(netWorthSnapshots)),
+    db.select().from(cardStatementDates).where(s.own(cardStatementDates)),
   ]);
   const st = settings[0];
   if (!st) throw new AppError(500, 'user_not_initialized', 'User data is incomplete');
@@ -57,6 +59,7 @@ export async function exportUserData(s: Scoped, now = new Date()): Promise<Expor
       bookedItems: booked.map(strip),
       loans: ls.map(strip),
       snapshots: snaps.map(strip),
+      cardStatementDates: cardDates.map(strip),
     },
   };
 }
@@ -188,6 +191,12 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
     }),
     loans: d.loans.map((l) => ({ ...l, ...meta, id: ref(maps.loan, l.id, 'Kredit') })),
     snapshots: d.snapshots.map((x) => ({ ...x, ...meta, id: newId(now) })),
+    cardStatementDates: d.cardStatementDates.map((x) => ({
+      ...x,
+      ...meta,
+      id: newId(now),
+      accountId: ref(maps.account, x.accountId, 'Abrechnung → Karte'),
+    })),
   };
   if (new Set(d.snapshots.map((x) => x.date)).size !== d.snapshots.length) {
     problems.add('Vermögensstände: mehrere am selben Tag');
@@ -209,6 +218,7 @@ export async function importUserData(s: Scoped, file: ExportFile) {
     db.delete(recurringItems).where(s.own(recurringItems)),
     db.delete(reservePots).where(s.own(reservePots)),
     db.delete(categories).where(s.own(categories)),
+    db.delete(cardStatementDates).where(s.own(cardStatementDates)),
     db.delete(accounts).where(s.own(accounts)),
     db.delete(loans).where(s.own(loans)),
     db.delete(netWorthSnapshots).where(s.own(netWorthSnapshots)),
@@ -224,6 +234,7 @@ export async function importUserData(s: Scoped, file: ExportFile) {
     ...chunkedInsert(db, bookedItems, rows.bookedItems),
     ...chunkedInsert(db, loans, rows.loans),
     ...chunkedInsert(db, netWorthSnapshots, rows.snapshots),
+    ...chunkedInsert(db, cardStatementDates, rows.cardStatementDates),
   ]);
   return {
     accounts: rows.accounts.length,

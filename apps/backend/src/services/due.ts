@@ -18,6 +18,7 @@ import { chunkedInsert, runBatch } from '../db/client.js';
 import {
   accounts,
   bookedItems,
+  cardStatementDates,
   categories,
   loans,
   recurringItems,
@@ -41,56 +42,59 @@ export async function loadDuePlan(
   today: IsoDate,
 ): Promise<DueEntry[]> {
   const { db } = s;
-  const [items, pots, accs, ls, settings, sysCats, booked, cardTransactions] = await db.batch([
-    db.select().from(recurringItems).where(s.own(recurringItems)),
-    db.select().from(reservePots).where(s.own(reservePots)),
-    db
-      .select({
-        id: accounts.id,
-        name: accounts.name,
-        kind: accounts.kind,
-        statementDay: accounts.statementDay,
-        debitDay: accounts.debitDay,
-        debitAccountId: accounts.debitAccountId,
-      })
-      .from(accounts)
-      .where(s.own(accounts)),
-    db.select().from(loans).where(s.own(loans)),
-    db.select().from(userSettings).where(eq(userSettings.userId, s.userId)),
-    db
-      .select({ id: categories.id, systemKey: categories.systemKey })
-      .from(categories)
-      .where(s.own(categories, isNotNull(categories.systemKey))),
-    db
-      .select({
-        key: bookedItems.bookingKey,
-        amountCents: transactions.amountCents,
-        date: transactions.date,
-      })
-      .from(bookedItems)
-      .innerJoin(transactions, eq(transactions.id, bookedItems.transactionId))
-      .where(s.own(bookedItems, eq(bookedItems.month, month))),
-    // Kartenbuchungen der letzten Monate (Abrechnungszeitraum der Abbuchung dieses Monats)
-    db
-      .select({
-        date: transactions.date,
-        amountCents: transactions.amountCents,
-        kind: transactions.kind,
-        accountId: transactions.accountId,
-        sourceType: transactions.sourceType,
-        sourceId: transactions.sourceId,
-      })
-      .from(transactions)
-      .where(
-        s.own(
-          transactions,
-          and(
-            isNotNull(transactions.accountId),
-            gte(transactions.date, `${addMonths(month, -2)}-01`),
+  const [items, pots, accs, ls, settings, sysCats, booked, cardTransactions, cardDates] =
+    await db.batch([
+      db.select().from(recurringItems).where(s.own(recurringItems)),
+      db.select().from(reservePots).where(s.own(reservePots)),
+      db
+        .select({
+          id: accounts.id,
+          name: accounts.name,
+          kind: accounts.kind,
+          statementDay: accounts.statementDay,
+          debitDay: accounts.debitDay,
+          debitAccountId: accounts.debitAccountId,
+        })
+        .from(accounts)
+        .where(s.own(accounts)),
+      db.select().from(loans).where(s.own(loans)),
+      db.select().from(userSettings).where(eq(userSettings.userId, s.userId)),
+      db
+        .select({ id: categories.id, systemKey: categories.systemKey })
+        .from(categories)
+        .where(s.own(categories, isNotNull(categories.systemKey))),
+      db
+        .select({
+          key: bookedItems.bookingKey,
+          amountCents: transactions.amountCents,
+          date: transactions.date,
+        })
+        .from(bookedItems)
+        .innerJoin(transactions, eq(transactions.id, bookedItems.transactionId))
+        .where(s.own(bookedItems, eq(bookedItems.month, month))),
+      // Kartenbuchungen der letzten Monate (Abrechnungszeitraum der Abbuchung dieses Monats)
+      db
+        .select({
+          date: transactions.date,
+          amountCents: transactions.amountCents,
+          kind: transactions.kind,
+          accountId: transactions.accountId,
+          sourceType: transactions.sourceType,
+          sourceId: transactions.sourceId,
+          statementMonth: transactions.statementMonth,
+        })
+        .from(transactions)
+        .where(
+          s.own(
+            transactions,
+            and(
+              isNotNull(transactions.accountId),
+              gte(transactions.date, `${addMonths(month, -2)}-01`),
+            ),
           ),
         ),
-      ),
-  ]);
+      db.select().from(cardStatementDates).where(s.own(cardStatementDates)),
+    ]);
   const setting = settings[0];
   const systemCategoryIds = Object.fromEntries(sysCats.map((c) => [c.systemKey, c.id])) as Record<
     SystemCategoryKey,
@@ -111,6 +115,7 @@ export async function loadDuePlan(
     pots,
     accounts: accs,
     cardTransactions,
+    cardStatementDates: cardDates,
     loans: ls,
     systemCategoryIds,
     booked: new Map(booked.map((b) => [b.key, { amountCents: b.amountCents, date: b.date }])),

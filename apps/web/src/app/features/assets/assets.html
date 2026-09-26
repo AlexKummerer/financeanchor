@@ -170,7 +170,13 @@
   @for (c of cards(); track c.id) {
     <section class="panel" style="margin-bottom: 12px" [attr.aria-label]="c.name">
       @if (statementOf(c.id); as st) {
-        <fa-card-statements [card]="c" [data]="st" [accounts]="store.accounts.items()" />
+        <fa-card-statements
+          [card]="c"
+          [data]="st"
+          [accounts]="store.accounts.items()"
+          (move)="moveToStatement($event)"
+          (dates)="setStatementDates(c.id, $event)"
+        />
       } @else {
         <p class="muted small">{{ 'common.loading' | transloco }}</p>
       }

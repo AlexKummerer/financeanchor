@@ -205,4 +205,107 @@ describe('Kreditkarten', () => {
       (await api.patch(`/recurring-items/${item.id}`, { name: 'Disney Plus' })).body.accountId,
     ).toBe(amex.id);
   });
+
+  it('Kauf am Stichtag auf die nächste Abrechnung verschieben', async () => {
+    const { api } = await newUser();
+    const { giro, essen } = await setup(api);
+    const visa = (
+      await api.post('/accounts', {
+        name: 'Visa',
+        kind: 'credit_card',
+        balanceCents: 0,
+        statementDay: 3,
+        debitDay: 3,
+        debitAccountId: giro.id,
+      })
+    ).body;
+    const buy = async (amountCents: number) =>
+      (
+        await api.post('/transactions', {
+          date: `${lastMonth}-03`,
+          name: 'Stichtag',
+          categoryId: essen,
+          amountCents,
+          accountId: visa.id,
+        })
+      ).body;
+    await buy(-1000);
+    const evening = await buy(-2000);
+
+    const statements = async () =>
+      (
+        (await api.get(`/accounts/card-statements?today=${lastMonth}-03`)).body as {
+          cardId: string;
+          current: {
+            amountCents: number;
+            transactions: { id: string; movable: boolean; moved: boolean }[];
+          };
+        }[]
+      ).find((x) => x.cardId === visa.id)!;
+    const before = await statements();
+    expect(before.current.amountCents).toBe(3000);
+    expect(before.current.transactions.every((t) => t.movable)).toBe(true);
+
+    const moved = await api.patch(`/transactions/${evening.id}`, {
+      statementMonth: thisMonth,
+    });
+    expect(moved.status).toBe(200);
+    expect((await statements()).current.amountCents).toBe(1000);
+    // Abbuchung im Vormonat bucht nur den Morgen-Kauf ab
+    const plan = (await api.get(`/due/${lastMonth}?today=${today}`)).body as {
+      key: string;
+      amountCents: number;
+    }[];
+    expect(plan.find((e) => e.key === `card:${visa.id}`)?.amountCents).toBe(-1000);
+
+    // Nicht für Buchungen ohne Karte
+    const plain = (
+      await api.post('/transactions', {
+        date: `${lastMonth}-03`,
+        name: 'Bar',
+        categoryId: essen,
+        amountCents: -500,
+      })
+    ).body;
+    expect(
+      (await api.patch(`/transactions/${plain.id}`, { statementMonth: thisMonth })).status,
+    ).toBe(400);
+  });
+
+  it('Stichtag und Abbuchung laut Bank je Abrechnung', async () => {
+    const { api } = await newUser();
+    const { amex, buy } = await setup(api);
+    // Amex hier: Stichtag Monatsende, Abbuchung am 4. – diesmal laut Bank am 28., abgebucht am 6.
+    await buy(`${statementMonth}-27`, -1000);
+    await buy(`${statementMonth}-29`, -2000);
+    const put = (body: object, month = statementMonth) =>
+      api.put(`/accounts/${amex.id}/statements/${month}`, body);
+    expect((await put({ closingDate: `${lastMonth}-01`, debitDate: null })).status).toBe(400);
+    expect(
+      (await put({ closingDate: `${statementMonth}-28`, debitDate: `${lastMonth}-06` })).status,
+    ).toBe(204);
+
+    const plan = (await api.get(`/due/${lastMonth}?today=${today}`)).body as {
+      key: string;
+      amountCents: number;
+      date: string;
+    }[];
+    // Nur der Kauf bis zum 28. wird abgebucht, am 6.
+    expect(plan.find((e) => e.key === `card:${amex.id}`)).toMatchObject({
+      amountCents: -1000,
+      date: `${lastMonth}-06`,
+    });
+
+    // Sicherung enthält die Daten
+    const backup = (await api.get('/export')).body as { data: { cardStatementDates: unknown[] } };
+    expect(backup.data.cardStatementDates).toHaveLength(1);
+
+    // Zurücksetzen: wieder Monatsende
+    expect((await api.del(`/accounts/${amex.id}/statements/${statementMonth}`)).status).toBe(204);
+    const again = (await api.get(`/due/${lastMonth}?today=${today}`)).body as {
+      key: string;
+      amountCents: number;
+    }[];
+    expect(again.find((e) => e.key === `card:${amex.id}`)?.amountCents).toBe(-3000);
+  });
 });

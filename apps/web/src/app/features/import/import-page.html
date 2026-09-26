@@ -129,6 +129,25 @@
         </div>
       }
 
+      @if (s.dateColumns.length > 1) {
+        <div>
+          <label for="im-date">{{ 'import.dateColumn' | transloco }}</label>
+          <select
+            id="im-date"
+            [value]="s.profile.mapping.date"
+            (change)="chooseDateColumn($any($event.target).value)"
+            aria-describedby="im-date-hint"
+          >
+            @for (c of s.dateColumns; track c) {
+              <option [value]="c" [selected]="c === s.profile.mapping.date">{{ c }}</option>
+            }
+          </select>
+          <p id="im-date-hint" class="small muted hint">
+            {{ (isCard() ? 'import.dateHintCard' : 'import.dateHint') | transloco }}
+          </p>
+        </div>
+      }
+
       @if (checking()) {
         <p class="muted small">{{ 'common.loading' | transloco }}</p>
       } @else if (rows().length) {

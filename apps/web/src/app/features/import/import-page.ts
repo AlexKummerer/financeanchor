@@ -144,6 +144,21 @@ export class ImportPage {
     await this.analyze();
   }
 
+  /** Andere Datumsspalte verwenden (z. B. Umsatztag statt Buchungstag); wird mit gespeichert. */
+  protected async chooseDateColumn(column: string) {
+    const text = this.text();
+    const section = this.section();
+    if (text === null || !section) return;
+    const profile = { ...section.profile, mapping: { ...section.profile.mapping, date: column } };
+    const sections = parseStatementSections(text, profile);
+    const index = sections.findIndex(
+      (x) => x.profile.mapping.date === column && x.title === section.title,
+    );
+    this.sections.set(sections);
+    this.sectionIndex.set(Math.max(0, index));
+    await this.preview();
+  }
+
   protected async chooseSection(index: number) {
     this.sectionIndex.set(index);
     await this.preview();

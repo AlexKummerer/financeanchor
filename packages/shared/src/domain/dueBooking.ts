@@ -3,7 +3,7 @@ import { dateInMonth, monthOfDate, type IsoDate, type YearMonth } from '../month
 import type { SourceType, SystemCategoryKey, TransactionKind } from '../schemas/common.js';
 import type { Account } from '../schemas/entities.js';
 import { bookingKeys } from './bookingKeys.js';
-import { statementDebitedIn, statementTotal, type CardLike } from './cards.js';
+import { statementDebitedIn, statementTotal, type CardLike, type StatementDates } from './cards.js';
 import { allocateMonth, type PlanLoan } from './loans.js';
 import { isDue, viaReserve } from './recurring.js';
 import {
@@ -83,6 +83,8 @@ export interface DueInput {
     Partial<Pick<Account, 'kind' | 'statementDay' | 'debitDay' | 'debitAccountId'>>)[];
   /** Buchungen der Kreditkarten (für die Summe der Abrechnung) */
   cardTransactions?: readonly Parameters<typeof statementTotal>[0][number][];
+  /** Tatsächliche Abrechnungsdaten der Karten, wo sie vom Stichtag abweichen */
+  cardStatementDates?: readonly (StatementDates & { accountId: string })[];
   loans: readonly (PlanLoan & { name: string; dueDay: number })[];
   systemCategoryIds: Record<SystemCategoryKey, string>;
   /** Bereits gebuchte Schlüssel des Monats mit dem tatsächlich gebuchten Betrag und Datum */
@@ -248,7 +250,8 @@ export function planDue(input: DueInput): DueEntry[] {
   // Kreditkarten: Abbuchung der Abrechnung, die in diesem Monat vom Konto geht – eine Umbuchung
   for (const card of input.accounts) {
     if (card.kind !== 'credit_card' || !card.statementDay || !card.debitDay) continue;
-    const statement = statementDebitedIn(card as CardLike, input.month);
+    const dates = (input.cardStatementDates ?? []).filter((d) => d.accountId === card.id);
+    const statement = statementDebitedIn(card as CardLike, input.month, dates);
     const total = statementTotal(input.cardTransactions ?? [], card.id, statement).amountCents;
     const key = bookingKeys.card(card.id);
     if (total <= 0 && !input.booked.has(key)) continue;

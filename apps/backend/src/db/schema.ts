@@ -159,6 +159,26 @@ export const recurringItems = sqliteTable(
   ],
 );
 
+/** Tatsächlicher Stichtag und Abbuchungstag einer Abrechnung, wenn sie vom Üblichen abweichen. */
+export const cardStatementDates = sqliteTable(
+  'card_statement_dates',
+  {
+    ...base,
+    accountId: text('account_id').notNull(),
+    closeMonth: text('close_month').notNull(),
+    closingDate: text('closing_date').notNull(),
+    debitDate: text('debit_date'),
+  },
+  (t) => [
+    uniqueIndex('card_statement_dates_uq').on(t.userId, t.accountId, t.closeMonth),
+    foreignKey({
+      name: 'card_statement_dates_account_fk',
+      columns: [t.userId, t.accountId],
+      foreignColumns: [accounts.userId, accounts.id],
+    }).onDelete('cascade'),
+  ],
+);
+
 export const transactions = sqliteTable(
   'transactions',
   {
@@ -176,6 +196,8 @@ export const transactions = sqliteTable(
     importKey: text('import_key'),
     /** Wiedererkennbarer Bank-Text (ohne Nummern) für Vorschläge beim nächsten Import */
     importLabel: text('import_label'),
+    /** Kreditkarte: Abrechnung (Monat des Stichtags), falls abweichend vom Datum */
+    statementMonth: text('statement_month'),
   },
   (t) => [
     index('transactions_import_label_idx').on(t.userId, t.importLabel),

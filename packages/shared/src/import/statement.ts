@@ -200,6 +200,20 @@ export interface StatementSection extends ParsedStatement {
   /** Abschnittstitel, wenn die Datei mehrere enthält (Comdirect), sonst `null` */
   title: string | null;
   profile: ImportProfile;
+  /** Spalten mit Datumsangaben (z. B. Buchungs- und Umsatztag) – zur Auswahl beim Import */
+  dateColumns: string[];
+}
+
+/** Spalten, deren Werte in den ersten Datenzeilen überwiegend Datumsangaben sind. */
+function dateColumnsOf(table: string[][], headerIndex: number): string[] {
+  const headers = table[headerIndex] ?? [];
+  const sample = table.slice(headerIndex + 1, headerIndex + 21);
+  return headers.filter((h, i) => {
+    if (!h) return false;
+    const values = sample.map((r) => r[i] ?? '').filter((v) => v.trim());
+    const dates = values.filter((v) => parseDate(v) !== null).length;
+    return values.length > 0 && dates / values.length >= 0.8;
+  });
 }
 
 /**
@@ -238,7 +252,12 @@ export function parseStatementSections(
         mapping: preset ? preset.adjust(base) : base,
       };
     }
-    sections.push({ title, ...readRows(table, index, result.mapping), profile: result });
+    sections.push({
+      title,
+      ...readRows(table, index, result.mapping),
+      profile: result,
+      dateColumns: dateColumnsOf(table, index),
+    });
   }
   return sections;
 }

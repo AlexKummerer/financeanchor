@@ -193,6 +193,13 @@ export const transactionRoutes = new Hono<AppEnv>()
       const s = scopedFrom(c);
       const { id } = c.req.valid('param');
       const patch = c.req.valid('json');
+      if (patch.statementMonth !== undefined) {
+        const current = found(await s.get(transactions, id), 'transaction');
+        // Nur Käufe mit Karte gehören zu einer Abrechnung
+        if (current.kind !== 'normal' || !(patch.accountId ?? current.accountId)) {
+          throw new AppError(400, 'not_a_card_purchase', 'Only card purchases have a statement');
+        }
+      }
       if (patch.accountId !== undefined) {
         const current = found(await s.get(transactions, id), 'transaction');
         // „Bezahlt mit“ gibt es nur bei selbst erfassten Buchungen
