@@ -57,6 +57,9 @@ export class AssetsPage {
       this.cards().length ? `/api/accounts/card-statements?today=${this.clock.today()}` : undefined,
     { defaultValue: [] },
   );
+  /** Zähler, damit auch aufgeklappte ältere Abrechnungen nach Änderungen neu laden */
+  protected readonly refreshCount = signal(0);
+
   protected statementOf(cardId: string) {
     return this.statements.value().find((s) => s.cardId === cardId) ?? null;
   }
@@ -145,6 +148,7 @@ export class AssetsPage {
         this.http.patch(`/api/transactions/${e.id}`, { statementMonth: e.statementMonth }),
       );
       this.statements.reload();
+      this.refreshCount.update((n) => n + 1);
     } catch {
       this.toast.show(this.t.translate('errors.saveFailed'), 'error');
     }
@@ -163,6 +167,7 @@ export class AssetsPage {
           : this.http.delete(url),
       );
       this.statements.reload();
+      this.refreshCount.update((n) => n + 1);
     } catch (err) {
       this.toast.show(
         this.t.translate(err instanceof ApiError ? 'cards.datesInvalid' : 'errors.saveFailed'),

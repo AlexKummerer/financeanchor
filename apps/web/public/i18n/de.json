@@ -536,7 +536,13 @@
     "customDates": "Daten laut Bank",
     "editDates": "Stichtag laut Bank anpassen",
     "datesInvalid": "Der Stichtag muss im Monat der Abrechnung liegen, die Abbuchung danach.",
-    "next": "Nächste Abrechnung"
+    "next": "Nächste Abrechnung",
+    "olderOpen": "Ältere Abrechnungen ansehen",
+    "olderTitle": "Ältere Abrechnungen",
+    "olderPrev": "Frühere Abrechnung",
+    "olderNext": "Spätere Abrechnung",
+    "olderClose": "Schließen",
+    "olderLabel": "Abrechnung {{month}}"
   },
   "import": {
     "title": "Umsätze einlesen",

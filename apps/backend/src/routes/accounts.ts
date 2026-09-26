@@ -14,8 +14,9 @@ import {
   statementFor,
   statementTotal,
   type Statement,
+  type Transaction,
 } from '@financeanchor/shared';
-import { and, asc, eq, gte, isNotNull, like } from 'drizzle-orm';
+import { and, asc, eq, gte, isNotNull, like, lte } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { runBatch } from '../db/client.js';
@@ -58,6 +59,59 @@ function definedOnly<T extends object>(o: T): Partial<T> {
 }
 
 const statementsQuery = z.object({ today: isoDateSchema });
+
+/** Spalten, die für Abrechnungen gebraucht werden */
+const cardTxColumns = {
+  id: transactions.id,
+  date: transactions.date,
+  name: transactions.name,
+  amountCents: transactions.amountCents,
+  kind: transactions.kind,
+  accountId: transactions.accountId,
+  sourceType: transactions.sourceType,
+  sourceId: transactions.sourceId,
+  statementMonth: transactions.statementMonth,
+};
+type CardTx = Pick<
+  Transaction,
+  | 'id'
+  | 'date'
+  | 'name'
+  | 'amountCents'
+  | 'kind'
+  | 'accountId'
+  | 'sourceType'
+  | 'sourceId'
+  | 'statementMonth'
+>;
+
+/** Abrechnung mit Summe, Buchungen und Status – für die Kartenansicht und den Abgleich. */
+function describeStatement(
+  cardId: string,
+  st: Statement,
+  txs: readonly CardTx[],
+  paid: ReadonlySet<string>,
+  dates: readonly { closeMonth: string }[],
+) {
+  return {
+    ...st,
+    // Stichtag/Abbuchung laut Bank eingetragen
+    custom: dates.some((d) => d.closeMonth === st.closeMonth),
+    ...statementTotal(txs, cardId, st),
+    paid: paid.has(`card:${cardId}|${monthOfDate(st.debitDate)}`),
+    transactions: txs
+      .filter((t) => t.accountId === cardId && t.kind !== 'card_payment' && inStatement(t, st))
+      .map(({ id, date, name, amountCents, statementMonth }) => ({
+        id,
+        date,
+        name,
+        amountCents,
+        // Am Stichtag kann die Bank schon die nächste Abrechnung nehmen
+        movable: !statementMonth && date === st.to,
+        moved: !!statementMonth,
+      })),
+  };
+}
 const statementParam = z.object({ id: idSchema, closeMonth: yearMonthSchema });
 
 export const accountRoutes = new Hono<AppEnv>()
@@ -79,17 +133,7 @@ export const accountRoutes = new Hono<AppEnv>()
     const earliest = `${addMonths(monthOfDate(today), -3)}-01`;
     const [txs, booked, allDates] = await s.db.batch([
       s.db
-        .select({
-          id: transactions.id,
-          date: transactions.date,
-          name: transactions.name,
-          amountCents: transactions.amountCents,
-          kind: transactions.kind,
-          accountId: transactions.accountId,
-          sourceType: transactions.sourceType,
-          sourceId: transactions.sourceId,
-          statementMonth: transactions.statementMonth,
-        })
+        .select(cardTxColumns)
         .from(transactions)
         .where(
           s.own(
@@ -106,24 +150,8 @@ export const accountRoutes = new Hono<AppEnv>()
     ]);
     const datesOf = (cardId: string) => allDates.filter((d) => d.accountId === cardId);
     const paid = new Set(booked.map((b) => `${b.key}|${b.month}`));
-    const describe = (card: (typeof cards)[number], st: Statement) => ({
-      ...st,
-      // Stichtag/Abbuchung laut Bank eingetragen
-      custom: datesOf(card.id).some((d) => d.closeMonth === st.closeMonth),
-      ...statementTotal(txs, card.id, st),
-      paid: paid.has(`card:${card.id}|${monthOfDate(st.debitDate)}`),
-      transactions: txs
-        .filter((t) => t.accountId === card.id && t.kind !== 'card_payment' && inStatement(t, st))
-        .map(({ id, date, name, amountCents, statementMonth }) => ({
-          id,
-          date,
-          name,
-          amountCents,
-          // Am Stichtag kann die Bank schon die nächste Abrechnung nehmen
-          movable: !statementMonth && date === st.to,
-          moved: !!statementMonth,
-        })),
-    });
+    const describe = (card: (typeof cards)[number], st: Statement) =>
+      describeStatement(card.id, st, txs, paid, datesOf(card.id));
     return c.json(
       cards.map((card) => {
         const dates = datesOf(card.id);
@@ -137,6 +165,42 @@ export const accountRoutes = new Hono<AppEnv>()
         };
       }),
     );
+  })
+  /** Eine beliebige (auch ältere) Abrechnung einer Karte, z. B. um Käufe am Stichtag zu verschieben. */
+  .get('/:id/statements/:closeMonth', validate('param', statementParam), async (c) => {
+    const s = scopedFrom(c);
+    const { id, closeMonth } = c.req.valid('param');
+    const card = found(await s.get(accounts, id), 'account');
+    if (card.kind !== 'credit_card') {
+      throw new AppError(400, 'not_a_card', 'Only credit cards have statements');
+    }
+    const [txs, booked, dates] = await s.db.batch([
+      s.db
+        .select(cardTxColumns)
+        .from(transactions)
+        .where(
+          s.own(
+            transactions,
+            and(
+              eq(transactions.accountId, id),
+              gte(transactions.date, `${addMonths(closeMonth, -2)}-01`),
+              lte(transactions.date, `${addMonths(closeMonth, 1)}-31`),
+            ),
+          ),
+        )
+        .orderBy(asc(transactions.date)),
+      s.db
+        .select({ key: bookedItems.bookingKey, month: bookedItems.month })
+        .from(bookedItems)
+        .where(s.own(bookedItems, eq(bookedItems.bookingKey, `card:${id}`))),
+      s.db
+        .select()
+        .from(cardStatementDates)
+        .where(s.own(cardStatementDates, eq(cardStatementDates.accountId, id))),
+    ]);
+    const st = statementClosingIn(card, closeMonth, dates);
+    const paid = new Set(booked.map((b) => `${b.key}|${b.month}`));
+    return c.json(describeStatement(id, st, txs, paid, dates));
   })
   /** Stichtag und Abbuchung einer Abrechnung laut Bank setzen (Stichtag muss im Monat liegen). */
   .put(

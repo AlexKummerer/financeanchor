@@ -308,4 +308,45 @@ describe('Kreditkarten', () => {
     }[];
     expect(again.find((e) => e.key === `card:${amex.id}`)?.amountCents).toBe(-3000);
   });
+
+  it('ältere Abrechnung abrufen und Kauf am Stichtag dort verschieben', async () => {
+    const { api } = await newUser();
+    const { essen } = await setup(api);
+    const card = (
+      await api.post('/accounts', {
+        name: 'Stichtag 2',
+        kind: 'credit_card',
+        balanceCents: 0,
+        statementDay: 2,
+        debitDay: 4,
+      })
+    ).body;
+    const tx = (
+      await api.post('/transactions', {
+        date: `${statementMonth}-02`,
+        name: 'Nach Abschluss',
+        categoryId: essen,
+        amountCents: -1500,
+        accountId: card.id,
+      })
+    ).body;
+    const get = async (month: string) =>
+      (await api.get(`/accounts/${card.id}/statements/${month}`)).body as {
+        closeMonth: string;
+        to: string;
+        amountCents: number;
+        transactions: { id: string; movable: boolean; moved: boolean }[];
+      };
+    const old = await get(statementMonth);
+    expect(old).toMatchObject({ to: `${statementMonth}-02`, amountCents: 1500 });
+    expect(old.transactions).toEqual([expect.objectContaining({ id: tx.id, movable: true })]);
+
+    await api.patch(`/transactions/${tx.id}`, { statementMonth: lastMonth });
+    expect((await get(statementMonth)).amountCents).toBe(0);
+    const next = await get(lastMonth);
+    expect(next.amountCents).toBe(1500);
+    expect(next.transactions[0]).toMatchObject({ id: tx.id, moved: true });
+
+    expect((await api.get(`/accounts/${card.id}/statements/2026-13`)).status).toBe(400);
+  });
 });

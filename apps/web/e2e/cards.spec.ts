@@ -70,4 +70,28 @@ test('Kreditkarte: anlegen, mit Karte buchen, Stand und Abgleich', async ({ page
   const next = visa.locator('details').filter({ hasText: 'Nächste Abrechnung' });
   await expect(next.locator('summary')).toContainText('9,90');
   await expect(running.locator('summary')).toContainText('0,00');
+
+  // Ältere Abrechnung: Kauf von vor zwei Monaten auf der Amex
+  const old = new Date();
+  old.setDate(15);
+  old.setMonth(old.getMonth() - 2);
+  const oldIso = old.toISOString().slice(0, 10);
+  await nav.getByRole('link', { name: 'Buchungen' }).click();
+  await page.getByLabel('Betrag (€)', { exact: true }).fill('12,00');
+  await page.getByLabel('Datum', { exact: true }).fill(oldIso);
+  await page.getByLabel('Name', { exact: true }).fill('Alter Kauf E2E');
+  await page.getByLabel('Kategorie', { exact: true }).fill('Freizeit');
+  await page.getByLabel('Bezahlt mit').selectOption({ label: 'Amex E2E' });
+  await page.getByRole('button', { name: 'Buchung speichern' }).click();
+  await expect(page.getByRole('status')).toHaveText('Buchung gespeichert');
+
+  await nav.getByRole('link', { name: 'Vermögen' }).click();
+  const amex = page.locator('fa-card-statements').filter({ hasText: 'Amex E2E' });
+  await amex.getByRole('button', { name: 'Ältere Abrechnungen ansehen' }).click();
+  const older = amex
+    .locator('fa-card-statement')
+    .filter({ hasText: /Abrechnung/ })
+    .last();
+  await expect(older).toContainText('Alter Kauf E2E');
+  await expect(older.locator('summary')).toContainText('12,00');
 });

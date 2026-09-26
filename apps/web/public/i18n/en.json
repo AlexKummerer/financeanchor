@@ -536,7 +536,13 @@
     "customDates": "Dates per bank",
     "editDates": "Adjust closing date per bank",
     "datesInvalid": "The closing date must be in the statement month, the debit after it.",
-    "next": "Next statement"
+    "next": "Next statement",
+    "olderOpen": "Show older statements",
+    "olderTitle": "Older statements",
+    "olderPrev": "Earlier statement",
+    "olderNext": "Later statement",
+    "olderClose": "Close",
+    "olderLabel": "Statement {{month}}"
   },
   "import": {
     "title": "Import transactions",
