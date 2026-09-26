@@ -1,6 +1,8 @@
 import { httpResource } from '@angular/common/http';
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import {
+  addMonths,
+  allocateMonth,
   bookedBreakdown,
   monthlyBreakdown,
   monthsBetween,
@@ -9,6 +11,7 @@ import {
   netWorthChange,
   spendingByCategory,
   type Transaction,
+  type YearMonth,
 } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { RouterLink } from '@angular/router';
@@ -34,9 +37,13 @@ export class OverviewPage {
   private readonly f = inject(Formatter);
   private readonly planner = inject(LoanPlanner);
 
-  protected readonly month = this.clock.month();
+  /** Laufender Monat */
+  protected readonly today = this.clock.month();
+  /** Angezeigter Monat (vor- und zurückblättern) */
+  protected readonly month = signal<YearMonth>(this.today);
+  protected readonly isCurrent = computed(() => this.month() === this.today);
   protected readonly monthTx = httpResource<Transaction[]>(
-    () => `/api/transactions?month=${this.month}`,
+    () => `/api/transactions?month=${this.month()}`,
     {
       defaultValue: [],
     },
@@ -44,7 +51,7 @@ export class OverviewPage {
 
   /** Tatsächlich gebucht im laufenden Monat, aufgeteilt wie der Plan */
   protected readonly booked = computed(() =>
-    bookedBreakdown(this.monthTx.value(), this.store.items.items(), this.month),
+    bookedBreakdown(this.monthTx.value(), this.store.items.items(), this.month()),
   );
 
   /**
@@ -52,14 +59,23 @@ export class OverviewPage {
    * vor und nach „Fällige übernehmen“ gleich bleibt.
    */
   protected readonly breakdown = computed(() => {
-    const first = this.planner.plan()?.months[0];
-    const openLoans = first?.month === this.month ? first.paidCents : 0;
+    // Laufender und künftige Monate: noch Offenes laut Plan; vergangene: nur Gebuchtes
+    const month = this.month();
+    const planned = this.planner.plan()?.months.find((m) => m.month === month);
+    const booked = this.booked().loanCents;
+    // Vergangener Monat ohne gebuchte Raten: was laut Plan fällig gewesen wäre
+    const openLoans =
+      month >= this.today
+        ? (planned?.paidCents ?? 0)
+        : booked === 0
+          ? allocateMonth(this.store.loans.items(), month).paidCents
+          : 0;
     return monthlyBreakdown({
       items: this.store.items.items(),
       pots: this.store.pots.items(),
       loans: this.store.loans.items(),
-      month: this.month,
-      loanCents: this.booked().loanCents + openLoans,
+      month,
+      loanCents: booked + openLoans,
     });
   });
 
@@ -98,9 +114,9 @@ export class OverviewPage {
     () => this.store.loans.items().filter((l) => l.balanceCents > 0).length,
   );
 
-  protected readonly totals = computed(() => monthTotals(this.monthTx.value(), this.month));
+  protected readonly totals = computed(() => monthTotals(this.monthTx.value(), this.month()));
   protected readonly spending = computed(() => {
-    const rows = spendingByCategory(this.monthTx.value(), this.month);
+    const rows = spendingByCategory(this.monthTx.value(), this.month());
     const max = rows[0]?.amountCents ?? 1;
     return rows.map((r) => ({
       ...r,
@@ -116,13 +132,23 @@ export class OverviewPage {
     return {
       stuck: false as const,
       month: plan.debtFreeMonth,
-      duration: formatDuration(this.t, monthsBetween(this.month, plan.debtFreeMonth) + 1),
+      duration: formatDuration(this.t, monthsBetween(this.today, plan.debtFreeMonth) + 1),
     };
   });
 
   constructor() {
     // Buchungsstand der Kredite kann sich seit dem letzten Laden geändert haben
     void this.planner.refresh();
+  }
+
+  /** Vorzeichen für die Tabelle; bei 0 keins */
+  protected sign(key: string, cents: number): string {
+    if (cents === 0) return '';
+    return key === 'income' ? '+' : '−';
+  }
+
+  protected shiftMonth(n: number) {
+    this.month.update((m) => addMonths(m, n));
   }
 
   /** Nach „Fällige übernehmen“: Buchungen des Monats neu laden. */

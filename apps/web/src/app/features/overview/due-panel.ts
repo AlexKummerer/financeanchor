@@ -1,4 +1,13 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 import {
   parseEuroToCents,
   type DueEntry,
@@ -131,7 +140,17 @@ export class DuePanel {
   protected readonly hasOpen = computed(() => this.rows().some((r) => !r.entry.booked));
 
   constructor() {
-    queueMicrotask(() => void this.load());
+    // Neu laden, wenn der Monat wechselt (Übersicht blättert durch die Monate)
+    effect(() => {
+      this.month();
+      untracked(() => {
+        this.choice.set(new Map());
+        this.overrides.set(new Map());
+        this.editing.set(null);
+        this.entries.set(null);
+        queueMicrotask(() => void this.load());
+      });
+    });
   }
 
   async load(): Promise<void> {

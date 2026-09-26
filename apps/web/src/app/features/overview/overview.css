@@ -56,3 +56,19 @@ a {
 .compare + .hint {
   margin-top: 6px;
 }
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.month-label {
+  font-weight: 700;
+  min-width: 9rem;
+  text-align: center;
+}
+.month-nav .today {
+  margin-left: auto;
+  min-height: 44px;
+}

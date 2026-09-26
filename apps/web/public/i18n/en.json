@@ -123,7 +123,11 @@
       "other": "Other expenses",
       "rest": "Left",
       "hint": "Expected: everything entered for this month, loans including what is already booked. Booked: only what is listed under transactions. Expected “left” is what remains for other expenses."
-    }
+    },
+    "monthNav": "Choose month",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "toToday": "Today"
   },
   "loans": {
     "payoffLabel": "Expected to be debt-free",

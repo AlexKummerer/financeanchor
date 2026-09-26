@@ -123,7 +123,11 @@
       "other": "Sonstige Ausgaben",
       "rest": "Übrig",
       "hint": "Voraussichtlich: alles Eingetragene für diesen Monat, Kredite inklusive schon Gebuchtem. Gebucht: nur, was unter Buchungen steht. „Übrig“ voraussichtlich ist das, was für sonstige Ausgaben bleibt."
-    }
+    },
+    "monthNav": "Monat wählen",
+    "prevMonth": "Vorheriger Monat",
+    "nextMonth": "Nächster Monat",
+    "toToday": "Heute"
   },
   "loans": {
     "payoffLabel": "Voraussichtlich schuldenfrei",

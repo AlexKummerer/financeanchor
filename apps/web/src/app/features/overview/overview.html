@@ -1,8 +1,33 @@
+<nav class="month-nav" [attr.aria-label]="'overview.monthNav' | transloco">
+  <button
+    class="iconbtn"
+    type="button"
+    (click)="shiftMonth(-1)"
+    [attr.aria-label]="'overview.prevMonth' | transloco"
+  >
+    ‹
+  </button>
+  <p class="month-label" aria-live="polite">{{ month() | faMonth }}</p>
+  <button
+    class="iconbtn"
+    type="button"
+    (click)="shiftMonth(1)"
+    [attr.aria-label]="'overview.nextMonth' | transloco"
+  >
+    ›
+  </button>
+  @if (!isCurrent()) {
+    <button class="linkbtn today" type="button" (click)="month.set(today)">
+      {{ 'overview.toToday' | transloco }}
+    </button>
+  }
+</nav>
+
 <section class="panel" aria-labelledby="flow-title">
   <div class="flow-head">
     <div>
       <p id="flow-title" class="muted small">
-        {{ 'overview.expectedFree' | transloco: { month: (month | faMonth: 'longNoYear') } }}
+        {{ 'overview.expectedFree' | transloco: { month: (month() | faMonth: 'longNoYear') } }}
       </p>
       <p class="flow-free" [class.neg]="breakdown().freeCents < 0">
         {{ breakdown().freeCents | money: true }}
@@ -21,7 +46,7 @@
   <table class="compare small">
     <caption class="visually-hidden">
       {{
-        'overview.compare.caption' | transloco: { month: (month | faMonth) }
+        'overview.compare.caption' | transloco: { month: (month() | faMonth) }
       }}
     </caption>
     <thead>
@@ -41,10 +66,10 @@
             @if (r.plan === null) {
               <span class="muted">–</span>
             } @else {
-              {{ r.key === 'income' ? '+' : '−' }}{{ r.plan | money }}
+              {{ sign(r.key, r.plan) }}{{ r.plan | money }}
             }
           </td>
-          <td>{{ r.key === 'income' ? '+' : '−' }}{{ r.booked | money }}</td>
+          <td>{{ sign(r.key, r.booked) }}{{ r.booked | money }}</td>
         </tr>
       }
     </tbody>
@@ -92,7 +117,7 @@
   </div>
   <div class="panel">
     <p class="kpi-label">
-      {{ 'overview.monthSoFar' | transloco: { month: (month | faMonth: 'longNoYear') } }}
+      {{ 'overview.monthSoFar' | transloco: { month: (month() | faMonth: 'longNoYear') } }}
     </p>
     <p
       class="kpi-value"
@@ -152,5 +177,5 @@
 
 <h2 id="due-title">{{ 'overview.dueThisMonth' | transloco }}</h2>
 <section class="panel" aria-labelledby="due-title">
-  <fa-due-panel [month]="month" (booked)="onBooked()" />
+  <fa-due-panel [month]="month()" (booked)="onBooked()" />
 </section>
