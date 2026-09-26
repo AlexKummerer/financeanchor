@@ -9,7 +9,9 @@ import { readFileSync } from 'node:fs';
 
 const appUrl = process.env.APP_URL?.replace(/\/$/, '');
 if (!appUrl || !/^https:\/\/[^/]+$/.test(appUrl)) {
-  console.error('APP_URL fehlt oder ist ungültig (z. B. APP_URL=https://financeanchor.alexander-122.workers.dev).');
+  console.error(
+    'APP_URL fehlt oder ist ungültig (z. B. APP_URL=https://financeanchor.alexander-122.workers.dev).',
+  );
   process.exit(1);
 }
 const config = readFileSync(new URL('../apps/backend/wrangler.jsonc', import.meta.url), 'utf8');
