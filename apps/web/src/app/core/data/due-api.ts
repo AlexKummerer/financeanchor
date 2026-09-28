@@ -20,7 +20,8 @@ export class DueApi {
 
   async book(
     month: YearMonth,
-    req: Omit<DueBookRequest, 'overrides'> & Partial<Pick<DueBookRequest, 'overrides'>>,
+    req: Omit<DueBookRequest, 'overrides' | 'links'> &
+      Partial<Pick<DueBookRequest, 'overrides' | 'links'>>,
   ) {
     try {
       return await firstValueFrom(

@@ -9,10 +9,13 @@ import {
   untracked,
 } from '@angular/core';
 import {
+  daysBetween,
   parseEuroToCents,
+  reconcile,
   type DueEntry,
   type DueOverride,
   type IsoDate,
+  type Transaction,
   type YearMonth,
 } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -35,6 +38,10 @@ interface Row {
   bookable: boolean;
   selected: boolean;
   adjusted: boolean;
+  /** Von Hand erfasste Buchung, mit der die Fälligkeit verknüpft wird */
+  link: Transaction | null;
+  /** Vorschlag: sieht aus wie schon von Hand gebucht */
+  suggestion: Transaction | null;
 }
 
 /**
@@ -49,6 +56,8 @@ interface Row {
 })
 export class DuePanel {
   readonly month = input.required<YearMonth>();
+  /** Buchungen des Monats (für „Schon gebucht als …“) */
+  readonly transactions = input<readonly Transaction[]>([]);
   /** Nach dem Buchen (Buchungen und Stände neu laden) */
   readonly booked = output<number>();
 
@@ -65,6 +74,30 @@ export class DuePanel {
   protected readonly editing = signal<string | null>(null);
   private readonly choice = signal(new Map<string, boolean>());
   private readonly overrides = signal(new Map<string, DueOverride>());
+  /** Fälligkeit → von Hand erfasste Buchung */
+  private readonly links = signal(new Map<string, string>());
+
+  /** Von Hand erfasste Buchungen des Monats, die noch keiner Fälligkeit gehören */
+  private readonly manual = computed(() =>
+    this.transactions().filter((t) => t.kind === 'normal' && t.sourceType === null),
+  );
+  /** Vorschläge wie beim CSV-Import: gleicher Betrag in der Nähe oder ähnlicher Name */
+  private readonly suggestions = computed(() => {
+    const open = (this.entries() ?? []).filter((e) => !e.booked && e.type !== 'transfer');
+    const matches = reconcile(
+      open.map((e) => ({
+        key: e.key,
+        label: null,
+        date: e.date,
+        amountCents: e.amountCents,
+        counterparty: e.name,
+        purpose: '',
+      })),
+      this.manual().map((t) => ({ ...t, sourceType: null, sourceId: null, linked: false })),
+    );
+    const byId = new Map(this.manual().map((t) => [t.id, t]));
+    return new Map([...matches].map(([key, m]) => [key, byId.get(m.transactionId) ?? null]));
+  });
   protected readonly amountError = signal<string | null>(null);
   protected readonly today = this.clock.today();
 
@@ -73,11 +106,18 @@ export class DuePanel {
     const bookedKeys = new Set(entries.filter((e) => e.booked).map((e) => e.key));
     const overrides = this.overrides();
     const choice = this.choice();
+    const links = this.links();
+    const byId = new Map(this.manual().map((t) => [t.id, t]));
+    const used = new Set(links.values());
     return entries.map((entry) => {
+      const linkId = links.get(entry.key);
+      const link = (!entry.booked && linkId && byId.get(linkId)) || null;
+      const suggested = this.suggestions().get(entry.key) ?? null;
       const o = overrides.get(entry.linkedKey ?? entry.key);
-      const date = entry.booked ? entry.date : (o?.date ?? entry.date);
-      const amountCents =
-        !entry.booked && o?.amountCents !== undefined
+      const date = entry.booked ? entry.date : (link?.date ?? o?.date ?? entry.date);
+      const amountCents = link
+        ? link.amountCents
+        : !entry.booked && o?.amountCents !== undefined
           ? Math.sign(entry.amountCents) * o.amountCents
           : entry.amountCents;
       const selectable =
@@ -97,8 +137,10 @@ export class DuePanel {
         amountCents,
         selectable,
         bookable,
-        selected,
-        adjusted: !!o,
+        selected: selected && !link,
+        adjusted: !!o && !link,
+        link,
+        suggestion: !link && suggested && !used.has(suggested.id) ? suggested : null,
       };
     });
   });
@@ -128,9 +170,13 @@ export class DuePanel {
       .filter((r) => r.selected)
       .map((r) => r.entry.key),
   );
-  /** Anzahl der entstehenden Buchungen: gewählte Einträge plus ihre Umbuchungen. */
+  private readonly linkedRows = computed(() => this.rows().filter((r) => r.link));
+  protected readonly canBook = computed(
+    () => this.selectedKeys().length > 0 || this.linkedRows().length > 0,
+  );
+  /** Anzahl der Fälligkeiten: gewählte und verknüpfte Einträge plus ihre Umbuchungen. */
   protected readonly bookCount = computed(() => {
-    const keys = new Set(this.selectedKeys());
+    const keys = new Set([...this.selectedKeys(), ...this.linkedRows().map((r) => r.entry.key)]);
     return this.rows().filter(
       (r) =>
         !r.entry.booked &&
@@ -146,6 +192,7 @@ export class DuePanel {
       untracked(() => {
         this.choice.set(new Map());
         this.overrides.set(new Map());
+        this.links.set(new Map());
         this.editing.set(null);
         this.entries.set(null);
         queueMicrotask(() => void this.load());
@@ -174,6 +221,33 @@ export class DuePanel {
 
   protected toggle(key: string, checked: boolean) {
     this.choice.update((m) => new Map(m).set(key, checked));
+  }
+
+  /** Mögliche Buchungen für „Schon gebucht als …“: gleiches Vorzeichen, nächste zuerst */
+  protected candidates(row: Row): Transaction[] {
+    const used = new Set(this.links().values());
+    return this.manual()
+      .filter(
+        (t) => !used.has(t.id) && Math.sign(t.amountCents) === Math.sign(row.entry.amountCents),
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(daysBetween(a.date, row.entry.date)) -
+            Math.abs(daysBetween(b.date, row.entry.date)) ||
+          Math.abs(a.amountCents - row.entry.amountCents) -
+            Math.abs(b.amountCents - row.entry.amountCents),
+      );
+  }
+
+  /** Mit einer von Hand erfassten Buchung verknüpfen (bzw. mit `null` lösen). */
+  protected link(key: string, transactionId: string | null) {
+    this.links.update((m) => {
+      const next = new Map(m);
+      if (transactionId) next.set(key, transactionId);
+      else next.delete(key);
+      return next;
+    });
+    if (this.editing() === key) this.editing.set(null);
   }
 
   protected startEdit(key: string) {
@@ -219,14 +293,24 @@ export class DuePanel {
 
   protected async bookSelected() {
     const keys = this.selectedKeys();
-    if (!keys.length) return;
+    const links = this.linkedRows().map((r) => ({
+      key: r.entry.key,
+      transactionId: r.link?.id ?? '',
+    }));
+    if (!keys.length && !links.length) return;
     this.pending.set(true);
     try {
       const overrides = [...this.overrides().values()].filter((o) => keys.includes(o.key));
-      const res = await this.api.book(this.month(), { today: this.today, keys, overrides });
+      const res = await this.api.book(this.month(), {
+        today: this.today,
+        keys,
+        overrides,
+        links,
+      });
       this.entries.set(res.entries);
       this.overrides.set(new Map());
       this.choice.set(new Map());
+      this.links.set(new Map());
       await this.store.reloadBalances();
       this.toast.show(this.t.translate('due.booked', { n: res.bookedCount }));
       this.booked.emit(res.bookedCount);

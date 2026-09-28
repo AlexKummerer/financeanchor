@@ -336,7 +336,8 @@ export class DueBookingError extends Error {
       | 'not_yet_due'
       | 'date_outside_month'
       | 'invalid_amount'
-      | 'transfer_not_selectable',
+      | 'transfer_not_selectable'
+      | 'sign_mismatch',
     readonly key: string,
   ) {
     super(`${code}: ${key}`);
@@ -393,6 +394,39 @@ export function applyDueOverrides(
       }
     }
     return { ...next, bookable: date <= today };
+  });
+}
+
+/**
+ * Fälligkeiten, die schon von Hand gebucht sind: Tag und Betrag der vorhandenen Buchung gelten
+ * (auch für Restschuld und Rücklage), und sie sind buchbar, auch wenn sie laut Plan erst später
+ * fällig wären. Zugehörige Umbuchungen folgen.
+ */
+export function applyDueLinks(
+  entries: readonly DueEntry[],
+  links: readonly { key: string; date: IsoDate; amountCents: Cents }[],
+  month: YearMonth,
+  today: IsoDate,
+): DueEntry[] {
+  for (const l of links) {
+    const e = entries.find((x) => x.key === l.key);
+    if (!e) throw new DueBookingError('unknown_key', l.key);
+    if (Math.sign(e.amountCents) !== Math.sign(l.amountCents)) {
+      throw new DueBookingError('sign_mismatch', l.key);
+    }
+  }
+  const withAmounts = applyDueOverrides(
+    entries,
+    links.map((l) => ({ key: l.key, amountCents: Math.abs(l.amountCents) })),
+    month,
+    today,
+  );
+  const byKey = new Map(links.map((l) => [l.key, l]));
+  return withAmounts.map((e) => {
+    const l = byKey.get(e.linkedKey ?? e.key);
+    if (!l || e.booked) return e;
+    const date = e.key === l.key || monthOfDate(l.date) === month ? l.date : e.date;
+    return { ...e, date, bookable: true };
   });
 }
 

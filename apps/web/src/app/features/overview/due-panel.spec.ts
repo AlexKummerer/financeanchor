@@ -1,7 +1,7 @@
 import type { WritableSignal } from '@angular/core';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { DueEntry } from '@financeanchor/shared';
+import type { DueEntry, Transaction } from '@financeanchor/shared';
 import { translocoTesting } from '../../../testing/transloco';
 import { Clock } from '../../core/clock';
 import { DueApi } from '../../core/data/due-api';
@@ -129,6 +129,7 @@ describe('DuePanel', () => {
       today: '2026-09-25',
       keys: ['item:miete', 'item:gehalt', 'item:vers'],
       overrides: [{ key: 'item:gehalt', date: '2026-09-25' }],
+      links: [],
     });
   });
 
@@ -145,6 +146,35 @@ describe('DuePanel', () => {
     el.querySelector<HTMLButtonElement>('.btnrow .btn:not(.ghost)')!.click();
     await fixture.whenStable();
     expect(book.mock.calls[0]![1].keys).toEqual(['item:vers']);
+  });
+
+  it('schon von Hand gebucht: Vorschlag verknüpfen statt doppelt buchen', async () => {
+    const { fixture, el } = await render();
+    const manual = {
+      id: 't-miete',
+      date: '2026-09-02',
+      name: 'Miete September',
+      categoryId: 'c',
+      amountCents: -85000,
+      kind: 'normal',
+      sourceType: null,
+      sourceId: null,
+      accountId: null,
+    } as unknown as Transaction;
+    fixture.componentRef.setInput('transactions', [manual]);
+    await fixture.whenStable();
+    expect(el.textContent).toContain('Schon von Hand gebucht? „Miete September“');
+
+    button(el, 'Verknüpfen').click();
+    await fixture.whenStable();
+    expect(checkbox(el, 'Miete')).toBeNull();
+    expect(el.textContent).toContain('1 als Buchungen übernehmen');
+    el.querySelector<HTMLButtonElement>('.btnrow .btn:not(.ghost)')!.click();
+    await fixture.whenStable();
+    expect(book.mock.calls[0]![1]).toMatchObject({
+      keys: [],
+      links: [{ key: 'item:miete', transactionId: 't-miete' }],
+    });
   });
 
   it('Suche filtert die Liste nach Name', async () => {

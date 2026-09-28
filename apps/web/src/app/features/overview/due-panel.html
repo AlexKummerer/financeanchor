@@ -32,7 +32,7 @@
     @for (row of visibleRows(); track row.entry.key) {
       <li [class.booked]="row.entry.booked">
         <div class="check">
-          @if (row.selectable) {
+          @if (row.selectable && !row.link) {
             <input
               type="checkbox"
               [id]="'due-' + $index"
@@ -56,9 +56,40 @@
               · {{ 'due.status.adjusted' | transloco }}
             }
           </span>
+          @if (row.link; as t) {
+            <p class="small linked">
+              {{
+                'due.linked'
+                  | transloco
+                    : {
+                        name: t.name,
+                        date: (t.date | faDate: 'dayMonth'),
+                        amount: (t.amountCents | money),
+                      }
+              }}
+              <button class="linkbtn" type="button" (click)="link(row.entry.key, null)">
+                {{ 'due.unlink' | transloco }}
+              </button>
+            </p>
+          } @else if (row.suggestion; as t) {
+            <p class="small suggest">
+              {{
+                'due.suggestion'
+                  | transloco
+                    : {
+                        name: t.name,
+                        date: (t.date | faDate: 'dayMonth'),
+                        amount: (t.amountCents | money),
+                      }
+              }}
+              <button class="linkbtn" type="button" (click)="link(row.entry.key, t.id)">
+                {{ 'due.linkIt' | transloco }}
+              </button>
+            </p>
+          }
         </div>
         <div class="amt" [class.pos]="row.amountCents > 0">{{ row.amountCents | money }}</div>
-        @if (row.selectable) {
+        @if (row.selectable && !row.link) {
           <button
             type="button"
             class="iconbtn"
@@ -99,6 +130,25 @@
             @if (amountError()) {
               <p class="field-error full" role="alert">{{ amountError() }}</p>
             }
+            @let list = candidates(row);
+            @if (list.length) {
+              <div class="full">
+                <label [for]="'due-link-' + $index">{{ 'due.linkLabel' | transloco }}</label>
+                <select
+                  [id]="'due-link-' + $index"
+                  (change)="link(row.entry.key, $any($event.target).value || null)"
+                >
+                  <option value="">–</option>
+                  @for (t of list; track t.id) {
+                    <option [value]="t.id">
+                      {{ t.date | faDate: 'dayMonth' }} · {{ t.name }} ·
+                      {{ t.amountCents | money }}
+                    </option>
+                  }
+                </select>
+                <p class="small muted hint">{{ 'due.linkHint' | transloco }}</p>
+              </div>
+            }
             <div class="full btnrow">
               <button class="btn" type="submit">{{ 'due.apply' | transloco }}</button>
               @if (row.adjusted) {
@@ -119,7 +169,7 @@
       <button
         class="btn"
         type="button"
-        [disabled]="selectedKeys().length === 0 || pending()"
+        [disabled]="!canBook() || pending()"
         (click)="bookSelected()"
       >
         {{ 'due.bookSelected' | transloco: { n: bookCount() } }}

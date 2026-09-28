@@ -94,6 +94,70 @@ describe('Fällige übernehmen', () => {
     );
   });
 
+  it('schon von Hand gebucht: verknüpft statt doppelt, Restschuld und Art werden angepasst', async () => {
+    const { api } = await newUser();
+    const { loan } = await household(api);
+    const manual = (
+      await api.post('/transactions', {
+        date: `${lastMonth}-03`,
+        name: 'Rate Auto von Hand',
+        categoryId: await categoryId(api, 'Lebensmittel'),
+        amountCents: -25000,
+      })
+    ).body;
+    const other = (
+      await api.post('/transactions', {
+        date: `${lastMonth}-04`,
+        name: 'Einnahme',
+        categoryId: await categoryId(api, 'Gehalt'),
+        amountCents: 25000,
+      })
+    ).body;
+    const key = `loan:${loan.id}`;
+
+    // Falsches Vorzeichen bzw. zweimal dieselbe Buchung: abgelehnt
+    const wrong = await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [],
+      links: [{ key, transactionId: other.id }],
+    });
+    expect(wrong.status).toBe(400);
+
+    const res = await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [],
+      links: [{ key, transactionId: manual.id }],
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.bookedCount).toBe(1);
+    expect(res.body.entries.find((e: any) => e.key === key)).toMatchObject({
+      booked: true,
+      amountCents: -25000,
+    });
+    // 8.400 € + 41,30 € Zins − 250 € (Betrag der eigenen Buchung)
+    expect(await balanceOf(api, '/loans', loan.id)).toBe(840000 + 4130 - 25000);
+    const txs = (await api.get(`/transactions?month=${lastMonth}`)).body as any[];
+    expect(txs.filter((t) => t.sourceId === loan.id && t.kind === 'loan_payment')).toEqual([
+      expect.objectContaining({
+        id: manual.id,
+        name: 'Rate Auto von Hand',
+        date: `${lastMonth}-03`,
+      }),
+    ]);
+
+    // Schon verknüpft: nicht noch einmal
+    const again = await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [],
+      links: [{ key: `extra:${loan.id}`, transactionId: manual.id }],
+    });
+    expect(again.status).toBe(400);
+
+    // Löschen macht die Tilgung rückgängig, die Fälligkeit ist wieder offen
+    await api.del(`/transactions/${manual.id}`);
+    expect(await balanceOf(api, '/loans', loan.id)).toBe(840000);
+  });
+
   it('ist idempotent: zweiter Aufruf bucht nichts, Stände bleiben', async () => {
     const { api } = await newUser();
     const { reserveAccount, loan } = await household(api);

@@ -331,7 +331,13 @@
     "search": "Suchen …",
     "selectAll": "Alle auswählen",
     "selectNone": "Keine auswählen",
-    "noMatch": "Keine Einträge zu dieser Suche."
+    "noMatch": "Keine Einträge zu dieser Suche.",
+    "linked": "Schon gebucht als „{{name}}“ ({{date}}, {{amount}}) – wird verknüpft",
+    "unlink": "Lösen",
+    "suggestion": "Schon von Hand gebucht? „{{name}}“ ({{date}}, {{amount}})",
+    "linkIt": "Verknüpfen",
+    "linkLabel": "Schon von Hand gebucht als …",
+    "linkHint": "Dann wird nichts doppelt angelegt: die Buchung wird dieser Fälligkeit zugeordnet, Tag und Betrag der Buchung gelten (auch für Restschuld und Rücklage)."
   },
   "forms": {
     "required": "Bitte ausfüllen.",

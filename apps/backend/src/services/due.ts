@@ -1,5 +1,6 @@
 import {
   addMonths,
+  applyDueLinks,
   applyDueOverrides,
   bookingEffects,
   DueBookingError,
@@ -14,7 +15,7 @@ import {
   type YearMonth,
   withoutPastEffects,
 } from '@financeanchor/shared';
-import { and, eq, gte, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { chunkedInsert, runBatch } from '../db/client.js';
 import {
   accounts,
@@ -129,15 +130,21 @@ export async function loadDuePlan(
  */
 export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) {
   assertPlausibleToday(req.today);
+  const linked = await linkTransactions(s, req.links);
   let selected: DueEntry[];
   try {
-    const plan = applyDueOverrides(
-      await loadDuePlan(s, month, req.today),
-      req.overrides,
+    const plan = applyDueLinks(
+      applyDueOverrides(await loadDuePlan(s, month, req.today), req.overrides, month, req.today),
+      req.links.map((l) => {
+        const tx = linked.get(l.transactionId);
+        if (!tx) throw new AppError(400, 'invalid_link', 'Unknown transaction');
+        return { key: l.key, date: tx.date, amountCents: tx.amountCents };
+      }),
       month,
       req.today,
     );
-    selected = selectDueForBooking(plan, req.keys);
+    const keys = req.keys && [...new Set([...req.keys, ...req.links.map((l) => l.key)])];
+    selected = selectDueForBooking(plan, keys);
   } catch (err) {
     if (err instanceof DueBookingError) {
       throw new AppError(400, err.code, err.message, { key: err.key });
@@ -159,9 +166,10 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
   });
 
   const now = Date.now();
+  const linkByKey = new Map(req.links.map((l) => [l.key, l.transactionId]));
   const pairs = selected.map((e) => {
     const tx = {
-      id: newId(now),
+      id: linkByKey.get(e.key) ?? newId(now),
       userId: s.userId,
       date: e.date,
       name: e.name,
@@ -190,12 +198,29 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
     };
     return { tx, booked };
   });
-  const txRows = pairs.map((p) => p.tx);
+  const txRows = pairs.map((p) => p.tx).filter((t) => !linked.has(t.id));
+  // Schon von Hand gebucht: Buchung wird zur Fälligkeit (Art, Herkunft, Kategorie), Name bleibt
+  const linkUpdates = pairs
+    .filter((p) => linked.has(p.tx.id))
+    .map(({ tx }) =>
+      s.db
+        .update(transactions)
+        .set({
+          kind: tx.kind,
+          sourceType: tx.sourceType,
+          sourceId: tx.sourceId,
+          categoryId: tx.categoryId,
+          accountId: sql`coalesce(${transactions.accountId}, ${tx.accountId})`,
+          updatedAt: now,
+        })
+        .where(s.byId(transactions, tx.id)),
+    );
   const bookedRows = pairs.map((p) => p.booked);
   const { accountDeltas, loanDeltas, savingDeltas } = bookingEffects(selected);
   try {
     await runBatch(s.db, [
       ...chunkedInsert(s.db, transactions, txRows),
+      ...linkUpdates,
       ...chunkedInsert(s.db, bookedItems, bookedRows),
       ...[...accountDeltas].map(([id, delta]) =>
         s.db
@@ -227,4 +252,40 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
     throw err;
   }
   return { bookedCount: selected.length };
+}
+
+/**
+ * Buchungen, mit denen Fälligkeiten verknüpft werden sollen: eigene, von Hand erfasste Buchungen
+ * (Art „normal“, ohne Herkunft), jede höchstens einmal.
+ */
+async function linkTransactions(s: Scoped, links: DueBookRequest['links']) {
+  const ids = links.map((l) => l.transactionId);
+  const found = new Map<string, { date: IsoDate; amountCents: number }>();
+  if (!ids.length) return found;
+  if (new Set(ids).size !== ids.length || new Set(links.map((l) => l.key)).size !== ids.length) {
+    throw new AppError(400, 'invalid_link', 'Each transaction can only be linked once');
+  }
+  const [rows, booked] = await s.db.batch([
+    s.db
+      .select({
+        id: transactions.id,
+        date: transactions.date,
+        amountCents: transactions.amountCents,
+        kind: transactions.kind,
+        sourceType: transactions.sourceType,
+      })
+      .from(transactions)
+      .where(s.own(transactions, inArray(transactions.id, ids))),
+    s.db
+      .select({ id: bookedItems.transactionId })
+      .from(bookedItems)
+      .where(s.own(bookedItems, inArray(bookedItems.transactionId, ids))),
+  ]);
+  for (const r of rows) {
+    if (r.kind === 'normal' && r.sourceType === null) found.set(r.id, r);
+  }
+  if (found.size !== ids.length || booked.length) {
+    throw new AppError(400, 'invalid_link', 'Transaction cannot be linked');
+  }
+  return found;
 }

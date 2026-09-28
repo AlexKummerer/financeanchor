@@ -46,3 +46,15 @@ li.edit input {
   margin-left: auto;
   min-height: 44px;
 }
+.linked,
+.suggest {
+  margin: 2px 0 0;
+  color: var(--pine);
+}
+.linked .linkbtn,
+.suggest .linkbtn {
+  min-height: 0;
+  margin-left: 6px;
+  padding: 0;
+  color: inherit;
+}

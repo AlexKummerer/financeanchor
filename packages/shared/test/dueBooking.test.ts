@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyDueLinks,
   applyDueOverrides,
   bookingEffects,
   DueBookingError,
@@ -242,6 +243,38 @@ describe('Anpassen und Auswählen', () => {
       date: '2026-09-20',
       accountDelta: { cents: -16000 },
     });
+  });
+
+  it('schon von Hand gebucht: Tag und Betrag der Buchung gelten, auch vor Fälligkeit', () => {
+    const linked = applyDueLinks(
+      plan,
+      [{ key: 'item:Gehalt', date: '2026-09-20', amountCents: 310000 }],
+      MONTH,
+      TODAY,
+    );
+    expect(byKey(linked, 'item:Gehalt')).toMatchObject({
+      date: '2026-09-20',
+      amountCents: 310000,
+      bookable: true,
+    });
+    const rate = applyDueLinks(
+      plan,
+      [{ key: 'loan:Autokredit', date: '2026-08-31', amountCents: -30000 }],
+      MONTH,
+      TODAY,
+    );
+    expect(byKey(rate, 'loan:Autokredit')).toMatchObject({
+      date: '2026-08-31',
+      loanDelta: { loanId: 'Autokredit', cents: 4130 - 30000 },
+    });
+    expect(() =>
+      applyDueLinks(
+        plan,
+        [{ key: 'loan:Autokredit', date: '2026-09-01', amountCents: 30000 }],
+        MONTH,
+        TODAY,
+      ),
+    ).toThrow(DueBookingError);
   });
 
   it('angepasste Kreditrate ändert den Tilgungsanteil', () => {

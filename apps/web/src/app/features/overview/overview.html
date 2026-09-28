@@ -177,5 +177,5 @@
 
 <h2 id="due-title">{{ 'overview.dueThisMonth' | transloco }}</h2>
 <section class="panel" aria-labelledby="due-title">
-  <fa-due-panel [month]="month()" (booked)="onBooked()" />
+  <fa-due-panel [month]="month()" [transactions]="monthTx.value()" (booked)="onBooked()" />
 </section>

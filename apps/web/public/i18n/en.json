@@ -331,7 +331,13 @@
     "search": "Search …",
     "selectAll": "Select all",
     "selectNone": "Select none",
-    "noMatch": "No entries match this search."
+    "noMatch": "No entries match this search.",
+    "linked": "Already booked as “{{name}}” ({{date}}, {{amount}}) – will be linked",
+    "unlink": "Unlink",
+    "suggestion": "Already booked by hand? “{{name}}” ({{date}}, {{amount}})",
+    "linkIt": "Link",
+    "linkLabel": "Already booked by hand as …",
+    "linkHint": "Nothing is created twice: the transaction is assigned to this due item, its date and amount apply (also to loan balance and reserve)."
   },
   "forms": {
     "required": "Please fill in.",

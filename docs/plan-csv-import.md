@@ -57,3 +57,8 @@ Anlass: Von Hand gebuchte Posten wurden beim Einlesen nicht erkannt – „Rate 
 - **Oberfläche:** „Schon gebucht“ bzw. „Möglicherweise schon gebucht – bitte prüfen“, bei Gruppen Anzahl und Summe; „Nicht dieselbe“ löst die Verknüpfung. Neue Zeilen: „Ist schon gebucht als …“ zum Verknüpfen von Hand (auch mehrere Zeilen mit einer Buchung). Weicht die Summe ab, kann man den Betrag der Buchung angleichen – nur, wenn er nicht schon in Kontostand oder Restschuld steckt (wie beim Bearbeiten).
 - **Gegenprobe:** Buchungen der App im Zeitraum der Datei ohne passende Zeile (Kartenimport: Käufe mit der Karte; sonst Buchungen ohne Karte außer Rücklagen und Umbuchungen).
 - **Datenmodell:** Verknüpfungen in `import_links` (Migration 0014; Fingerabdruck eindeutig je Nutzer, mehrere je Buchung, gelöscht mit der Buchung, Teil der Sicherung). `transactions.import_key` bleibt für neu angelegte Buchungen.
+
+## Nachtrag (28.09.2026): Fällige mit Buchungen von Hand verknüpfen
+
+- „Diesen Monat fällig“ schlägt vor, wenn eine offene Fälligkeit schon von Hand gebucht aussieht (gleicher Abgleich wie beim Import: gleicher Betrag bis 3 Tage oder ähnlicher Name mit etwas anderem Betrag): „Schon von Hand gebucht? … Verknüpfen“. Im Bearbeiten (✎) lässt sich jede eigene Buchung des Monats wählen.
+- Beim Übernehmen wird nichts neu angelegt: die Buchung bekommt Art, Herkunft und Kategorie der Fälligkeit (Name bleibt), Tag und Betrag der Buchung gelten – auch für Restschuld, Rücklage und das Stand-Datum (`applyDueLinks`, `POST /api/due/:month/book` mit `links`). Nur Buchungen der Art „normal“ ohne Herkunft, jede einmal. Löschen der Buchung macht es wie gewohnt rückgängig.
