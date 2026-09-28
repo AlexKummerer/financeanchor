@@ -151,8 +151,15 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
   const groups = await linkGroups(s, req.links);
   let selected: DueEntry[];
   try {
+    const adjusted = applyDueOverrides(
+      await loadDuePlan(s, month, req.today),
+      req.overrides,
+      month,
+      req.today,
+    );
+    splitAmounts(groups, adjusted);
     const plan = applyDueLinks(
-      applyDueOverrides(await loadDuePlan(s, month, req.today), req.overrides, month, req.today),
+      adjusted,
       [...groups].map(([key, g]) => ({ key, date: g.date, amountCents: g.amountCents })),
       month,
       req.today,
@@ -191,7 +198,7 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
       kind: e.transactionKind,
       sourceType: e.sourceType,
       sourceId: e.sourceId,
-      accountId: e.paidWith,
+      accountId: groups.get(e.key)?.accountId ?? e.paidWith,
       createdAt: now,
       updatedAt: now,
     };
@@ -211,7 +218,8 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
     };
     return { tx, booked, group: groups.get(e.key) ?? null };
   });
-  const txRows = pairs.filter((p) => !p.group).map((p) => p.tx);
+  // Neu angelegt: ohne Verknüpfung und beim Aufteilen die weiteren Fälligkeiten
+  const txRows = pairs.filter((p) => !p.group?.ids.length).map((p) => p.tx);
   // Schon von Hand gebucht: die Buchungen werden zur Fälligkeit (Art, Herkunft, Kategorie), Namen
   // bleiben; ab der zweiten Buchung als Teil der Markierung
   const linkUpdates = pairs.flatMap(({ tx, group }) =>
@@ -224,6 +232,8 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
           sourceId: tx.sourceId,
           categoryId: tx.categoryId,
           accountId: sql`coalesce(${transactions.accountId}, ${tx.accountId})`,
+          // Aufgeteilt: es bleibt der Rest nach den übrigen Fälligkeiten
+          ...(group?.split ? { amountCents: tx.amountCents } : {}),
           updatedAt: now,
         })
         .where(s.byId(transactions, id)),
@@ -279,16 +289,33 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
   return { bookedCount: selected.length };
 }
 
+interface LinkGroup {
+  /** Verknüpfte Buchungen (nach Datum); leer bei den weiteren Fälligkeiten einer Aufteilung */
+  ids: string[];
+  date: IsoDate;
+  amountCents: number;
+  accountId: string | null;
+  /** Eine Buchung für mehrere Fälligkeiten (z. B. 72 € für 30 € und 42 €) */
+  split: { transactionId: string; totalCents: number; first: boolean } | null;
+}
+
 /**
  * Buchungen, mit denen Fälligkeiten verknüpft werden sollen: eigene, von Hand erfasste Buchungen
- * (Art „normal“, ohne Herkunft), jede höchstens einmal. Je Fälligkeit nach Datum sortiert (die
- * erste wird die Buchung der Markierung), mit Summe und letztem Tag.
+ * (Art „normal“, ohne Herkunft). Je Fälligkeit nach Datum sortiert (die erste wird die Buchung der
+ * Markierung), mit Summe und letztem Tag. Eine Buchung darf nur dann bei mehreren Fälligkeiten
+ * stehen, wenn sie dort jeweils allein steht – dann wird sie aufgeteilt.
  */
 async function linkGroups(s: Scoped, links: DueBookRequest['links']) {
-  const groups = new Map<string, { ids: string[]; date: IsoDate; amountCents: number }>();
-  const ids = links.flatMap((l) => l.transactionIds);
+  const groups = new Map<string, LinkGroup>();
+  const all = links.flatMap((l) => l.transactionIds);
+  const ids = [...new Set(all)];
   if (!ids.length) return groups;
-  if (new Set(ids).size !== ids.length || new Set(links.map((l) => l.key)).size !== links.length) {
+  const count = new Map<string, number>();
+  for (const id of all) count.set(id, (count.get(id) ?? 0) + 1);
+  const mixed = links.some(
+    (l) => l.transactionIds.length > 1 && l.transactionIds.some((id) => (count.get(id) ?? 0) > 1),
+  );
+  if (mixed || new Set(links.map((l) => l.key)).size !== links.length) {
     throw new AppError(400, 'invalid_link', 'Each transaction can only be linked once');
   }
   const [rows, booked, parts] = await s.db.batch([
@@ -299,6 +326,7 @@ async function linkGroups(s: Scoped, links: DueBookRequest['links']) {
         amountCents: transactions.amountCents,
         kind: transactions.kind,
         sourceType: transactions.sourceType,
+        accountId: transactions.accountId,
       })
       .from(transactions)
       .where(s.own(transactions, inArray(transactions.id, ids))),
@@ -317,6 +345,7 @@ async function linkGroups(s: Scoped, links: DueBookRequest['links']) {
   if (found.size !== ids.length || booked.length || parts.length) {
     throw new AppError(400, 'invalid_link', 'Transaction cannot be linked');
   }
+  const seen = new Set<string>();
   for (const l of links) {
     const txs = l.transactionIds
       .map((id) => found.get(id))
@@ -327,11 +356,39 @@ async function linkGroups(s: Scoped, links: DueBookRequest['links']) {
     if (txs.some((t) => Math.sign(t.amountCents) !== Math.sign(amountCents))) {
       throw new AppError(400, 'invalid_link', 'Parts must have the same sign');
     }
+    const [only] = txs;
+    const shared = txs.length === 1 && only && (count.get(only.id) ?? 0) > 1 ? only : null;
+    const first = !!shared && !seen.has(shared.id);
+    if (shared) seen.add(shared.id);
     groups.set(l.key, {
-      ids: txs.map((t) => t.id),
+      ids: shared && !first ? [] : txs.map((t) => t.id),
       date: txs[txs.length - 1]?.date ?? '',
       amountCents,
+      accountId: only?.accountId ?? null,
+      split: shared ? { transactionId: shared.id, totalCents: shared.amountCents, first } : null,
     });
   }
   return groups;
+}
+
+/**
+ * Aufteilen: die weiteren Fälligkeiten behalten ihren (ggf. angepassten) Betrag, die erste bekommt
+ * den Rest der Buchung.
+ */
+function splitAmounts(groups: Map<string, LinkGroup>, entries: readonly DueEntry[]) {
+  const others = new Map<string, number>();
+  for (const [key, g] of groups) {
+    if (!g.split || g.split.first) continue;
+    const e = entries.find((x) => x.key === key);
+    if (!e) throw new DueBookingError('unknown_key', key);
+    g.amountCents = e.amountCents;
+    others.set(g.split.transactionId, (others.get(g.split.transactionId) ?? 0) + e.amountCents);
+  }
+  for (const [key, g] of groups) {
+    if (!g.split?.first) continue;
+    g.amountCents = g.split.totalCents - (others.get(g.split.transactionId) ?? 0);
+    if (Math.sign(g.amountCents) !== Math.sign(g.split.totalCents)) {
+      throw new DueBookingError('invalid_amount', key);
+    }
+  }
 }

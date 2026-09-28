@@ -58,15 +58,15 @@
           </span>
           @if (row.link; as t) {
             <p class="small linked">
-              {{ 'due.linked' | transloco: describe(t) }}
+              {{ 'due.linked' | transloco: describe(t, row.share) }}
               <button class="linkbtn" type="button" (click)="link(row.entry.key, [])">
                 {{ 'due.unlink' | transloco }}
               </button>
             </p>
           } @else if (row.suggestion; as t) {
             <p class="small suggest">
-              {{ 'due.suggestion' | transloco: describe(t) }}
-              <button class="linkbtn" type="button" (click)="link(row.entry.key, ids(t))">
+              {{ 'due.suggestion' | transloco: describe(t, suggestedShare(row)) }}
+              <button class="linkbtn" type="button" (click)="linkSuggestion(row)">
                 {{ 'due.linkIt' | transloco }}
               </button>
             </p>

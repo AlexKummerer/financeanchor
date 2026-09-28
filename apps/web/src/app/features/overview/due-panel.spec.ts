@@ -207,6 +207,42 @@ describe('DuePanel', () => {
     ]);
   });
 
+  it('eine Buchung für zwei Posten: wird aufgeteilt vorgeschlagen und verknüpft', async () => {
+    const { fixture, el } = await render();
+    fixture.componentInstance.load = vi.fn();
+    const split = [
+      entry({ key: 'item:server', name: 'Strato Server', amountCents: -3000 }),
+      entry({ key: 'item:domain', name: 'Strato Domain', amountCents: -4200 }),
+    ];
+    (TestBed.inject(DueApi).plan as ReturnType<typeof vi.fn>).mockResolvedValue(split);
+    await DuePanel.prototype.load.call(fixture.componentInstance);
+    fixture.componentRef.setInput('transactions', [
+      {
+        id: 't-strato',
+        date: '2026-09-03',
+        name: 'Strato',
+        categoryId: 'c',
+        amountCents: -7200,
+        kind: 'normal',
+        sourceType: null,
+        sourceId: null,
+        accountId: null,
+      } as unknown as Transaction,
+    ]);
+    await fixture.whenStable();
+    expect(el.textContent).toContain('davon hier -30,00');
+
+    button(el, 'Verknüpfen').click();
+    await fixture.whenStable();
+    expect(el.textContent).toContain('2 als Buchungen übernehmen');
+    el.querySelector<HTMLButtonElement>('.btnrow .btn:not(.ghost)')!.click();
+    await fixture.whenStable();
+    expect(book.mock.calls[0]![1].links).toEqual([
+      { key: 'item:server', transactionIds: ['t-strato'] },
+      { key: 'item:domain', transactionIds: ['t-strato'] },
+    ]);
+  });
+
   it('Suche filtert die Liste nach Name', async () => {
     const { fixture, el } = await render();
     (fixture.componentInstance as unknown as { query: WritableSignal<string> }).query.set('miet');

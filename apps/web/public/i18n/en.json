@@ -338,7 +338,8 @@
     "linkIt": "Link",
     "linkLabel": "Already booked by hand as … (several parts possible)",
     "linkHint": "Nothing is created twice: the transactions are assigned to this due item, their date and amount (sum for several) apply – also to loan balance and reserve. Deleting one part reopens the due item.",
-    "parts": "{{n}} parts, together {{amount}}"
+    "parts": "{{n}} parts, together {{amount}}",
+    "split": "{{total}} in total, {{amount}} of it here"
   },
   "forms": {
     "required": "Please fill in.",

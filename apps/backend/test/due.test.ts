@@ -206,6 +206,73 @@ describe('Fällige übernehmen', () => {
     expect(plan.find((e) => e.key === key).booked).toBe(false);
   });
 
+  it('eine Buchung für zwei Posten: wird aufgeteilt', async () => {
+    const { api } = await newUser();
+    const cat = await categoryId(api, 'Wohnen');
+    const item = async (name: string, amountCents: number) =>
+      (
+        await api.post('/recurring-items', {
+          name,
+          amountCents,
+          intervalMonths: 1,
+          kind: 'fixed',
+          dueDay: 5,
+          startMonth: lastMonth,
+          categoryId: cat,
+        })
+      ).body;
+    const server = await item('Strato Server', 3000);
+    const domain = await item('Strato Domain', 4200);
+    const manual = (
+      await api.post('/transactions', {
+        date: `${lastMonth}-06`,
+        name: 'Strato',
+        categoryId: cat,
+        amountCents: -7200,
+      })
+    ).body;
+
+    const res = await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [],
+      links: [
+        { key: `item:${server.id}`, transactionIds: [manual.id] },
+        { key: `item:${domain.id}`, transactionIds: [manual.id] },
+      ],
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.bookedCount).toBe(2);
+    const booked = (key: string) => res.body.entries.find((e: any) => e.key === key);
+    expect(booked(`item:${server.id}`)).toMatchObject({ booked: true, amountCents: -3000 });
+    expect(booked(`item:${domain.id}`)).toMatchObject({ booked: true, amountCents: -4200 });
+
+    const txs = (await api.get(`/transactions?month=${lastMonth}`)).body as any[];
+    const strato = txs.filter((t) => t.sourceType === 'recurring_item');
+    expect(strato.map((t) => [t.name, t.amountCents, t.date]).sort()).toEqual([
+      ['Strato Domain', -4200, `${lastMonth}-06`],
+      ['Strato', -3000, `${lastMonth}-06`],
+    ]);
+
+    // Zweimal dieselbe Buchung bei einer Fälligkeit mit mehreren Teilen: abgelehnt
+    const other = (
+      await api.post('/transactions', {
+        date: `${lastMonth}-07`,
+        name: 'X',
+        categoryId: cat,
+        amountCents: -100,
+      })
+    ).body;
+    const mixed = await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [],
+      links: [
+        { key: `item:${server.id}`, transactionIds: [other.id, manual.id] },
+        { key: `item:${domain.id}`, transactionIds: [manual.id] },
+      ],
+    });
+    expect(mixed.status).toBe(400);
+  });
+
   it('ist idempotent: zweiter Aufruf bucht nichts, Stände bleiben', async () => {
     const { api } = await newUser();
     const { reserveAccount, loan } = await household(api);

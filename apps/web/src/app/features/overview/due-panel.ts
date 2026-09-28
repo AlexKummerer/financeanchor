@@ -42,6 +42,8 @@ interface Row {
   link: Transaction[] | null;
   /** Vorschlag: sieht aus wie schon von Hand gebucht */
   suggestion: Transaction[] | null;
+  /** Eine Buchung für mehrere Fälligkeiten: Anteil dieser Fälligkeit */
+  share: number | null;
 }
 
 /** Summe mehrerer Buchungen */
@@ -103,23 +105,29 @@ export class DuePanel {
     const choice = this.choice();
     const links = this.links();
     const byId = new Map(this.manual().map((t) => [t.id, t]));
-    const used = new Set([...links.values()].flat());
-    return entries.map((entry) => {
-      const linkIds = entry.booked ? [] : (links.get(entry.key) ?? []);
-      const linkTxs = linkIds.flatMap((id) => byId.get(id) ?? []);
-      const link = linkTxs.length ? linkTxs : null;
-      const suggested = this.suggestions().get(entry.key) ?? null;
+    const base = entries.map((entry) => {
       const o = overrides.get(entry.linkedKey ?? entry.key);
+      const planned =
+        !entry.booked && o?.amountCents !== undefined
+          ? Math.sign(entry.amountCents) * o.amountCents
+          : entry.amountCents;
+      const linkTxs = (entry.booked ? [] : (links.get(entry.key) ?? [])).flatMap(
+        (id) => byId.get(id) ?? [],
+      );
+      return { entry, o, planned, link: linkTxs.length ? linkTxs : null };
+    });
+    const shares = splitShares(base);
+    const suggestions = this.suggestions();
+    const usedIn = this.usage();
+    return base.map(({ entry, o, planned, link }) => {
+      const suggested = suggestions.get(entry.key) ?? null;
+      const share = shares.get(entry.key) ?? null;
       const lastDate = link
         ?.map((t) => t.date)
         .sort()
         .at(-1);
       const date = entry.booked ? entry.date : (lastDate ?? o?.date ?? entry.date);
-      const amountCents = link
-        ? sumOf(link)
-        : !entry.booked && o?.amountCents !== undefined
-          ? Math.sign(entry.amountCents) * o.amountCents
-          : entry.amountCents;
+      const amountCents = link ? (share ?? sumOf(link)) : planned;
       const selectable =
         !entry.booked &&
         (entry.type !== 'transfer' ||
@@ -129,6 +137,13 @@ export class DuePanel {
       // Nichts vorausgewählt: gebucht wird nur, was bewusst angehakt ist
       const selected = selectable && bookable && (ownChoice ?? false);
       const [tagKey, tagClass] = this.tag(entry);
+      // Vorschlag nur mit freien Buchungen; eine einzelne darf schon anderswo allein stehen (Aufteilen)
+      const free =
+        !!suggested &&
+        suggested.every((t) => {
+          const u = usedIn.get(t.id);
+          return !u || (suggested.length === 1 && u.single);
+        });
       return {
         entry,
         tagKey,
@@ -140,9 +155,22 @@ export class DuePanel {
         selected: selected && !link,
         adjusted: !!o && !link,
         link,
-        suggestion: !link && suggested?.every((t) => !used.has(t.id)) ? suggested : null,
+        suggestion: !link && free ? suggested : null,
+        share: link ? share : null,
       };
     });
+  });
+
+  /** Wo eine Buchung schon verknüpft ist: nur allein (dann aufteilbar) oder als Teil mehrerer */
+  private readonly usage = computed(() => {
+    const usedIn = new Map<string, { keys: string[]; single: boolean }>();
+    for (const [key, ids] of this.links()) {
+      for (const id of ids) {
+        const u = usedIn.get(id) ?? { keys: [], single: true };
+        usedIn.set(id, { keys: [...u.keys, key], single: u.single && ids.length === 1 });
+      }
+    }
+    return usedIn;
   });
 
   /** Suchbegriff: filtert die Liste nach Name und Art */
@@ -225,12 +253,15 @@ export class DuePanel {
 
   /** Mögliche Buchungen für „Schon gebucht als …“: gleiches Vorzeichen, nächste zuerst */
   protected candidates(row: Row): Transaction[] {
-    const used = new Set(
-      [...this.links()].filter(([key]) => key !== row.entry.key).flatMap(([, ids]) => ids),
-    );
+    const usedIn = this.usage();
+    // Als Teil einer anderen Fälligkeit vergeben: nicht wählbar; allein vergeben: aufteilbar
+    const blocked = (id: string) => {
+      const u = usedIn.get(id);
+      return !!u && u.keys.some((k) => k !== row.entry.key) && !u.single;
+    };
     return this.manual()
       .filter(
-        (t) => !used.has(t.id) && Math.sign(t.amountCents) === Math.sign(row.entry.amountCents),
+        (t) => !blocked(t.id) && Math.sign(t.amountCents) === Math.sign(row.entry.amountCents),
       )
       .sort(
         (a, b) =>
@@ -255,25 +286,78 @@ export class DuePanel {
     return this.links().get(key)?.includes(transactionId) ?? false;
   }
 
-  /** Eine Buchung (ein Teil) hinzufügen oder entfernen */
+  /**
+   * Eine Buchung (ein Teil) hinzufügen oder entfernen. Steht sie schon bei einer anderen
+   * Fälligkeit, wird sie aufgeteilt und steht hier allein.
+   */
   protected toggleLink(key: string, transactionId: string, on: boolean) {
     const current = this.links().get(key) ?? [];
-    this.link(key, on ? [...current, transactionId] : current.filter((id) => id !== transactionId));
+    if (!on) {
+      this.link(
+        key,
+        current.filter((id) => id !== transactionId),
+      );
+      return;
+    }
+    const elsewhere = (id: string) =>
+      this.usage()
+        .get(id)
+        ?.keys.some((k) => k !== key) ?? false;
+    this.link(
+      key,
+      elsewhere(transactionId) || current.some(elsewhere)
+        ? [transactionId]
+        : [...current, transactionId],
+    );
+  }
+
+  /** Vorschlag übernehmen; eine Buchung für mehrere Fälligkeiten wird bei allen verknüpft. */
+  protected linkSuggestion(row: Row) {
+    const txs = row.suggestion ?? [];
+    const [only] = txs;
+    if (txs.length === 1 && only) {
+      for (const r of this.rows()) {
+        const s = r.suggestion;
+        if (s?.length === 1 && s[0]?.id === only.id) this.link(r.entry.key, [only.id]);
+      }
+    }
+    this.link(row.entry.key, this.ids(txs));
   }
 
   protected ids(txs: readonly Transaction[]): string[] {
     return txs.map((t) => t.id);
   }
 
-  /** Text für verknüpfte bzw. vorgeschlagene Buchungen: Name(n), Tag bzw. Anzahl und Betrag */
-  protected describe(txs: readonly Transaction[]): { name: string; detail: string } {
+  /**
+   * Text für verknüpfte bzw. vorgeschlagene Buchungen: Name(n), Tag bzw. Anzahl und Betrag; mit
+   * `share` der Anteil dieser Fälligkeit an einer aufgeteilten Buchung.
+   */
+  protected describe(
+    txs: readonly Transaction[],
+    share: number | null = null,
+  ): { name: string; detail: string } {
     const name = txs.map((t) => t.name).join(' + ');
     const [only] = txs;
     const detail =
       txs.length === 1 && only
-        ? `${this.f.date(only.date, 'dayMonth')}, ${this.f.money(only.amountCents)}`
+        ? share !== null && share !== only.amountCents
+          ? this.t.translate('due.split', {
+              total: this.f.money(only.amountCents),
+              amount: this.f.money(share),
+            })
+          : `${this.f.date(only.date, 'dayMonth')}, ${this.f.money(only.amountCents)}`
         : this.t.translate('due.parts', { n: txs.length, amount: this.f.money(sumOf(txs)) });
     return { name, detail };
+  }
+
+  /** Vorschlag, der dieselbe Buchung auch bei anderen Fälligkeiten nennt: Anteil = geplanter Betrag */
+  protected suggestedShare(row: Row): number | null {
+    const [only] = row.suggestion ?? [];
+    if (!only || row.suggestion?.length !== 1) return null;
+    const shared = this.rows().some(
+      (r) => r !== row && r.suggestion?.length === 1 && r.suggestion[0]?.id === only.id,
+    );
+    return shared ? row.amountCents : null;
   }
 
   protected startEdit(key: string) {
@@ -379,4 +463,29 @@ export class DuePanel {
       }
     }
   }
+}
+
+/**
+ * Eine Buchung bei mehreren Fälligkeiten (jeweils allein): die weiteren behalten ihren geplanten
+ * Betrag, die erste (in Listenreihenfolge) bekommt den Rest – wie beim Buchen im Backend.
+ */
+function splitShares(
+  rows: readonly { entry: DueEntry; planned: number; link: Transaction[] | null }[],
+): Map<string, number> {
+  const byTx = new Map<string, { total: number; keys: { key: string; planned: number }[] }>();
+  for (const r of rows) {
+    const [only] = r.link ?? [];
+    if (r.link?.length !== 1 || !only) continue;
+    const g = byTx.get(only.id) ?? { total: only.amountCents, keys: [] };
+    g.keys.push({ key: r.entry.key, planned: r.planned });
+    byTx.set(only.id, g);
+  }
+  const shares = new Map<string, number>();
+  for (const g of byTx.values()) {
+    const [first, ...others] = g.keys;
+    if (!first || !others.length) continue;
+    for (const o of others) shares.set(o.key, o.planned);
+    shares.set(first.key, g.total - sumOf(others.map((o) => ({ amountCents: o.planned }))));
+  }
+  return shares;
 }

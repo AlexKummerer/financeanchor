@@ -19,7 +19,9 @@ interface ManualTransaction {
 /**
  * Vorschläge für „Schon von Hand gebucht?“ je offener Fälligkeit (jede Buchung höchstens einmal):
  * 1. gleicher Betrag bis 3 Tage Abstand, Name egal
- * 2. ähnlicher Name: eine Buchung (auch mit anderem Betrag) oder mehrere, deren Summe passt
+ * 2. eine Buchung für mehrere Fälligkeiten mit ähnlichem Namen, wenn ihr Betrag deren Summe ist
+ *    (z. B. 72 € für 30 € und 42 €) – dieselbe Buchung steht dann bei allen, sie wird aufgeteilt
+ * 3. ähnlicher Name: eine Buchung (auch mit anderem Betrag) oder mehrere, deren Summe passt
  *    (z. B. 2 × 36 € für 72 €); sonst die mit dem nächsten Betrag
  */
 export function suggestDueLinks<T extends ManualTransaction>(
@@ -42,6 +44,19 @@ export function suggestDueLinks<T extends ManualTransaction>(
         (a, b) => Math.abs(daysBetween(a.date, e.date)) - Math.abs(daysBetween(b.date, e.date)),
       )[0];
     if (exact) take(e.key, [exact]);
+  }
+  for (const t of manual) {
+    if (used.has(t.id)) continue;
+    const covered = open.filter(
+      (e) =>
+        !result.has(e.key) &&
+        Math.sign(e.amountCents) === Math.sign(t.amountCents) &&
+        namesSimilar(t.name, e.name),
+    );
+    const sum = covered.reduce((s, e) => s + e.amountCents, 0);
+    if (covered.length > 1 && Math.abs(sum - t.amountCents) <= amountTolerance(t.amountCents)) {
+      for (const e of covered) take(e.key, [t]);
+    }
   }
   for (const e of open) {
     if (result.has(e.key)) continue;

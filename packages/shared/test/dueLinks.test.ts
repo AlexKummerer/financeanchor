@@ -52,4 +52,13 @@ describe('Vorschläge „Schon von Hand gebucht?“', () => {
     expect(m.has('b')).toBe(false);
     expect(m.has('c')).toBe(false);
   });
+
+  it('eine Buchung für zwei Fälligkeiten: wird bei beiden vorgeschlagen', () => {
+    const m = suggestDueLinks(
+      [due('server', 'Strato Server', -3000), due('domain', 'Strato Domain', -4200)],
+      [tx('t', 'Strato', -7200)],
+    );
+    expect(m.get('server')?.map((t) => t.id)).toEqual(['t']);
+    expect(m.get('domain')?.map((t) => t.id)).toEqual(['t']);
+  });
 });
