@@ -209,12 +209,47 @@
                 <p class="small muted purpose">{{ r.purpose }}</p>
               }
               @if (r.status === 'match' && r.match; as m) {
-                <p class="small hint-match">
+                <p class="small hint-match" [class.likely]="r.certainty === 'likely'">
                   {{
-                    'import.matchHint'
-                      | transloco: { name: m.name, date: (m.date | faDate: 'dayMonth') }
+                    'import.matchHint.' + r.certainty
+                      | transloco
+                        : {
+                            name: m.name,
+                            date: (m.date | faDate: 'dayMonth'),
+                            amount: (m.amountCents | money),
+                          }
                   }}
+                  @if (totals().get(m.id); as total) {
+                    @if (total.count > 1) {
+                      ·
+                      {{
+                        'import.groupHint'
+                          | transloco: { n: total.count, sum: (total.sumCents | money) }
+                      }}
+                    }
+                  }
+                  <button class="linkbtn" type="button" (click)="link(r.key, null)">
+                    {{ 'import.unlink' | transloco }}
+                  </button>
                 </p>
+                @if (differs(r) && totals().get(m.id); as total) {
+                  <label class="check small">
+                    <input
+                      type="checkbox"
+                      [checked]="adjustIds().has(m.id)"
+                      (change)="setAdjust(m.id, $any($event.target).checked)"
+                    />
+                    {{
+                      'import.adjust'
+                        | transloco
+                          : {
+                              name: m.name,
+                              from: (m.amountCents | money),
+                              to: (total.sumCents | money),
+                            }
+                    }}
+                  </label>
+                }
               } @else if (r.status === 'card') {
                 <p class="small hint-match">
                   {{
@@ -223,6 +258,31 @@
                 </p>
               } @else if (r.learned && r.status === 'new') {
                 <p class="small hint-match">{{ 'import.learnedHint' | transloco }}</p>
+              }
+              @if (r.status === 'new') {
+                @if (picking() === r.key) {
+                  <div class="pick">
+                    <label [for]="'im-link-' + r.key">{{ 'import.linkLabel' | transloco }}</label>
+                    <select
+                      [id]="'im-link-' + r.key"
+                      (change)="link(r.key, $any($event.target).value || null)"
+                    >
+                      <option value="">–</option>
+                      @for (t of candidates(r); track t.id) {
+                        <option [value]="t.id">
+                          {{ t.date | faDate: 'dayMonth' }} · {{ t.name }} ·
+                          {{ t.amountCents | money }}
+                        </option>
+                      } @empty {
+                        <option value="" disabled>{{ 'import.noCandidates' | transloco }}</option>
+                      }
+                    </select>
+                  </div>
+                } @else {
+                  <button class="linkbtn small" type="button" (click)="picking.set(r.key)">
+                    {{ 'import.linkOpen' | transloco }}
+                  </button>
+                }
               }
               @if (r.selected && r.status !== 'match') {
                 <div class="edit">
@@ -255,6 +315,27 @@
             <li class="empty">{{ 'import.noneInFilter' | transloco }}</li>
           }
         </ul>
+        @if (unmatched().length) {
+          <details class="support">
+            <summary>{{ 'import.unmatched.title' | transloco: { n: unmatched().length } }}</summary>
+            <p class="small muted">
+              {{ (isCard() ? 'import.unmatched.hintCard' : 'import.unmatched.hint') | transloco }}
+            </p>
+            <ul class="rows">
+              @for (t of unmatched(); track t.id) {
+                <li class="known">
+                  <div class="line1">
+                    <span class="date">{{ t.date | faDate: 'dayMonth' }}</span>
+                    <span class="grow">{{ t.name }}</span>
+                    <span class="amt" [class.pos]="t.amountCents > 0">{{
+                      t.amountCents | money
+                    }}</span>
+                  </div>
+                </li>
+              }
+            </ul>
+          </details>
+        }
         <datalist id="im-cats">
           @for (c of store.userCategories(); track c.id) {
             <option [value]="c.name"></option>

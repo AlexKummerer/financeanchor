@@ -225,6 +225,30 @@ export const transactions = sqliteTable(
 );
 
 /**
+ * Zeilen eines Kontoauszugs, die mit einer vorhandenen Buchung verknüpft wurden (mehrere Zeilen
+ * können zu einer Buchung gehören, z. B. 5 × 10 € = 50 €). Neu angelegte Buchungen tragen ihren
+ * Fingerabdruck direkt in `transactions.import_key`.
+ */
+export const importLinks = sqliteTable(
+  'import_links',
+  {
+    ...base,
+    importKey: text('import_key').notNull(),
+    transactionId: text('transaction_id').notNull(),
+    importLabel: text('import_label'),
+  },
+  (t) => [
+    uniqueIndex('import_links_key_uq').on(t.userId, t.importKey),
+    index('import_links_label_idx').on(t.userId, t.importLabel),
+    foreignKey({
+      name: 'import_links_transaction_fk',
+      columns: [t.userId, t.transactionId],
+      foreignColumns: [transactions.userId, transactions.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
  * Welche Fälligkeit in welchem Monat schon gebucht wurde. Der Unique-Index macht „Fällige
  * übernehmen“ idempotent. Die gespeicherten Änderungen an Konto und Kredit erlauben es, sie beim
  * Löschen der Buchung rückgängig zu machen.

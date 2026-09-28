@@ -45,3 +45,15 @@ Wunsch (26.09.2026): Umsätze der Banken und Karten einlesen statt abtippen – 
 - **Fixkosten „Bezahlt mit“** (`recurring_items.account_id`, Migration 0010): „Fällige übernehmen“ bucht solche Posten auf die Karte; sie zählen zu Kartenstand und Abrechnung.
 - **Verknüpfen beim Karten-Import** trägt die Karte bei eigenen Buchungen ohne Karte nach.
 - **Zahlung an die Karte** („ZAHLUNG/ÜBERWEISUNG ERHALTEN …“) wird beim Karten-Import erkannt und nicht als Einnahme angeboten.
+
+## Nachtrag (28.09.2026): Besserer Abgleich mit vorhandenen Buchungen
+
+Anlass: Von Hand gebuchte Posten wurden beim Einlesen nicht erkannt – „Rate OLB“ (82 €) gegen den Bank-Text „Oldenburgische Landesbank“, eine Sparrate von 50 € als 5 × 10 € abgebucht, 20 € als 2 × ca. 10 €.
+
+- **Abgleich** (`reconcile` in `shared/src/import/reconcile.ts`), jede Buchung höchstens einmal automatisch:
+  1. sicher: gelernte Herkunft (Bank-Text war schon einmal mit dieser Fixkosten-/Kreditbuchung verknüpft, bis 15 Tage, Betrag bis 5 %, mind. 2 €) oder gleicher Betrag bis 3 Tage; möglich: gleicher Betrag einer Buchung aus „Fällige übernehmen“ bis 10 Tage
+  2. Gruppe: mehrere Zeilen mit gleichem Bank-Text, deren Summe zu einer Buchung passt (bis 15 Tage) – sicher bei genau gleicher Summe, sonst möglich
+  3. möglich: Betrag bis 5 % daneben, bis 7 Tage, ein gemeinsames Wort im Namen
+- **Oberfläche:** „Schon gebucht“ bzw. „Möglicherweise schon gebucht – bitte prüfen“, bei Gruppen Anzahl und Summe; „Nicht dieselbe“ löst die Verknüpfung. Neue Zeilen: „Ist schon gebucht als …“ zum Verknüpfen von Hand (auch mehrere Zeilen mit einer Buchung). Weicht die Summe ab, kann man den Betrag der Buchung angleichen – nur, wenn er nicht schon in Kontostand oder Restschuld steckt (wie beim Bearbeiten).
+- **Gegenprobe:** Buchungen der App im Zeitraum der Datei ohne passende Zeile (Kartenimport: Käufe mit der Karte; sonst Buchungen ohne Karte außer Rücklagen und Umbuchungen).
+- **Datenmodell:** Verknüpfungen in `import_links` (Migration 0014; Fingerabdruck eindeutig je Nutzer, mehrere je Buchung, gelöscht mit der Buchung, Teil der Sicherung). `transactions.import_key` bleibt für neu angelegte Buchungen.

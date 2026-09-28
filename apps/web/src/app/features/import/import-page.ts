@@ -11,7 +11,6 @@ import {
   parseStatementSections,
   positiveShare,
   type Category,
-  type ExistingTransaction,
   type ImportCommit,
   type ImportProfile,
   type StatementSection,
@@ -24,7 +23,18 @@ import { DatePipe, MoneyPipe } from '../../core/format/pipes';
 import { ApiError } from '../../core/http/api-error';
 import { ToastService } from '../../core/ui/toast.service';
 import { decodeCsvBytes } from './decode';
-import { buildPreview, dateRange, type PreviewRow, type RowStatus } from './preview';
+import {
+  buildPreview,
+  dateRange,
+  linkCandidates,
+  linkedTotals,
+  linkRow,
+  withoutRow,
+  type ImportExisting,
+  type LearnedLabel,
+  type PreviewRow,
+  type RowStatus,
+} from './preview';
 
 /** Ohne Konto: Umsätze eines Kontos, das in der App nicht geführt wird */
 const NO_ACCOUNT = '';
@@ -91,6 +101,13 @@ export class ImportPage {
   });
 
   protected readonly rows = signal<PreviewRow[]>([]);
+  /** Buchungen der App im Zeitraum der Datei (±15 Tage) */
+  private readonly existing = signal<ImportExisting[]>([]);
+  private readonly range = signal<{ from: string; to: string } | null>(null);
+  /** Zeile, für die gerade „Ist schon gebucht als …“ gewählt wird */
+  protected readonly picking = signal<string | null>(null);
+  /** Buchungen, deren Betrag beim Übernehmen an die Summe der Zeilen angeglichen wird */
+  protected readonly adjustIds = signal<ReadonlySet<string>>(new Set());
   protected readonly filter = signal<RowStatus>('new');
   protected readonly busy = signal(false);
   protected readonly checking = signal(false);
@@ -98,7 +115,7 @@ export class ImportPage {
 
   protected readonly counts = computed(() => {
     const c: Record<RowStatus, number> = { new: 0, match: 0, card: 0, known: 0 };
-    for (const r of this.rows()) c[r.status]++;
+    for (const r of this.rows()) c[r.bucket]++;
     return c;
   });
   protected readonly filterOptions = computed(() =>
@@ -108,8 +125,53 @@ export class ImportPage {
     })),
   );
   protected readonly visible = computed(() =>
-    this.rows().filter((r) => r.status === this.filter()),
+    this.rows().filter((r) => r.bucket === this.filter()),
   );
+  /** Summe und Anzahl der Zeilen je verknüpfter Buchung */
+  protected readonly totals = computed(() => linkedTotals(this.rows()));
+  /** Gegenprobe: Buchungen der App ohne passende Zeile in der Datei */
+  protected readonly unmatched = computed(() => {
+    const range = this.range();
+    if (!range || !this.rows().length) return [];
+    const account = this.account();
+    return withoutRow(
+      this.rows(),
+      this.existing(),
+      account ? { id: account.id, isCard: this.isCard() } : null,
+      range,
+    );
+  });
+
+  /** Mögliche Buchungen für „Ist schon gebucht als …“ */
+  protected candidates(r: PreviewRow): ImportExisting[] {
+    return linkCandidates(r, this.existing());
+  }
+
+  /** Von Hand verknüpfen bzw. Verknüpfung lösen. */
+  protected link(key: string, transactionId: string | null) {
+    const t = this.existing().find((x) => x.id === transactionId) ?? null;
+    this.rows.update((rows) =>
+      rows.map((r) => (r.key === key ? { ...linkRow(r, t), selected: !!t || r.selected } : r)),
+    );
+    this.picking.set(null);
+  }
+
+  /** Weicht die Summe der verknüpften Zeilen vom Betrag der Buchung ab? */
+  protected differs(r: PreviewRow): boolean {
+    const total = r.match ? this.totals().get(r.match.id) : undefined;
+    return (
+      !!total && !!r.match && total.lastKey === r.key && total.sumCents !== r.match.amountCents
+    );
+  }
+
+  protected setAdjust(transactionId: string, on: boolean) {
+    this.adjustIds.update((ids) => {
+      const next = new Set(ids);
+      if (on) next.add(transactionId);
+      else next.delete(transactionId);
+      return next;
+    });
+  }
   protected readonly selectedCount = computed(
     () => this.rows().filter((r) => r.selected && this.selectable(r)).length,
   );
@@ -212,8 +274,12 @@ export class ImportPage {
   private async preview() {
     const section = this.section();
     this.rows.set([]);
+    this.existing.set([]);
+    this.adjustIds.set(new Set());
+    this.picking.set(null);
     if (!section?.rows.length) return;
     const range = dateRange(section.rows);
+    this.range.set(range);
     if (!range) return;
     this.checking.set(true);
     try {
@@ -224,14 +290,15 @@ export class ImportPage {
         firstValueFrom(
           this.http.post<{
             known: string[];
-            existing: ExistingTransaction[];
-            learned: { label: string; name: string; categoryId: string }[];
+            existing: ImportExisting[];
+            learned: LearnedLabel[];
           }>('/api/transactions/import/check', { keys, labels, ...range }),
         ),
         firstValueFrom(
           this.http.get<{ name: string; categoryId: string }[]>('/api/transactions/suggestions'),
         ),
       ]);
+      this.existing.set(check.existing);
       this.rows.set(
         buildPreview({
           rows: section.rows,
@@ -244,7 +311,7 @@ export class ImportPage {
           known: new Set(check.known),
           existing: check.existing,
           suggestions,
-          learned: new Map(check.learned.map((l) => [l.label, l])),
+          learned: check.learned,
           categoryName: (id) => this.store.categoryName(id),
         }),
       );
@@ -322,9 +389,13 @@ export class ImportPage {
       const categories = new Map<string, Category>();
       const items: ImportCommit['items'] = [];
       const links: ImportCommit['links'] = [];
+      const adjust = new Map<string, number>();
       for (const r of chosen) {
         if (r.status === 'match' && r.match) {
           links.push({ transactionId: r.match.id, importKey: r.key, importLabel: r.label });
+          if (this.adjustIds().has(r.match.id)) {
+            adjust.set(r.match.id, (adjust.get(r.match.id) ?? 0) + r.amountCents);
+          }
           continue;
         }
         const key = categoryNameKey(r.category);
@@ -343,16 +414,26 @@ export class ImportPage {
       const account = this.account();
       const profile: ImportProfile | null = section ? section.profile : null;
       const res = await firstValueFrom(
-        this.http.post<{ created: number; linked: number }>('/api/transactions/import', {
-          accountId: this.isCard() ? this.accountId() : null,
-          items,
-          links,
-          profile: account && profile ? { accountId: account.id, profile } : null,
-        }),
+        this.http.post<{ created: number; linked: number; adjusted: number }>(
+          '/api/transactions/import',
+          {
+            accountId: this.isCard() ? this.accountId() : null,
+            items,
+            links,
+            adjust: [...adjust].map(([transactionId, amountCents]) => ({
+              transactionId,
+              amountCents,
+            })),
+            profile: account && profile ? { accountId: account.id, profile } : null,
+          },
+        ),
       );
       this.toast.show(
         this.t.translate('import.done', { created: res.created, linked: res.linked }),
       );
+      if (res.adjusted < adjust.size) {
+        this.toast.show(this.t.translate('import.adjustSkipped'), 'error');
+      }
       await this.store.accounts.load();
       void this.planner.refresh();
       await this.preview();

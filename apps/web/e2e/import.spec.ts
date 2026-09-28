@@ -8,7 +8,7 @@ function sparkasseCsv(): string {
   return [
     '"Auftragskonto";"Buchungstag";"Valutadatum";"Buchungstext";"Verwendungszweck";"Glaeubiger ID";"Mandatsreferenz";"Kundenreferenz (End-to-End)";"Sammlerreferenz";"Lastschrift Ursprungsbetrag";"Auslagenersatz Ruecklastschrift";"Beguenstigter/Zahlungspflichtiger";"Kontonummer/IBAN";"BIC (SWIFT-Code)";"Betrag";"Waehrung";"Info"',
     `"DE00";"${day(1)}";"${day(1)}";"KARTENZAHLUNG";"Einkauf";"";"";"";"";"";"";"Baeckerei Import E2E";"";"";"-7,40";"EUR";"Umsatz gebucht"`,
-    `"DE00";"${day(1)}";"${day(1)}";"KARTENZAHLUNG";"Tanken";"";"";"";"";"";"";"Tankstelle Import E2E";"";"";"-55,00";"EUR";"Umsatz gebucht"`,
+    `"DE00";"${day(1)}";"${day(1)}";"KARTENZAHLUNG";"Zeitschrift";"";"";"";"";"";"";"Kiosk Import E2E";"";"";"-123,45";"EUR";"Umsatz gebucht"`,
     `"DE00";"${day(1)}";"${day(1)}";"LASTSCHRIFT";"Offen";"";"";"";"";"";"";"Vorgemerkt E2E";"";"";"-1,00";"EUR";"Umsatz vorgemerkt"`,
   ].join('\n');
 }
@@ -84,4 +84,54 @@ test('Amex-Datei auf die Karte: Belastungen werden Ausgaben', async ({ page }) =
   await expect(
     page.getByLabel('Belastungen stehen positiv in der Datei', { exact: false }),
   ).toBeChecked();
+});
+
+test('Anderer Bank-Text und Betrag: von Hand als schon gebucht verknüpfen', async ({ page }) => {
+  await login(page);
+  const d = new Date();
+  const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const categories = (await (await page.request.get('/api/categories')).json()) as {
+    id: string;
+    name: string;
+  }[];
+  const created = await page.request.post('/api/transactions', {
+    data: {
+      date: `${month}-02`,
+      name: 'Rate OLB Testlauf',
+      categoryId: categories.find((c) => c.name === 'Lebensmittel')?.id,
+      amountCents: -8200,
+    },
+  });
+  expect(created.ok()).toBe(true);
+
+  const day = `05.${month.slice(5)}.${month.slice(0, 4)}`;
+  const csv = [
+    'Buchungstag;Betrag;Empfänger;Verwendungszweck',
+    `${day};-80,00;Oldenburgische Landesbank;Darlehen 4711`,
+  ].join('\n');
+  await page.goto('/buchungen/einlesen');
+  await page.getByLabel('CSV-Datei').setInputFiles({
+    name: 'olb.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  });
+  const row = page.locator('ul.rows > li').filter({ hasText: 'Oldenburgische Landesbank' });
+  await row.getByRole('button', { name: 'Ist schon gebucht als …' }).click();
+  const pick = row.getByLabel('Vorhandene Buchung');
+  const value = await pick
+    .locator('option', { hasText: 'Rate OLB Testlauf' })
+    .getAttribute('value');
+  await pick.selectOption(value ?? '');
+  await expect(row).toContainText('Verknüpft mit Rate OLB Testlauf');
+  await row.getByRole('checkbox', { name: /Betrag von „Rate OLB Testlauf“/ }).check();
+
+  await page.getByRole('button', { name: /1 übernehmen$/ }).click();
+  await expect(page.getByRole('status').first()).toContainText(
+    '0 Buchungen übernommen, 1 verknüpft',
+  );
+
+  await page.goto('/buchungen');
+  await expect(page.locator('.list li').filter({ hasText: 'Rate OLB Testlauf' })).toContainText(
+    '-80,00',
+  );
 });

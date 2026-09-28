@@ -580,12 +580,16 @@
     },
     "filterHint": {
       "new": "Not in the app yet. Tick, check name and category, then import.",
-      "match": "Matches an existing transaction (same amount, up to 3 days apart). Ticked rows are only linked, nothing is created twice.",
+      "match": "Belongs to an existing transaction – e.g. from “Book due items”, even a few days apart, in partial amounts or with a different bank text. Ticked rows are only linked, nothing is created twice.",
       "card": "Card debits from the checking account and payments to the card are neither expense nor income – they go via “Book due items”.",
       "known": "These rows were imported earlier."
     },
     "select": "Import {{name}}",
-    "matchHint": "Probably already booked: {{name}} ({{date}})",
+    "matchHint": {
+      "sure": "Already booked: {{name}} ({{date}}, {{amount}})",
+      "likely": "Possibly already booked: {{name}} ({{date}}, {{amount}}) – please check",
+      "manual": "Linked with {{name}} ({{date}}, {{amount}})"
+    },
     "cardPaymentHint": "Card debit – book via “Book due items”",
     "noneInFilter": "No transactions in this view.",
     "noRows": "No transactions found in the file.",
@@ -636,6 +640,18 @@
     "dateColumn": "Which date should be used?",
     "dateHint": "The date decides in which month the transaction counts.",
     "dateHintCard": "For reconciling with the card statement the bank’s booking date usually counts; purchases on the closing day can be moved to the next statement under Assets.",
-    "autoInverted": "Almost all amounts on this card were positive – the bank lists charges as positive. The app flipped the sign; please check the amounts."
+    "autoInverted": "Almost all amounts on this card were positive – the bank lists charges as positive. The app flipped the sign; please check the amounts.",
+    "groupHint": "{{n}} rows, together {{sum}}",
+    "unlink": "Not the same",
+    "adjust": "Change amount of “{{name}}” from {{from}} to {{to}}",
+    "adjustSkipped": "Some amounts were not changed because they are already part of an account balance or loan.",
+    "linkOpen": "Already booked as …",
+    "linkLabel": "Existing transaction",
+    "noCandidates": "No nearby transaction with the same sign",
+    "unmatched": {
+      "title": "Cross-check: {{n}} transactions without a matching row",
+      "hint": "These app transactions fall within the file's period, but no row matches – maybe entered twice, mistyped, paid from another account or not yet booked by the bank.",
+      "hintCard": "These card purchases fall within the file's period, but no row matches – maybe entered twice, mistyped or not yet booked by the bank."
+    }
   }
 }

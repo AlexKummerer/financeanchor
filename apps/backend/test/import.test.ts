@@ -59,7 +59,7 @@ describe('CSV-Import', () => {
       profile: { accountId: amex.id, profile },
     });
     expect(res.status).toBe(201);
-    expect(res.body).toEqual({ created: 2, linked: 1 });
+    expect(res.body).toEqual({ created: 2, linked: 1, adjusted: 0 });
 
     const accounts = (await api.get('/accounts')).body as {
       id: string;
@@ -78,9 +78,9 @@ describe('CSV-Import', () => {
         from: '2026-09-01',
         to: '2026-09-30',
       })
-    ).body as { known: string[]; existing: { id: string; importKey: string | null }[] };
+    ).body as { known: string[]; existing: { id: string; linked: boolean }[] };
     expect(check.known.sort()).toEqual(['imp:a', 'imp:c']);
-    expect(check.existing.find((t) => t.id === manual.id)?.importKey).toBe('imp:c');
+    expect(check.existing.find((t) => t.id === manual.id)?.linked).toBe(true);
 
     // Nochmal dieselbe Zeile: alles oder nichts
     const again = await api.post('/transactions/import', {
@@ -143,7 +143,7 @@ describe('CSV-Import', () => {
       items: [],
       links: [{ transactionId: tx.id, importKey: 'imp:x' }],
     });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(400);
     const check = (
       await alice.api.post('/transactions/import/check', {
         keys: ['imp:x'],
@@ -190,7 +190,13 @@ describe('CSV-Import', () => {
       })
     ).body as { learned: { label: string; name: string; categoryId: string }[] };
     expect(check.learned).toEqual([
-      { label: 'paypal *disneyplus', name: 'Disney+', categoryId: abos.id },
+      {
+        label: 'paypal *disneyplus',
+        name: 'Disney+',
+        sourceType: null,
+        sourceId: null,
+        categoryId: abos.id,
+      },
     ]);
 
     // Von Hand ohne Karte erfasst, dann über den Kartenimport verknüpft
@@ -218,5 +224,69 @@ describe('CSV-Import', () => {
       (a) => a.id === amex.id,
     );
     expect(card?.balanceCents).toBe(-1798);
+  });
+
+  it('verknüpft mehrere Zeilen mit einer Buchung, gleicht den Betrag an und lernt die Herkunft', async () => {
+    const { api } = await newUser();
+    const essen = await categoryId(api, 'Lebensmittel');
+    const rate = (
+      await api.post('/transactions', {
+        date: '2026-09-01',
+        name: 'Sparplan Consors',
+        categoryId: essen,
+        amountCents: -5000,
+      })
+    ).body;
+    const res = await api.post('/transactions/import', {
+      accountId: null,
+      items: [],
+      links: [1, 2, 3, 4].map((n) => ({
+        transactionId: rate.id,
+        importKey: `imp:c${n}`,
+        importLabel: 'consorsbank',
+      })),
+      adjust: [{ transactionId: rate.id, amountCents: -4000 }],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ created: 0, linked: 4, adjusted: 1 });
+
+    const check = (
+      await api.post('/transactions/import/check', {
+        keys: ['imp:c1', 'imp:c4', 'imp:c5'],
+        labels: ['consorsbank'],
+        from: '2026-09-01',
+        to: '2026-09-30',
+      })
+    ).body as {
+      known: string[];
+      existing: { id: string; amountCents: number; linked: boolean }[];
+      learned: { label: string; name: string }[];
+    };
+    expect(check.known.sort()).toEqual(['imp:c1', 'imp:c4']);
+    expect(check.existing).toEqual([
+      expect.objectContaining({ id: rate.id, amountCents: -4000, linked: true }),
+    ]);
+    expect(check.learned).toEqual([
+      expect.objectContaining({ label: 'consorsbank', name: 'Sparplan Consors' }),
+    ]);
+
+    // Schon verknüpfte Zeile ein zweites Mal: abgelehnt
+    const again = await api.post('/transactions/import', {
+      accountId: null,
+      items: [],
+      links: [{ transactionId: rate.id, importKey: 'imp:c1' }],
+    });
+    expect(again.status).toBe(409);
+
+    // Löschen der Buchung entfernt die Verknüpfungen
+    await api.del(`/transactions/${rate.id}`);
+    const after = (
+      await api.post('/transactions/import/check', {
+        keys: ['imp:c1'],
+        from: '2026-09-01',
+        to: '2026-09-30',
+      })
+    ).body as { known: string[] };
+    expect(after.known).toEqual([]);
   });
 });

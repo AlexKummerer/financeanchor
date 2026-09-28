@@ -1,5 +1,3 @@
-import type { Cents } from '../money.js';
-import { daysBetween, type IsoDate } from '../month.js';
 import type { StatementRow } from './statement.js';
 
 /** FNV-1a (64 Bit) als Hex – kurzer, stabiler Fingerabdruck ohne Krypto-Abhängigkeit. */
@@ -57,36 +55,6 @@ export function importKeys(
     seen.set(base, n);
     return `imp:${fnv1a64(n === 1 ? base : `${base}#${n}`)}`;
   });
-}
-
-export interface ExistingTransaction {
-  id: string;
-  date: IsoDate;
-  amountCents: Cents;
-  name: string;
-  importKey: string | null;
-}
-
-/**
- * Vorhandene Buchung, die wahrscheinlich derselbe Umsatz ist: gleicher Betrag, höchstens drei Tage
- * auseinander, noch nicht mit einer anderen Zeile verknüpft. Die zeitlich nächste gewinnt.
- */
-export function findLikelyMatch(
-  row: Pick<StatementRow, 'date' | 'amountCents'>,
-  existing: readonly ExistingTransaction[],
-  taken: ReadonlySet<string> = new Set(),
-): ExistingTransaction | null {
-  let best: ExistingTransaction | null = null;
-  let bestDiff = Infinity;
-  for (const t of existing) {
-    if (t.importKey || taken.has(t.id) || t.amountCents !== row.amountCents) continue;
-    const diff = Math.abs(daysBetween(t.date, row.date));
-    if (diff <= 3 && diff < bestDiff) {
-      best = t;
-      bestDiff = diff;
-    }
-  }
-  return best;
 }
 
 /** Bekannte Kartenanbieter im Text einer Abbuchung auf dem Girokonto. */

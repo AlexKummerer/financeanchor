@@ -13,6 +13,7 @@ import {
   bookedItems,
   cardStatementDates,
   categories,
+  importLinks,
   loans,
   netWorthSnapshots,
   recurringItems,
@@ -26,18 +27,20 @@ import { categoryToApi, strip } from '../mappers.js';
 
 export async function exportUserData(s: Scoped, now = new Date()): Promise<ExportFile> {
   const { db } = s;
-  const [settings, accs, pots, cats, items, txs, booked, ls, snaps, cardDates] = await db.batch([
-    db.select().from(userSettings).where(eq(userSettings.userId, s.userId)),
-    db.select().from(accounts).where(s.own(accounts)),
-    db.select().from(reservePots).where(s.own(reservePots)),
-    db.select().from(categories).where(s.own(categories)),
-    db.select().from(recurringItems).where(s.own(recurringItems)),
-    db.select().from(transactions).where(s.own(transactions)),
-    db.select().from(bookedItems).where(s.own(bookedItems)),
-    db.select().from(loans).where(s.own(loans)),
-    db.select().from(netWorthSnapshots).where(s.own(netWorthSnapshots)),
-    db.select().from(cardStatementDates).where(s.own(cardStatementDates)),
-  ]);
+  const [settings, accs, pots, cats, items, txs, booked, ls, snaps, cardDates, links] =
+    await db.batch([
+      db.select().from(userSettings).where(eq(userSettings.userId, s.userId)),
+      db.select().from(accounts).where(s.own(accounts)),
+      db.select().from(reservePots).where(s.own(reservePots)),
+      db.select().from(categories).where(s.own(categories)),
+      db.select().from(recurringItems).where(s.own(recurringItems)),
+      db.select().from(transactions).where(s.own(transactions)),
+      db.select().from(bookedItems).where(s.own(bookedItems)),
+      db.select().from(loans).where(s.own(loans)),
+      db.select().from(netWorthSnapshots).where(s.own(netWorthSnapshots)),
+      db.select().from(cardStatementDates).where(s.own(cardStatementDates)),
+      db.select().from(importLinks).where(s.own(importLinks)),
+    ]);
   const st = settings[0];
   if (!st) throw new AppError(500, 'user_not_initialized', 'User data is incomplete');
   return {
@@ -60,6 +63,7 @@ export async function exportUserData(s: Scoped, now = new Date()): Promise<Expor
       loans: ls.map(strip),
       snapshots: snaps.map(strip),
       cardStatementDates: cardDates.map(strip),
+      importLinks: links.map(strip),
     },
   };
 }
@@ -197,6 +201,12 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
       id: newId(now),
       accountId: ref(maps.account, x.accountId, 'Abrechnung → Karte'),
     })),
+    importLinks: d.importLinks.map((x) => ({
+      ...x,
+      ...meta,
+      id: newId(now),
+      transactionId: ref(maps.transaction, x.transactionId, 'Verknüpfung → Buchung'),
+    })),
   };
   if (new Set(d.snapshots.map((x) => x.date)).size !== d.snapshots.length) {
     problems.add('Vermögensstände: mehrere am selben Tag');
@@ -214,6 +224,7 @@ export async function importUserData(s: Scoped, file: ExportFile) {
   const now = Date.now();
   await runBatch(db, [
     db.delete(bookedItems).where(s.own(bookedItems)),
+    db.delete(importLinks).where(s.own(importLinks)),
     db.delete(transactions).where(s.own(transactions)),
     db.delete(recurringItems).where(s.own(recurringItems)),
     db.delete(reservePots).where(s.own(reservePots)),
@@ -235,6 +246,7 @@ export async function importUserData(s: Scoped, file: ExportFile) {
     ...chunkedInsert(db, loans, rows.loans),
     ...chunkedInsert(db, netWorthSnapshots, rows.snapshots),
     ...chunkedInsert(db, cardStatementDates, rows.cardStatementDates),
+    ...chunkedInsert(db, importLinks, rows.importLinks),
   ]);
   return {
     accounts: rows.accounts.length,

@@ -5,11 +5,12 @@ import {
   transactionUpdateSchema,
   yearMonthSchema,
 } from '@financeanchor/shared';
-import { and, desc, eq, gte, inArray, isNull, like, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, like, lte, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { chunkedInsert, runBatch } from '../db/client.js';
-import { accounts, bookedItems, loans, transactions } from '../db/schema.js';
+import { accounts, bookedItems, importLinks, loans, transactions } from '../db/schema.js';
+import type { Scoped } from '../db/scoped.js';
 import { AppError } from '../errors.js';
 import { strip } from '../mappers.js';
 import type { AppEnv } from '../middleware/context.js';
@@ -54,68 +55,95 @@ export const transactionRoutes = new Hono<AppEnv>()
     return c.json([...seen].slice(0, 100).map(([name, categoryId]) => ({ name, categoryId })));
   })
   /**
-   * CSV-Import, Schritt 1: welche Fingerabdrücke schon übernommen sind, und die Buchungen im
-   * Zeitraum (±3 Tage), um „wahrscheinlich schon gebucht“ zu erkennen.
+   * CSV-Import, Schritt 1: welche Fingerabdrücke schon übernommen sind, die Buchungen im Zeitraum
+   * (±15 Tage, für Fälligkeiten, Gruppen und Gegenprobe) und was zu den Bank-Texten gelernt wurde.
    */
   .post('/import/check', validate('json', importCheckSchema), async (c) => {
     const s = scopedFrom(c);
     const { keys, labels, from, to } = c.req.valid('json');
-    const known: string[] = [];
-    // D1 erlaubt höchstens 100 Parameter je Abfrage
-    for (let i = 0; i < keys.length; i += 90) {
-      const chunk = keys.slice(i, i + 90);
-      const rows = await s.db
-        .select({ key: transactions.importKey })
-        .from(transactions)
-        .where(s.own(transactions, inArray(transactions.importKey, chunk)));
-      for (const r of rows) if (r.key) known.push(r.key);
-    }
-    const existing = await s.db
-      .select({
-        id: transactions.id,
-        date: transactions.date,
-        amountCents: transactions.amountCents,
-        name: transactions.name,
-        importKey: transactions.importKey,
-      })
-      .from(transactions)
-      .where(
-        s.own(
-          transactions,
-          and(
-            gte(transactions.date, shiftDate(from, -3)),
-            lte(transactions.date, shiftDate(to, 3)),
-          ),
-        ),
-      );
-    // Gelernt: zu jedem Merkmal Name und Kategorie der jüngsten Buchung damit
-    const wanted = [...new Set(labels)];
-    const learned = new Map<string, { label: string; name: string; categoryId: string }>();
-    for (let i = 0; i < wanted.length; i += 90) {
-      const rows = await s.db
+    const known = await knownImportKeys(s, keys);
+    const [txs, links] = await s.db.batch([
+      s.db
         .select({
-          label: transactions.importLabel,
+          id: transactions.id,
+          date: transactions.date,
+          amountCents: transactions.amountCents,
           name: transactions.name,
-          categoryId: transactions.categoryId,
+          kind: transactions.kind,
+          accountId: transactions.accountId,
+          sourceType: transactions.sourceType,
+          sourceId: transactions.sourceId,
+          importKey: transactions.importKey,
         })
         .from(transactions)
-        .where(s.own(transactions, inArray(transactions.importLabel, wanted.slice(i, i + 90))))
-        .orderBy(desc(transactions.date), desc(transactions.createdAt));
-      for (const r of rows) {
-        if (r.label && !learned.has(r.label)) learned.set(r.label, { ...r, label: r.label });
-      }
-    }
-    return c.json({ known, existing, learned: [...learned.values()] });
+        .where(
+          s.own(
+            transactions,
+            and(
+              gte(transactions.date, shiftDate(from, -15)),
+              lte(transactions.date, shiftDate(to, 15)),
+            ),
+          ),
+        ),
+      s.db
+        .select({ transactionId: importLinks.transactionId })
+        .from(importLinks)
+        .innerJoin(transactions, eq(transactions.id, importLinks.transactionId))
+        .where(
+          s.own(
+            importLinks,
+            and(
+              gte(transactions.date, shiftDate(from, -15)),
+              lte(transactions.date, shiftDate(to, 15)),
+            ),
+          ),
+        ),
+    ]);
+    const linkedIds = new Set(links.map((l) => l.transactionId));
+    const existing = txs.map(({ importKey, ...t }) => ({
+      ...t,
+      importKey,
+      linked: importKey !== null || linkedIds.has(t.id),
+    }));
+    return c.json({ known, existing, learned: await learnedLabels(s, labels) });
   })
   /**
-   * CSV-Import, Schritt 2: bestätigte Zeilen atomar übernehmen – neue Buchungen anlegen und bei
-   * schon vorhandenen nur den Fingerabdruck merken. Doppelte Fingerabdrücke brechen alles ab (409).
+   * CSV-Import, Schritt 2: bestätigte Zeilen atomar übernehmen – neue Buchungen anlegen, Zeilen mit
+   * vorhandenen Buchungen verknüpfen (auch mehrere mit einer) und auf Wunsch deren Betrag an den
+   * der Bank angleichen. Schon übernommene Fingerabdrücke brechen alles ab (409).
    */
   .post('/import', validate('json', importCommitSchema), async (c) => {
     const s = scopedFrom(c);
     const body = c.req.valid('json');
     await assertCardAccount(s, body.accountId);
     if (body.profile) found(await s.get(accounts, body.profile.accountId), 'account');
+    const allKeys = [...body.items.map((i) => i.importKey), ...body.links.map((l) => l.importKey)];
+    if (new Set(allKeys).size !== allKeys.length || (await knownImportKeys(s, allKeys)).length) {
+      throw new AppError(409, 'already_imported', 'Some rows were imported already');
+    }
+    // Verknüpft wird nur mit eigenen Buchungen
+    const targetIds = [...new Set([...body.links, ...body.adjust].map((l) => l.transactionId))];
+    const own = new Set<string>();
+    for (let i = 0; i < targetIds.length; i += 90) {
+      const rows = await s.db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(s.own(transactions, inArray(transactions.id, targetIds.slice(i, i + 90))));
+      for (const r of rows) own.add(r.id);
+    }
+    if (own.size !== targetIds.length) {
+      throw new AppError(400, 'invalid_link', 'Unknown transaction');
+    }
+    // Betrag nur angleichen, wo er nicht schon in Kontostand oder Restschuld steckt
+    const adjust: { transactionId: string; amountCents: number }[] = [];
+    for (const a of body.adjust) {
+      const effects = await bookingEffectsOf(s.db, s.userId, a.transactionId);
+      const managed = effects.some(
+        (b) => b.accountDeltaCents !== 0 || b.loanDeltaCents !== 0 || b.loanSavedDeltaCents !== 0,
+      );
+      if (!managed) adjust.push(a);
+    }
+
     const now = Date.now();
     const rows = body.items.map((item) =>
       s.row(
@@ -130,29 +158,34 @@ export const transactionRoutes = new Hono<AppEnv>()
         now,
       ),
     );
+    const linkRows = body.links.map((l) =>
+      s.row(
+        importLinks,
+        { importKey: l.importKey, transactionId: l.transactionId, importLabel: l.importLabel },
+        now,
+      ),
+    );
     try {
       await runBatch(s.db, [
         ...chunkedInsert(s.db, transactions, rows),
-        ...body.links.map((l) =>
+        ...chunkedInsert(s.db, importLinks, linkRows),
+        // Beim Karten-Import: verknüpfte eigene Buchungen ohne Karte der Karte zuordnen
+        ...(body.accountId
+          ? [...new Set(body.links.map((l) => l.transactionId))].map((id) =>
+              s.db
+                .update(transactions)
+                .set({
+                  accountId: sql`case when ${transactions.kind} = 'normal' then coalesce(${transactions.accountId}, ${body.accountId}) else ${transactions.accountId} end`,
+                  updatedAt: now,
+                })
+                .where(s.byId(transactions, id)),
+            )
+          : []),
+        ...adjust.map((a) =>
           s.db
             .update(transactions)
-            .set({
-              importKey: l.importKey,
-              importLabel: l.importLabel,
-              // Beim Karten-Import: vorhandene eigene Buchung ohne Karte der Karte zuordnen
-              ...(body.accountId
-                ? {
-                    accountId: sql`case when ${transactions.kind} = 'normal' then coalesce(${transactions.accountId}, ${body.accountId}) else ${transactions.accountId} end`,
-                  }
-                : {}),
-              updatedAt: now,
-            })
-            .where(
-              s.own(
-                transactions,
-                and(eq(transactions.id, l.transactionId), isNull(transactions.importKey)),
-              ),
-            ),
+            .set({ amountCents: a.amountCents, updatedAt: now })
+            .where(s.byId(transactions, a.transactionId)),
         ),
         ...(body.profile
           ? [
@@ -169,7 +202,10 @@ export const transactionRoutes = new Hono<AppEnv>()
       }
       throw err;
     }
-    return c.json({ created: rows.length, linked: body.links.length }, 201);
+    return c.json(
+      { created: rows.length, linked: body.links.length, adjusted: adjust.length },
+      201,
+    );
   })
   .post('/', validate('json', transactionCreateSchema), async (c) => {
     const s = scopedFrom(c);
@@ -289,4 +325,71 @@ function shiftDate(date: string, days: number): string {
   const d = new Date(`${date}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+/** Schon übernommene Fingerabdrücke (neu angelegt oder verknüpft). */
+async function knownImportKeys(s: Scoped, keys: readonly string[]): Promise<string[]> {
+  const known: string[] = [];
+  // D1 erlaubt höchstens 100 Parameter je Abfrage
+  for (let i = 0; i < keys.length; i += 90) {
+    const chunk = keys.slice(i, i + 90);
+    const [created, linked] = await s.db.batch([
+      s.db
+        .select({ key: transactions.importKey })
+        .from(transactions)
+        .where(s.own(transactions, inArray(transactions.importKey, chunk))),
+      s.db
+        .select({ key: importLinks.importKey })
+        .from(importLinks)
+        .where(s.own(importLinks, inArray(importLinks.importKey, chunk))),
+    ]);
+    for (const r of [...created, ...linked]) if (r.key) known.push(r.key);
+  }
+  return known;
+}
+
+/**
+ * Gelernt: zu jedem Bank-Text Name, Kategorie und Herkunft der jüngsten Buchung, die damit angelegt
+ * oder verknüpft wurde (z. B. „oldenburgische landesbank“ → „Rate OLB“, Kredit OLB).
+ */
+async function learnedLabels(s: Scoped, labels: readonly string[]) {
+  const wanted = [...new Set(labels)];
+  const found = new Map<
+    string,
+    {
+      label: string;
+      date: string;
+      name: string;
+      categoryId: string;
+      sourceType: string | null;
+      sourceId: string | null;
+    }
+  >();
+  const columns = {
+    date: transactions.date,
+    name: transactions.name,
+    categoryId: transactions.categoryId,
+    sourceType: transactions.sourceType,
+    sourceId: transactions.sourceId,
+  };
+  for (let i = 0; i < wanted.length; i += 90) {
+    const chunk = wanted.slice(i, i + 90);
+    const [created, linked] = await s.db.batch([
+      s.db
+        .select({ label: transactions.importLabel, ...columns })
+        .from(transactions)
+        .where(s.own(transactions, inArray(transactions.importLabel, chunk))),
+      s.db
+        .select({ label: importLinks.importLabel, ...columns })
+        .from(importLinks)
+        .innerJoin(transactions, eq(transactions.id, importLinks.transactionId))
+        .where(s.own(importLinks, inArray(importLinks.importLabel, chunk))),
+    ]);
+    for (const r of [...created, ...linked]) {
+      if (!r.label) continue;
+      const prev = found.get(r.label);
+      if (!prev || r.date > prev.date) found.set(r.label, { ...r, label: r.label });
+    }
+  }
+  return [...found.values()].map(({ date: _date, ...rest }) => rest);
 }

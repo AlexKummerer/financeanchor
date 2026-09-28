@@ -1,4 +1,31 @@
-import { buildPreview, dateRange } from './preview';
+import {
+  buildPreview,
+  dateRange,
+  linkCandidates,
+  linkedTotals,
+  linkRow,
+  withoutRow,
+  type ImportExisting,
+} from './preview';
+
+const tx = (
+  id: string,
+  date: string,
+  amountCents: number,
+  name: string,
+  more: Partial<ImportExisting> = {},
+): ImportExisting => ({
+  id,
+  date,
+  amountCents,
+  name,
+  sourceType: null,
+  sourceId: null,
+  linked: false,
+  kind: 'normal',
+  accountId: null,
+  ...more,
+});
 
 const row = (date: string, amountCents: number, counterparty: string, purpose = '') => ({
   line: 2,
@@ -14,9 +41,17 @@ describe('buildPreview', () => {
     isCard: false,
     cardNames: ['Amex'],
     known: new Set<string>(),
-    existing: [],
+    existing: [] as ImportExisting[],
     suggestions: [{ name: 'REWE', categoryId: 'c-food' }],
-    learned: new Map([['paypal *disneyplus', { name: 'Disney+', categoryId: 'c-abo' }]]),
+    learned: [
+      {
+        label: 'paypal *disneyplus',
+        name: 'Disney+',
+        categoryId: 'c-abo',
+        sourceType: null,
+        sourceId: null,
+      },
+    ],
     categoryName: (id: string) => ({ 'c-food': 'Lebensmittel', 'c-abo': 'Abos' })[id] ?? '?',
   };
 
@@ -29,9 +64,7 @@ describe('buildPreview', () => {
     const preview = buildPreview({
       ...base,
       rows,
-      existing: [
-        { id: 'm1', date: '2026-09-02', amountCents: -85000, name: 'Miete warm', importKey: null },
-      ],
+      existing: [tx('m1', '2026-09-02', -85000, 'Miete warm')],
     });
     expect(preview.map((r) => [r.status, r.name, r.category, r.selected])).toEqual([
       ['new', 'REWE Markt 0887', 'Lebensmittel', false],
@@ -78,5 +111,55 @@ describe('buildPreview', () => {
       rows: [row('2026-09-15', 50000, 'ZAHLUNG/ÜBERWEISUNG ERHALTEN BESTEN DANK')],
     });
     expect(r?.status).toBe('card');
+  });
+
+  it('Rate per gelernter Herkunft, Teilbeträge als Gruppe, Gegenprobe', () => {
+    const existing = [
+      tx('olb', '2026-09-01', -8200, 'Rate OLB', { sourceType: 'loan', sourceId: 'l-olb' }),
+      tx('cons', '2026-09-01', -5000, 'Sparplan Consors', {
+        sourceType: 'recurring_item',
+        sourceId: 'i-c',
+      }),
+      tx('extra', '2026-09-12', -1999, 'Doppelt erfasst'),
+    ];
+    const rows = buildPreview({
+      ...base,
+      existing,
+      learned: [
+        {
+          label: 'oldenburgische landesbank',
+          name: 'Rate OLB',
+          categoryId: 'c-food',
+          sourceType: 'loan',
+          sourceId: 'l-olb',
+        },
+      ],
+      rows: [
+        row('2026-09-02', -8200, 'Oldenburgische Landesbank'),
+        ...[1, 2, 3, 4, 5].map((d) => row(`2026-09-0${d}`, -1000, 'Consorsbank')),
+      ],
+    });
+    expect(rows.map((r) => [r.status, r.match?.id, r.group])).toEqual([
+      ['match', 'olb', false],
+      ...Array.from({ length: 5 }, () => ['match', 'cons', true]),
+    ]);
+    expect(linkedTotals(rows).get('cons')).toMatchObject({ count: 5, sumCents: -5000 });
+    expect(withoutRow(rows, existing, null, { from: '2026-09-01', to: '2026-09-30' })).toEqual([
+      existing[2],
+    ]);
+  });
+
+  it('von Hand verknüpfen und lösen', () => {
+    const existing = [
+      tx('a', '2026-09-20', -3000, 'Weit weg'),
+      tx('b', '2026-09-03', -2500, 'Nah'),
+    ];
+    const [r] = buildPreview({ ...base, rows: [row('2026-09-02', -2000, 'Irgendwas')], existing });
+    expect(r?.status).toBe('new');
+    if (!r) return;
+    expect(linkCandidates(r, existing).map((t) => t.id)).toEqual(['b', 'a']);
+    const linked = linkRow(r, existing[1] ?? null);
+    expect(linked).toMatchObject({ status: 'match', certainty: 'manual' });
+    expect(linkRow(linked, null)).toMatchObject({ status: 'new', match: null });
   });
 });

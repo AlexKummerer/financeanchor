@@ -365,6 +365,15 @@ export const loanUpdateSchema = patchSchema(
   }),
 );
 
+// Verknüpfung einer Zeile des Kontoauszugs mit einer vorhandenen Buchung
+export const importLinkSchema = z.object({
+  id: idSchema,
+  importKey: z.string().max(40),
+  transactionId: idSchema,
+  importLabel: z.string().max(100).nullable(),
+  ...meta,
+});
+
 // Tatsächliche Abrechnungsdaten einer Kreditkarte (wenn der Stichtag schwankt)
 export const cardStatementDateSchema = z.object({
   id: idSchema,
@@ -467,6 +476,11 @@ export const importCommitSchema = z.object({
       }),
     )
     .max(2000),
+  /** Betrag verknüpfter Buchungen auf den Betrag der Bank setzen (z. B. 19,98 € statt 20 €) */
+  adjust: z
+    .array(z.object({ transactionId: idSchema, amountCents: centsSchema }))
+    .max(2000)
+    .default([]),
   /** Spaltenzuordnung für das nächste Mal (an diesem Konto) */
   profile: z.object({ accountId: idSchema, profile: importProfileSchema }).nullable().optional(),
 });

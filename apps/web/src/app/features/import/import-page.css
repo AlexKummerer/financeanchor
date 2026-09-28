@@ -86,6 +86,23 @@
   margin: 4px 0 0 28px;
   color: var(--pine);
 }
+.hint-match.likely {
+  color: var(--debt);
+}
+.hint-match .linkbtn,
+.pick,
+li > .linkbtn,
+li > .check {
+  margin-left: 28px;
+}
+.hint-match .linkbtn {
+  min-height: 0;
+  margin-left: 6px;
+  color: inherit;
+}
+.pick {
+  margin-top: 6px;
+}
 .edit {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  findLikelyMatch,
   importKeys,
   importLabel,
   looksLikeCardSettlement,
@@ -33,21 +32,6 @@ describe('Fingerabdrücke', () => {
     expect(importKeys('amex', rows)[0]).not.toBe(a[0]);
     // Groß-/Kleinschreibung und Leerzeichen im Text spielen keine Rolle
     expect(importKeys('giro', [row('2026-09-01', -450, ' rewe ', 'EINKAUF')])[0]).toBe(a[0]);
-  });
-});
-
-describe('Wahrscheinlich schon gebucht', () => {
-  const existing = [
-    { id: 'miete', date: '2026-09-01', amountCents: -85000, name: 'Miete', importKey: null },
-    { id: 'alt', date: '2026-09-02', amountCents: -85000, name: 'Miete', importKey: 'imp:x' },
-    { id: 'rate', date: '2026-09-10', amountCents: -36499, name: 'Rate', importKey: null },
-  ];
-
-  it('gleicher Betrag, bis drei Tage Abstand, noch nicht verknüpft', () => {
-    expect(findLikelyMatch(row('2026-09-03', -85000), existing)?.id).toBe('miete');
-    expect(findLikelyMatch(row('2026-09-05', -85000), existing)).toBeNull();
-    expect(findLikelyMatch(row('2026-09-01', -85000), existing, new Set(['miete']))).toBeNull();
-    expect(findLikelyMatch(row('2026-09-12', -36499), existing)?.id).toBe('rate');
   });
 });
 
