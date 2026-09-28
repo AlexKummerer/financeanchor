@@ -498,7 +498,9 @@
     "importText": "All current data will be replaced by the backup from {{date}}. This cannot be undone.",
     "importConfirm": "Replace",
     "imported": "Backup imported",
-    "importInvalid": "This file is not a valid backup."
+    "importInvalid": "This file is not a valid backup.",
+    "balanceAsOf": "Balance as of {{date}}",
+    "balanceAsOfHint": "The entered balance applies from today. Transactions with an earlier date are included and no longer change it."
   },
   "cards": {
     "title": "Credit cards",

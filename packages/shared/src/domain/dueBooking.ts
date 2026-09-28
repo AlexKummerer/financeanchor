@@ -436,6 +436,34 @@ export interface BookingEffects {
   savingDeltas: Map<string, Cents>;
 }
 
+/**
+ * Stand-Datum beachten: Fälligkeiten mit Datum vor dem Stand-Datum eines Kontos bzw. Kredits sind
+ * im eingetragenen Stand schon enthalten. Die Buchung entsteht trotzdem (Monatssummen), sie ändert
+ * den Stand aber nicht – auch beim Löschen wird dann nichts zurückgerechnet.
+ */
+export function withoutPastEffects(
+  entries: readonly DueEntry[],
+  balanceDates: {
+    accounts: ReadonlyMap<string, IsoDate | null>;
+    loans: ReadonlyMap<string, IsoDate | null>;
+  },
+): DueEntry[] {
+  const past = (since: IsoDate | null | undefined, date: IsoDate) => !!since && date < since;
+  return entries.map((e) => ({
+    ...e,
+    accountDelta:
+      e.accountDelta && past(balanceDates.accounts.get(e.accountDelta.accountId), e.date)
+        ? null
+        : e.accountDelta,
+    loanDelta:
+      e.loanDelta && past(balanceDates.loans.get(e.loanDelta.loanId), e.date) ? null : e.loanDelta,
+    savingDelta:
+      e.savingDelta && past(balanceDates.loans.get(e.savingDelta.loanId), e.date)
+        ? null
+        : e.savingDelta,
+  }));
+}
+
 /** Summierte Änderungen an Kontoständen und Restschulden. */
 export function bookingEffects(entries: readonly DueEntry[]): BookingEffects {
   const accountDeltas = new Map<string, Cents>();

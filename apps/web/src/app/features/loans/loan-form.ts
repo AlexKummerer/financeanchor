@@ -12,6 +12,7 @@ import {
   type YearMonth,
 } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { Clock } from '../../core/clock';
 import { Segmented } from '../../core/forms/segmented';
 import { euroAmount, percent, toCents, toCentsOrNull } from '../../core/forms/validators';
 import { Formatter } from '../../core/format/formatter';
@@ -261,6 +262,7 @@ export class LoanForm {
 
   private readonly f = inject(Formatter);
   private readonly t = inject(TranslocoService);
+  private readonly clock = inject(Clock);
   private readonly submitted = signal(false);
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
@@ -371,6 +373,7 @@ export class LoanForm {
             saveUp: v.paymentMode === 'lump' ? v.saveUp : true,
             extraMonthlyCents: v.paymentMode === 'lump' ? 0 : extraMonthlyCents,
             extraFromMonth: v.paymentMode === 'lump' ? null : extraFromMonth,
+            balanceDate: this.clock.today(),
           }
         : {
             ...common,
@@ -380,6 +383,7 @@ export class LoanForm {
             targetMonth: v.targetMonth || null,
             extraMonthlyCents,
             extraFromMonth,
+            balanceDate: this.clock.today(),
           },
     );
   }

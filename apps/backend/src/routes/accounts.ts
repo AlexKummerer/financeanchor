@@ -35,6 +35,7 @@ import {
   accountsWithBalances,
   assertDebitAccount,
   cardMovements,
+  todayIso,
   withCardBalances,
 } from '../services/cards.js';
 import { validate } from '../validation.js';
@@ -252,6 +253,8 @@ export const accountRoutes = new Hono<AppEnv>()
     const s = scopedFrom(c);
     const body = cardFields(c.req.valid('json'));
     await assertDebitAccount(s, body.debitAccountId);
+    // Der eingetragene Stand gilt ab heute (bzw. dem mitgeschickten Tag)
+    body.balanceDate ??= todayIso();
     // Bei einer neuen Karte ist der eingegebene Stand der Startstand (noch keine Buchungen).
     const row = one(await s.insert(accounts, body), 'account');
     return c.json(strip(row), 201);
@@ -266,9 +269,13 @@ export const accountRoutes = new Hono<AppEnv>()
     if (issues.length) throw new AppError(400, 'validation_failed', 'Invalid account', issues);
     await assertDebitAccount(s, next.debitAccountId, id);
     const movements = await cardMovements(s);
-    if (next.kind === 'credit_card' && patch.balanceCents !== undefined) {
-      // Eingegeben wird der aktuelle Stand; gespeichert wird der Startstand ohne die Buchungen.
-      next.balanceCents = patch.balanceCents - cardBalance(0, movements, id);
+    if (patch.balanceCents !== undefined) {
+      // Neuer Stand gilt ab diesem Tag; ältere Buchungen sind darin enthalten
+      next.balanceDate = patch.balanceDate ?? todayIso();
+      if (next.kind === 'credit_card') {
+        // Eingegeben wird der aktuelle Stand; gespeichert wird er ohne spätere Buchungen
+        next.balanceCents = patch.balanceCents - cardBalance(0, movements, id, next.balanceDate);
+      }
     }
     const { id: _id, userId: _u, createdAt: _c, updatedAt: _up, ...values } = next;
     const row = one(await s.update(accounts, id, values), 'account');

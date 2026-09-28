@@ -33,15 +33,19 @@ export type CardMovement = Awaited<ReturnType<typeof cardMovements>>[number];
  * Kreditkarten zeigen ihren aktuellen Stand statt des gespeicherten Startstands. Alle anderen
  * Konten bleiben unverändert.
  */
-export function withCardBalances<T extends Pick<AccountRow, 'id' | 'kind' | 'balanceCents'>>(
-  rows: T[],
-  movements: readonly CardMovement[],
-): T[] {
+export function withCardBalances<
+  T extends Pick<AccountRow, 'id' | 'kind' | 'balanceCents' | 'balanceDate'>,
+>(rows: T[], movements: readonly CardMovement[]): T[] {
   return rows.map((a) =>
     a.kind === 'credit_card'
-      ? { ...a, balanceCents: cardBalance(a.balanceCents, movements, a.id) }
+      ? { ...a, balanceCents: cardBalance(a.balanceCents, movements, a.id, a.balanceDate) }
       : a,
   );
+}
+
+/** Heute (UTC) als Rückfall, wenn die App kein Stand-Datum mitschickt. */
+export function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 /** Konten mit aktuellem Stand (Kreditkarten berechnet), sortiert wie in der Oberfläche. */

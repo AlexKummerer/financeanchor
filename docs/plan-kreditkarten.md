@@ -46,3 +46,8 @@ Wunsch (25.09.2026): Zwei Kreditkarten – eine rechnet bis zum 24. ab und wird 
 - **Kauf am Stichtag:** Banken trennen am Stichtag nach Uhrzeit, die in keiner CSV steht. Käufe am Stichtag zählen zunächst zur alten Abrechnung; in der Kartenansicht lassen sie sich per „→ gehört zur nächsten Abrechnung“ verschieben (`transactions.statement_month`, Migration 0011). Die nächste Abrechnung wird angezeigt, sobald dort Käufe liegen.
 - **Schwankender Stichtag:** Je Abrechnung lassen sich Stichtag und Abbuchung laut Bank eintragen (`card_statement_dates`, Migration 0012; `PUT/DELETE /api/accounts/:id/statements/:closeMonth`). Zeitraum, Summe, Abgleich und die Abbuchung unter „Fällige übernehmen“ rechnen damit; die Folgeabrechnung beginnt am Tag danach.
 - **Datumsspalte beim Import:** Hat die Datei mehrere Datumsspalten (z. B. Buchungs- und Umsatztag), wird gewählt, welche gilt; die Wahl wird mit der Zuordnung gespeichert.
+
+## Nachtrag (28.09.2026): Stand vom
+
+- Konten und Kredite haben ein Stand-Datum (`balance_date`, Migration 0013; bestehende Konten/Kredite: Tag der letzten Änderung, Kreditkarten ohne). Es wird gesetzt, wenn der Stand eingetragen bzw. die Restschuld geändert wird.
+- Buchungen **vor** dem Stand-Datum sind im Stand schon enthalten: Kartenkäufe zählen nicht zum Kartenstand, nachträglich übernommene Fälligkeiten ändern Konto, Restschuld und Zurückgelegtes nicht (`withoutPastEffects`); die Buchung selbst entsteht trotzdem. Buchungen am Stand-Tag und danach zählen.

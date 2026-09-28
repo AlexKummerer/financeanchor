@@ -10,6 +10,7 @@ import { loans } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { strip } from '../mappers.js';
 import type { AppEnv } from '../middleware/context.js';
+import { todayIso } from '../services/cards.js';
 import { validate } from '../validation.js';
 import { found, idParam, one, scopedFrom } from './util.js';
 
@@ -20,7 +21,15 @@ export const loanRoutes = new Hono<AppEnv>()
     return c.json(rows.map(strip));
   })
   .post('/', validate('json', loanCreateSchema), async (c) => {
-    const row = one(await scopedFrom(c).insert(loans, toRow(c.req.valid('json'))), 'loan');
+    const body = c.req.valid('json');
+    const row = one(
+      await scopedFrom(c).insert(loans, {
+        ...toRow(body),
+        // Restschuld gilt ab heute (bzw. dem mitgeschickten Tag)
+        balanceDate: body.balanceDate ?? todayIso(),
+      }),
+      'loan',
+    );
     return c.json(strip(row), 201);
   })
   .patch('/:id', validate('param', idParam), validate('json', loanUpdateSchema), async (c) => {
@@ -28,6 +37,14 @@ export const loanRoutes = new Hono<AppEnv>()
     const { id } = c.req.valid('param');
     const current = found(await s.get(loans, id), 'loan');
     const next = { ...current, ...(definedOnly(c.req.valid('json')) as Partial<typeof current>) };
+    const patch = c.req.valid('json');
+    // Geänderte Restschuld bzw. geändertes Zurückgelegtes gilt ab diesem Tag
+    if (
+      (patch.balanceCents !== undefined && patch.balanceCents !== current.balanceCents) ||
+      (patch.savedCents !== undefined && patch.savedCents !== current.savedCents)
+    ) {
+      next.balanceDate = patch.balanceDate ?? todayIso();
+    }
     // Beim Wechsel der Art gehören die Felder der anderen Art nicht mehr dazu.
     if (next.kind === 'deadline') {
       next.paymentCents = null;

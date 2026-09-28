@@ -6,7 +6,12 @@ const month = today.slice(0, 7);
 
 async function fill(api: Api) {
   const acc = (
-    await api.post('/accounts', { name: 'Tagesgeld', kind: 'savings', balanceCents: 62000 })
+    await api.post('/accounts', {
+      balanceDate: '2000-01-01',
+      name: 'Tagesgeld',
+      kind: 'savings',
+      balanceCents: 62000,
+    })
   ).body;
   const [pot] = (await api.get('/reserve-pots')).body;
   await api.patch(`/reserve-pots/${pot.id}`, { accountId: acc.id });
@@ -26,6 +31,7 @@ async function fill(api: Api) {
     amountCents: -25000,
   });
   await api.post('/loans', {
+    balanceDate: '2000-01-01',
     kind: 'installment',
     name: 'Auto',
     balanceCents: 840000,

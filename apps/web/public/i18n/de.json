@@ -498,7 +498,9 @@
     "importText": "Alle aktuellen Daten werden durch die Sicherung vom {{date}} ersetzt. Das lässt sich nicht rückgängig machen.",
     "importConfirm": "Ersetzen",
     "imported": "Sicherung eingelesen",
-    "importInvalid": "Die Datei ist keine gültige Sicherung."
+    "importInvalid": "Die Datei ist keine gültige Sicherung.",
+    "balanceAsOf": "Stand vom {{date}}",
+    "balanceAsOfHint": "Der eingetragene Stand gilt ab heute. Buchungen mit älterem Datum sind darin enthalten und ändern ihn nicht mehr."
   },
   "cards": {
     "title": "Kreditkarten",

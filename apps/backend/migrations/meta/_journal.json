@@ -92,6 +92,13 @@
       "when": 1790413219278,
       "tag": "0012_card_statement_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790589216330,
+      "tag": "0013_balance_date",
+      "breakpoints": true
     }
   ]
 }

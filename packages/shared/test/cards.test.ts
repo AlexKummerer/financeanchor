@@ -179,3 +179,16 @@ describe('Abrechnungsdatum laut Bank', () => {
     expect(statementDebitedIn(amexMid, '2026-10', dates).closeMonth).toBe('2026-09');
   });
 });
+
+describe('Stand vom', () => {
+  it('Buchungen bis zum Stand-Datum sind im Stand schon enthalten', () => {
+    const txs = [
+      buy('2026-09-15', -30000, 'visa'),
+      buy('2026-09-28', -1000, 'visa'),
+      buy('2026-09-29', -2000, 'visa'),
+    ];
+    // Vor dem Stand-Datum enthalten, ab dem Tag selbst zählt es dazu
+    expect(cardBalance(-150000, txs, 'visa', '2026-09-28')).toBe(-153000);
+    expect(cardBalance(-150000, txs, 'visa', null)).toBe(-183000);
+  });
+});

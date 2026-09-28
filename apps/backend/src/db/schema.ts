@@ -61,6 +61,8 @@ export const accounts = sqliteTable(
     debitDay: integer('debit_day'),
     debitAccountId: text('debit_account_id'),
     importProfile: text('import_profile', { mode: 'json' }).$type<ImportProfile>(),
+    /** Stand vom (siehe Schema): Buchungen bis zu diesem Tag ändern den Stand nicht */
+    balanceDate: text('balance_date'),
   },
   (t) => [
     uniqueIndex('accounts_user_id_id_uq').on(t.userId, t.id),
@@ -272,6 +274,7 @@ export const loans = sqliteTable(
     extraMonthlyCents: integer('extra_monthly_cents').notNull().default(0),
     extraFromMonth: text('extra_from_month'),
     saveUp: integer('save_up', { mode: 'boolean' }).notNull().default(true),
+    balanceDate: text('balance_date'),
   },
   (t) => [
     index('loans_user_idx').on(t.userId),

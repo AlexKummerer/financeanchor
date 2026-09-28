@@ -10,10 +10,16 @@ const statementMonth = addMonths(thisMonth, -2);
 
 async function setup(api: Api) {
   const giro = (
-    await api.post('/accounts', { name: 'Giro', kind: 'checking', balanceCents: 200000 })
+    await api.post('/accounts', {
+      balanceDate: '2000-01-01',
+      name: 'Giro',
+      kind: 'checking',
+      balanceCents: 200000,
+    })
   ).body;
   const amex = (
     await api.post('/accounts', {
+      balanceDate: '2000-01-01',
       name: 'Amex',
       kind: 'credit_card',
       balanceCents: 0,
@@ -39,11 +45,19 @@ describe('Kreditkarten', () => {
     const { amex } = await setup(api);
     expect(amex).toMatchObject({ kind: 'credit_card', statementDay: 31, debitDay: 4 });
     expect(
-      (await api.post('/accounts', { name: 'X', kind: 'credit_card', balanceCents: 0 })).status,
+      (
+        await api.post('/accounts', {
+          balanceDate: '2000-01-01',
+          name: 'X',
+          kind: 'credit_card',
+          balanceCents: 0,
+        })
+      ).status,
     ).toBe(400);
     expect(
       (
         await api.post('/accounts', {
+          balanceDate: '2000-01-01',
           name: 'Y',
           kind: 'credit_card',
           balanceCents: 0,
@@ -55,7 +69,13 @@ describe('Kreditkarten', () => {
     ).toBe(400);
     // Andere Konten tragen keine Kartenfelder
     const giro2 = (
-      await api.post('/accounts', { name: 'G', kind: 'checking', balanceCents: 0, statementDay: 5 })
+      await api.post('/accounts', {
+        balanceDate: '2000-01-01',
+        name: 'G',
+        kind: 'checking',
+        balanceCents: 0,
+        statementDay: 5,
+      })
     ).body;
     expect(giro2.statementDay).toBeNull();
   });
@@ -211,6 +231,7 @@ describe('Kreditkarten', () => {
     const { giro, essen } = await setup(api);
     const visa = (
       await api.post('/accounts', {
+        balanceDate: '2000-01-01',
         name: 'Visa',
         kind: 'credit_card',
         balanceCents: 0,
@@ -314,6 +335,7 @@ describe('Kreditkarten', () => {
     const { essen } = await setup(api);
     const card = (
       await api.post('/accounts', {
+        balanceDate: '2000-01-01',
         name: 'Stichtag 2',
         kind: 'credit_card',
         balanceCents: 0,

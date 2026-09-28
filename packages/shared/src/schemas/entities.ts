@@ -80,6 +80,11 @@ export const accountSchema = z.object({
   debitAccountId: idSchema.nullable().default(null),
   /** Zuletzt verwendete Spaltenzuordnung beim CSV-Import */
   importProfile: importProfileSchema.nullable().default(null),
+  /**
+   * Stand vom: Datum, zu dem `balanceCents` galt. Buchungen vor diesem Tag sind darin schon
+   * enthalten und ändern den Stand nicht mehr (`null` = alle zählen)
+   */
+  balanceDate: isoDateSchema.nullable().default(null),
   ...meta,
 });
 export type Account = z.infer<typeof accountSchema>;
@@ -105,6 +110,7 @@ export const accountCreateSchema = accountSchema
     statementDay: true,
     debitDay: true,
     debitAccountId: true,
+    balanceDate: true,
   })
   .extend({ id: idSchema.optional(), sortOrder: z.int().optional() })
   .superRefine((a, ctx) => {
@@ -122,6 +128,7 @@ export const accountUpdateSchema = patchSchema(
     debitDay: true,
     debitAccountId: true,
     importProfile: true,
+    balanceDate: true,
   }),
 );
 
@@ -273,6 +280,8 @@ const loanFields = z.object({
   extraFromMonth: yearMonthSchema.nullable().default(null),
   /** Einmalzahlung: monatlich zurücklegen (sonst erst bei Fälligkeit komplett zahlen) */
   saveUp: z.boolean().default(true),
+  /** Stand vom: Restschuld und Zurückgelegtes galten zu diesem Tag (siehe Konten) */
+  balanceDate: isoDateSchema.nullable().default(null),
   ...meta,
 });
 
@@ -307,6 +316,7 @@ export type Loan = z.infer<typeof loanSchema>;
 
 const loanCreateCommon = {
   id: idSchema.optional(),
+  balanceDate: isoDateSchema.nullable().default(null),
   name: nameSchema,
   balanceCents: nonNegativeCentsSchema,
   originalCents: nonNegativeCentsSchema.optional(),
@@ -351,6 +361,7 @@ export const loanUpdateSchema = patchSchema(
     extraMonthlyCents: true,
     extraFromMonth: true,
     saveUp: true,
+    balanceDate: true,
   }),
 );
 

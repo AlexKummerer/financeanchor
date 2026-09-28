@@ -5,10 +5,17 @@ describe('CSV-Import', () => {
   it('übernimmt bestätigte Zeilen atomar, verknüpft Vorhandenes, merkt die Zuordnung', async () => {
     const { api } = await newUser();
     const essen = await categoryId(api, 'Lebensmittel');
-    const giro = (await api.post('/accounts', { name: 'Giro', kind: 'checking', balanceCents: 0 }))
-      .body;
+    const giro = (
+      await api.post('/accounts', {
+        balanceDate: '2000-01-01',
+        name: 'Giro',
+        kind: 'checking',
+        balanceCents: 0,
+      })
+    ).body;
     const amex = (
       await api.post('/accounts', {
+        balanceDate: '2000-01-01',
         name: 'Amex',
         kind: 'credit_card',
         balanceCents: 0,
@@ -152,6 +159,7 @@ describe('CSV-Import', () => {
     const abos = (await api.post('/categories', { name: 'Streaming Test' })).body;
     const amex = (
       await api.post('/accounts', {
+        balanceDate: '2000-01-01',
         name: 'Amex',
         kind: 'credit_card',
         balanceCents: 0,

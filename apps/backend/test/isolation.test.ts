@@ -15,7 +15,12 @@ beforeAll(async () => {
 
   a.category = (await alice.post('/categories', { name: 'Nur Alice' })).body.id;
   a.account = (
-    await alice.post('/accounts', { name: 'Alice Giro', kind: 'checking', balanceCents: 5000 })
+    await alice.post('/accounts', {
+      balanceDate: '2000-01-01',
+      name: 'Alice Giro',
+      kind: 'checking',
+      balanceCents: 5000,
+    })
   ).body.id;
   a.pot = (
     await alice.post('/reserve-pots', {
@@ -44,6 +49,7 @@ beforeAll(async () => {
   ).body.id;
   a.loan = (
     await alice.post('/loans', {
+      balanceDate: '2000-01-01',
       kind: 'installment',
       name: 'Alice Kredit',
       balanceCents: 10000,

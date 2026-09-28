@@ -116,6 +116,11 @@
             {{ a.name }}
           </button>
           <span class="tag">{{ 'assets.kinds.' + a.kind | transloco }}</span>
+          @if (a.balanceDate) {
+            <span class="small muted">
+              {{ 'assets.balanceAsOf' | transloco: { date: (a.balanceDate | faDate: 'dayMonth') } }}
+            </span>
+          }
           @if (a.kind === 'credit_card') {
             <button
               type="button"

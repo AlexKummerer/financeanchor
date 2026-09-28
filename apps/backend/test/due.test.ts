@@ -11,6 +11,7 @@ const isLastDayOfMonth = Number(today.slice(8)) === daysInMonth(thisMonth);
 async function household(api: Api) {
   const reserveAccount = (
     await api.post('/accounts', {
+      balanceDate: '2000-01-01',
       name: 'Tagesgeld Rücklage',
       kind: 'savings',
       balanceCents: 62000,
@@ -40,6 +41,7 @@ async function household(api: Api) {
   await item('Gehalt', 310000, 1, 'income', await categoryId(api, 'Gehalt'), 31);
   const loan = (
     await api.post('/loans', {
+      balanceDate: '2000-01-01',
       kind: 'installment',
       name: 'Auto',
       balanceCents: 840000,
@@ -199,6 +201,7 @@ describe('Ansparen für Einmalzahlungen', () => {
     const nextMonth = addMonths(thisMonth, 3);
     const loan = (
       await api.post('/loans', {
+        balanceDate: '2000-01-01',
         kind: 'deadline',
         name: 'Privatkredit',
         balanceCents: 120000,
@@ -227,6 +230,7 @@ describe('Ansparen für Einmalzahlungen', () => {
     const { api } = await newUser();
     const loan = (
       await api.post('/loans', {
+        balanceDate: '2000-01-01',
         kind: 'deadline',
         name: 'FC',
         balanceCents: 320000,

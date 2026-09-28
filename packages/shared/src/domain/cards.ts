@@ -132,16 +132,19 @@ export function statementTotal(
 }
 
 /**
- * Aktueller Stand der Karte: Startstand plus Käufe/Gutschriften, zurückgesetzt durch die
- * gebuchten Abbuchungen. Negativ = so viel ist auf der Karte offen.
+ * Aktueller Stand der Karte: Stand zum Stand-Datum plus Käufe/Gutschriften ab diesem Tag,
+ * zurückgesetzt durch die Abbuchungen ab diesem Tag. Ohne Stand-Datum zählen alle Buchungen. Negativ = offen.
  */
 export function cardBalance(
   startCents: Cents,
   transactions: readonly CardTransaction[],
   cardId: string,
+  since: IsoDate | null = null,
 ): Cents {
   let balance = startCents;
   for (const t of transactions) {
+    // Buchungen vor dem Stand-Datum sind im eingetragenen Stand schon enthalten
+    if (since && t.date < since) continue;
     if (isPurchase(t, cardId)) balance += t.amountCents;
     else if (isPaymentFor(t, cardId)) balance -= t.amountCents;
   }

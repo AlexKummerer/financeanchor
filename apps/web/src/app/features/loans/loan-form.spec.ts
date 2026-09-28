@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import type { Loan } from '@financeanchor/shared';
 import { translocoTesting } from '../../../testing/transloco';
+import { Clock } from '../../core/clock';
 import { LoanForm, type LoanFormValue } from './loan-form';
 
 const loan: Loan = {
@@ -19,12 +20,20 @@ const loan: Loan = {
   extraMonthlyCents: 0,
   extraFromMonth: null,
   saveUp: true,
+  balanceDate: null,
   createdAt: 0,
   updatedAt: 0,
 };
 
 describe('LoanForm', () => {
-  beforeEach(() => TestBed.configureTestingModule({ imports: [LoanForm, translocoTesting()] }));
+  beforeEach(() =>
+    TestBed.configureTestingModule({
+      imports: [LoanForm, translocoTesting()],
+      providers: [
+        { provide: Clock, useValue: { today: () => '2026-09-25', month: () => '2026-09' } },
+      ],
+    }),
+  );
 
   async function render(value: Loan | null, planMonth: string | null = null) {
     const fixture = TestBed.createComponent(LoanForm);
@@ -72,6 +81,7 @@ describe('LoanForm', () => {
         targetMonth: null,
         extraMonthlyCents: 0,
         extraFromMonth: null,
+        balanceDate: '2026-09-25',
       },
     ]);
   });
@@ -97,6 +107,7 @@ describe('LoanForm', () => {
         saveUp: true,
         extraMonthlyCents: 0,
         extraFromMonth: null,
+        balanceDate: '2026-09-25',
       },
     ]);
   });

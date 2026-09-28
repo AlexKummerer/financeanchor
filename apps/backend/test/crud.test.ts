@@ -5,6 +5,7 @@ describe('Konten', () => {
   it('anlegen, ändern, auflisten, löschen', async () => {
     const { api } = await newUser();
     const created = await api.post('/accounts', {
+      balanceDate: '2000-01-01',
       name: 'Girokonto',
       kind: 'checking',
       balanceCents: 185000,
@@ -25,6 +26,7 @@ describe('Konten', () => {
   it('Löschen eines verknüpften Kontos löst die Verknüpfung am Rücklagentopf', async () => {
     const { api } = await newUser();
     const acc = await api.post('/accounts', {
+      balanceDate: '2000-01-01',
       name: 'Tagesgeld',
       kind: 'savings',
       balanceCents: 62000,
@@ -37,7 +39,12 @@ describe('Konten', () => {
 
   it('lehnt ungültige Eingaben mit einheitlichem Fehlerformat ab', async () => {
     const { api } = await newUser();
-    const res = await api.post('/accounts', { name: '', kind: 'bank', balanceCents: 1.5 });
+    const res = await api.post('/accounts', {
+      balanceDate: '2000-01-01',
+      name: '',
+      kind: 'bank',
+      balanceCents: 1.5,
+    });
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: { code: 'validation_failed' } });
     expect(res.body.error.details.length).toBeGreaterThanOrEqual(3);
@@ -251,6 +258,7 @@ describe('Kredite', () => {
   it('Ursprungsbetrag fällt auf die Restschuld zurück', async () => {
     const { api } = await newUser();
     const res = await api.post('/loans', {
+      balanceDate: '2000-01-01',
       kind: 'installment',
       name: 'Laptop',
       balanceCents: 90000,
@@ -264,6 +272,7 @@ describe('Kredite', () => {
     expect(
       (
         await api.post('/loans', {
+          balanceDate: '2000-01-01',
           kind: 'installment',
           name: 'X',
           balanceCents: 1,
@@ -293,11 +302,13 @@ describe('Vermögensstände', () => {
   it('berechnet den Stand serverseitig, höchstens einer pro Tag', async () => {
     const { api } = await newUser();
     const acc = await api.post('/accounts', {
+      balanceDate: '2000-01-01',
       name: 'Giro',
       kind: 'checking',
       balanceCents: 100000,
     });
     await api.post('/loans', {
+      balanceDate: '2000-01-01',
       kind: 'installment',
       name: 'Auto',
       balanceCents: 40000,
@@ -325,6 +336,7 @@ describe('Kredite „Tilgen bis Datum“', () => {
   it('anlegen: keine Rate, Buchungstag aus der Frist, Ursprungsbetrag = Restschuld', async () => {
     const { api } = await newUser();
     const res = await api.post('/loans', {
+      balanceDate: '2000-01-01',
       kind: 'deadline',
       name: 'Privatkredit',
       balanceCents: 150000,
@@ -347,6 +359,7 @@ describe('Kredite „Tilgen bis Datum“', () => {
     const { api } = await newUser();
     const created = (
       await api.post('/loans', {
+        balanceDate: '2000-01-01',
         kind: 'deadline',
         name: 'Klarna',
         balanceCents: 30000,
@@ -376,6 +389,7 @@ describe('Kredite „Tilgen bis Datum“', () => {
   it('Ratenkredit mit Zieldatum; ohne Rate abgelehnt', async () => {
     const { api } = await newUser();
     const ok = await api.post('/loans', {
+      balanceDate: '2000-01-01',
       kind: 'installment',
       name: 'Auto',
       balanceCents: 500000,
@@ -385,7 +399,14 @@ describe('Kredite „Tilgen bis Datum“', () => {
     });
     expect(ok.body).toMatchObject({ targetMonth: '2027-12' });
     expect(
-      (await api.post('/loans', { kind: 'installment', name: 'X', balanceCents: 100 })).status,
+      (
+        await api.post('/loans', {
+          balanceDate: '2000-01-01',
+          kind: 'installment',
+          name: 'X',
+          balanceCents: 100,
+        })
+      ).status,
     ).toBe(400);
   });
 });
@@ -394,6 +415,7 @@ describe('Eigene Extra-Tilgung', () => {
   it('lässt sich anlegen und ändern; bei Einmalzahlungen gibt es keine', async () => {
     const { api } = await newUser();
     const pb = await api.post('/loans', {
+      balanceDate: '2000-01-01',
       kind: 'installment',
       name: 'Postbank',
       balanceCents: 2342023,
@@ -417,6 +439,7 @@ describe('Eigene Extra-Tilgung', () => {
     );
 
     const klarna = await api.post('/loans', {
+      balanceDate: '2000-01-01',
       kind: 'deadline',
       name: 'Klarna',
       balanceCents: 30000,

@@ -105,6 +105,7 @@ export class AssetsPage {
         kind: v.kind,
         // Bei Karten wird „offen“ als positiver Betrag eingegeben; gespeichert wird er negativ.
         balanceCents: card ? -Math.abs(toCents(v.balance)) : toCents(v.balance),
+        balanceDate: this.clock.today(),
         statementDay: card ? v.statementDay : null,
         debitDay: card ? v.debitDay : null,
         debitAccountId: card ? v.debitAccountId : null,
@@ -122,6 +123,7 @@ export class AssetsPage {
   protected async updateBalance(a: Account) {
     const value = await this.dialogs.prompt({
       title: this.t.translate('assets.updateTitle', { name: a.name }),
+      message: this.t.translate('assets.balanceAsOfHint'),
       label: this.t.translate('assets.value'),
       value: this.f.amountInput(a.balanceCents),
       inputMode: 'decimal',
@@ -134,7 +136,11 @@ export class AssetsPage {
       return;
     }
     try {
-      await this.store.accounts.update(a.id, { balanceCents: cents });
+      // Der eingetragene Stand gilt ab heute; ältere Buchungen ändern ihn nicht mehr
+      await this.store.accounts.update(a.id, {
+        balanceCents: cents,
+        balanceDate: this.clock.today(),
+      });
       this.toast.show(this.t.translate('assets.updated'));
     } catch {
       this.toast.show(this.t.translate('errors.saveFailed'), 'error');

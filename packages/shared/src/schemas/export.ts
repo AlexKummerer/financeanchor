@@ -111,6 +111,7 @@ export const importFileSchema = z
           extraMonthlyCents: 0,
           extraFromMonth: null,
           saveUp: true,
+          balanceDate: null,
         })),
       },
     };

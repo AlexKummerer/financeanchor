@@ -12,6 +12,7 @@ import {
   type IsoDate,
   type SystemCategoryKey,
   type YearMonth,
+  withoutPastEffects,
 } from '@financeanchor/shared';
 import { and, eq, gte, isNotNull, sql } from 'drizzle-orm';
 import { chunkedInsert, runBatch } from '../db/client.js';
@@ -144,6 +145,18 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
     throw err;
   }
   if (!selected.length) return { bookedCount: 0 };
+  // Stand-Datum: Fälligkeiten bis dahin sind in den eingetragenen Ständen schon enthalten
+  const [accountDates, loanDates] = await s.db.batch([
+    s.db
+      .select({ id: accounts.id, date: accounts.balanceDate })
+      .from(accounts)
+      .where(s.own(accounts)),
+    s.db.select({ id: loans.id, date: loans.balanceDate }).from(loans).where(s.own(loans)),
+  ]);
+  selected = withoutPastEffects(selected, {
+    accounts: new Map(accountDates.map((a) => [a.id, a.date])),
+    loans: new Map(loanDates.map((l) => [l.id, l.date])),
+  });
 
   const now = Date.now();
   const pairs = selected.map((e) => {

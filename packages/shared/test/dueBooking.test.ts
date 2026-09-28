@@ -4,6 +4,7 @@ import {
   bookingEffects,
   DueBookingError,
   planDue,
+  withoutPastEffects,
   selectDueForBooking,
   type DueEntry,
   type DueInput,
@@ -423,5 +424,22 @@ describe('Kredite mit Frist und Ansparen', () => {
     expect(p.filter((e) => e.sourceType === 'loan').map((e) => [e.key, e.amountCents])).toEqual([
       ['loan:pb', -36499],
     ]);
+  });
+});
+
+describe('Stand-Datum', () => {
+  it('lässt Stand-Änderungen weg, die im Stand schon enthalten sind', () => {
+    const entry = {
+      ...planDue(base)[0]!,
+      date: '2026-09-01',
+      accountDelta: { accountId: 'giro', cents: -500 },
+      loanDelta: { loanId: 'auto', cents: -26000 },
+      savingDelta: null,
+    };
+    const [early] = withoutPastEffects([entry], {
+      accounts: new Map([['giro', '2026-09-28']]),
+      loans: new Map([['auto', '2026-08-31']]),
+    });
+    expect(early).toMatchObject({ accountDelta: null, loanDelta: { cents: -26000 } });
   });
 });
