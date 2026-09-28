@@ -173,8 +173,38 @@ describe('DuePanel', () => {
     await fixture.whenStable();
     expect(book.mock.calls[0]![1]).toMatchObject({
       keys: [],
-      links: [{ key: 'item:miete', transactionId: 't-miete' }],
+      links: [{ key: 'item:miete', transactionIds: ['t-miete'] }],
     });
+  });
+
+  it('in zwei Teilen von Hand gebucht: Summe wird vorgeschlagen und verknüpft', async () => {
+    const { fixture, el } = await render();
+    const part = (id: string, date: string, name: string) =>
+      ({
+        id,
+        date,
+        name,
+        categoryId: 'c',
+        amountCents: -1800,
+        kind: 'normal',
+        sourceType: null,
+        sourceId: null,
+        accountId: null,
+      }) as unknown as Transaction;
+    fixture.componentRef.setInput('transactions', [
+      part('t1', '2026-09-02', 'Versicherung Teil 1'),
+      part('t2', '2026-09-10', 'Versicherung Teil 2'),
+    ]);
+    await fixture.whenStable();
+    expect(el.textContent).toContain('2 Teile, zusammen');
+
+    button(el, 'Verknüpfen').click();
+    await fixture.whenStable();
+    el.querySelector<HTMLButtonElement>('.btnrow .btn:not(.ghost)')!.click();
+    await fixture.whenStable();
+    expect(book.mock.calls[0]![1].links).toEqual([
+      { key: 'item:vers', transactionIds: ['t1', 't2'] },
+    ]);
   });
 
   it('Suche filtert die Liste nach Name', async () => {

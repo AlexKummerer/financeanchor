@@ -7,10 +7,13 @@ export const dueOverrideSchema = z.object({
   amountCents: positiveCentsSchema.optional(),
 });
 
-/** Fälligkeit ist schon von Hand gebucht: mit dieser Buchung verknüpfen statt neu anlegen. */
+/**
+ * Fälligkeit ist schon von Hand gebucht: mit diesen Buchungen verknüpfen statt neu anlegen (auch in
+ * mehreren Teilen, z. B. 2 × 36 € für 72 €).
+ */
 export const dueLinkSchema = z.object({
   key: z.string().min(1).max(100),
-  transactionId: z.string().min(1).max(64),
+  transactionIds: z.array(z.string().min(1).max(64)).min(1).max(20),
 });
 export type DueLink = z.infer<typeof dueLinkSchema>;
 

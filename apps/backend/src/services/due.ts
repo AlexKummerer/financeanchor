@@ -19,6 +19,7 @@ import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { chunkedInsert, runBatch } from '../db/client.js';
 import {
   accounts,
+  bookedItemParts,
   bookedItems,
   cardStatementDates,
   categories,
@@ -44,7 +45,7 @@ export async function loadDuePlan(
   today: IsoDate,
 ): Promise<DueEntry[]> {
   const { db } = s;
-  const [items, pots, accs, ls, settings, sysCats, booked, cardTransactions, cardDates] =
+  const [items, pots, accs, ls, settings, sysCats, booked, cardTransactions, cardDates, parts] =
     await db.batch([
       db.select().from(recurringItems).where(s.own(recurringItems)),
       db.select().from(reservePots).where(s.own(reservePots)),
@@ -96,6 +97,13 @@ export async function loadDuePlan(
           ),
         ),
       db.select().from(cardStatementDates).where(s.own(cardStatementDates)),
+      // Weitere Teile von Fälligkeiten, die in mehreren Buchungen erfasst wurden
+      db
+        .select({ key: bookedItems.bookingKey, amountCents: transactions.amountCents })
+        .from(bookedItemParts)
+        .innerJoin(bookedItems, eq(bookedItems.id, bookedItemParts.bookedItemId))
+        .innerJoin(transactions, eq(transactions.id, bookedItemParts.transactionId))
+        .where(s.own(bookedItemParts, eq(bookedItems.month, month))),
     ]);
   const setting = settings[0];
   const systemCategoryIds = Object.fromEntries(sysCats.map((c) => [c.systemKey, c.id])) as Record<
@@ -120,7 +128,17 @@ export async function loadDuePlan(
     cardStatementDates: cardDates,
     loans: ls,
     systemCategoryIds,
-    booked: new Map(booked.map((b) => [b.key, { amountCents: b.amountCents, date: b.date }])),
+    booked: new Map(
+      booked.map((b) => [
+        b.key,
+        {
+          amountCents: parts
+            .filter((p) => p.key === b.key)
+            .reduce((sum, p) => sum + p.amountCents, b.amountCents),
+          date: b.date,
+        },
+      ]),
+    ),
   });
 }
 
@@ -130,16 +148,12 @@ export async function loadDuePlan(
  */
 export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) {
   assertPlausibleToday(req.today);
-  const linked = await linkTransactions(s, req.links);
+  const groups = await linkGroups(s, req.links);
   let selected: DueEntry[];
   try {
     const plan = applyDueLinks(
       applyDueOverrides(await loadDuePlan(s, month, req.today), req.overrides, month, req.today),
-      req.links.map((l) => {
-        const tx = linked.get(l.transactionId);
-        if (!tx) throw new AppError(400, 'invalid_link', 'Unknown transaction');
-        return { key: l.key, date: tx.date, amountCents: tx.amountCents };
-      }),
+      [...groups].map(([key, g]) => ({ key, date: g.date, amountCents: g.amountCents })),
       month,
       req.today,
     );
@@ -166,10 +180,9 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
   });
 
   const now = Date.now();
-  const linkByKey = new Map(req.links.map((l) => [l.key, l.transactionId]));
   const pairs = selected.map((e) => {
     const tx = {
-      id: linkByKey.get(e.key) ?? newId(now),
+      id: groups.get(e.key)?.ids[0] ?? newId(now),
       userId: s.userId,
       date: e.date,
       name: e.name,
@@ -196,13 +209,13 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
       createdAt: now,
       updatedAt: now,
     };
-    return { tx, booked };
+    return { tx, booked, group: groups.get(e.key) ?? null };
   });
-  const txRows = pairs.map((p) => p.tx).filter((t) => !linked.has(t.id));
-  // Schon von Hand gebucht: Buchung wird zur Fälligkeit (Art, Herkunft, Kategorie), Name bleibt
-  const linkUpdates = pairs
-    .filter((p) => linked.has(p.tx.id))
-    .map(({ tx }) =>
+  const txRows = pairs.filter((p) => !p.group).map((p) => p.tx);
+  // Schon von Hand gebucht: die Buchungen werden zur Fälligkeit (Art, Herkunft, Kategorie), Namen
+  // bleiben; ab der zweiten Buchung als Teil der Markierung
+  const linkUpdates = pairs.flatMap(({ tx, group }) =>
+    (group?.ids ?? []).map((id) =>
       s.db
         .update(transactions)
         .set({
@@ -213,8 +226,19 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
           accountId: sql`coalesce(${transactions.accountId}, ${tx.accountId})`,
           updatedAt: now,
         })
-        .where(s.byId(transactions, tx.id)),
-    );
+        .where(s.byId(transactions, id)),
+    ),
+  );
+  const partRows = pairs.flatMap(({ booked, group }) =>
+    (group?.ids.slice(1) ?? []).map((transactionId) => ({
+      id: newId(now),
+      userId: s.userId,
+      bookedItemId: booked.id,
+      transactionId,
+      createdAt: now,
+      updatedAt: now,
+    })),
+  );
   const bookedRows = pairs.map((p) => p.booked);
   const { accountDeltas, loanDeltas, savingDeltas } = bookingEffects(selected);
   try {
@@ -222,6 +246,7 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
       ...chunkedInsert(s.db, transactions, txRows),
       ...linkUpdates,
       ...chunkedInsert(s.db, bookedItems, bookedRows),
+      ...chunkedInsert(s.db, bookedItemParts, partRows),
       ...[...accountDeltas].map(([id, delta]) =>
         s.db
           .update(accounts)
@@ -256,16 +281,17 @@ export async function bookDue(s: Scoped, month: YearMonth, req: DueBookRequest) 
 
 /**
  * Buchungen, mit denen Fälligkeiten verknüpft werden sollen: eigene, von Hand erfasste Buchungen
- * (Art „normal“, ohne Herkunft), jede höchstens einmal.
+ * (Art „normal“, ohne Herkunft), jede höchstens einmal. Je Fälligkeit nach Datum sortiert (die
+ * erste wird die Buchung der Markierung), mit Summe und letztem Tag.
  */
-async function linkTransactions(s: Scoped, links: DueBookRequest['links']) {
-  const ids = links.map((l) => l.transactionId);
-  const found = new Map<string, { date: IsoDate; amountCents: number }>();
-  if (!ids.length) return found;
-  if (new Set(ids).size !== ids.length || new Set(links.map((l) => l.key)).size !== ids.length) {
+async function linkGroups(s: Scoped, links: DueBookRequest['links']) {
+  const groups = new Map<string, { ids: string[]; date: IsoDate; amountCents: number }>();
+  const ids = links.flatMap((l) => l.transactionIds);
+  if (!ids.length) return groups;
+  if (new Set(ids).size !== ids.length || new Set(links.map((l) => l.key)).size !== links.length) {
     throw new AppError(400, 'invalid_link', 'Each transaction can only be linked once');
   }
-  const [rows, booked] = await s.db.batch([
+  const [rows, booked, parts] = await s.db.batch([
     s.db
       .select({
         id: transactions.id,
@@ -280,12 +306,32 @@ async function linkTransactions(s: Scoped, links: DueBookRequest['links']) {
       .select({ id: bookedItems.transactionId })
       .from(bookedItems)
       .where(s.own(bookedItems, inArray(bookedItems.transactionId, ids))),
+    s.db
+      .select({ id: bookedItemParts.transactionId })
+      .from(bookedItemParts)
+      .where(s.own(bookedItemParts, inArray(bookedItemParts.transactionId, ids))),
   ]);
-  for (const r of rows) {
-    if (r.kind === 'normal' && r.sourceType === null) found.set(r.id, r);
-  }
-  if (found.size !== ids.length || booked.length) {
+  const found = new Map(
+    rows.filter((r) => r.kind === 'normal' && r.sourceType === null).map((r) => [r.id, r]),
+  );
+  if (found.size !== ids.length || booked.length || parts.length) {
     throw new AppError(400, 'invalid_link', 'Transaction cannot be linked');
   }
-  return found;
+  for (const l of links) {
+    const txs = l.transactionIds
+      .map((id) => found.get(id))
+      .filter((t) => t !== undefined)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const amountCents = txs.reduce((sum, t) => sum + t.amountCents, 0);
+    // Teile mit unterschiedlichem Vorzeichen passen nicht zu einer Fälligkeit
+    if (txs.some((t) => Math.sign(t.amountCents) !== Math.sign(amountCents))) {
+      throw new AppError(400, 'invalid_link', 'Parts must have the same sign');
+    }
+    groups.set(l.key, {
+      ids: txs.map((t) => t.id),
+      date: txs[txs.length - 1]?.date ?? '',
+      amountCents,
+    });
+  }
+  return groups;
 }

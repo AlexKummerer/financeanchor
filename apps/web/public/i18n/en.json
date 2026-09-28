@@ -332,12 +332,13 @@
     "selectAll": "Select all",
     "selectNone": "Select none",
     "noMatch": "No entries match this search.",
-    "linked": "Already booked as “{{name}}” ({{date}}, {{amount}}) – will be linked",
+    "linked": "Already booked as “{{name}}” ({{detail}}) – will be linked",
     "unlink": "Unlink",
-    "suggestion": "Already booked by hand? “{{name}}” ({{date}}, {{amount}})",
+    "suggestion": "Already booked by hand? “{{name}}” ({{detail}})",
     "linkIt": "Link",
-    "linkLabel": "Already booked by hand as …",
-    "linkHint": "Nothing is created twice: the transaction is assigned to this due item, its date and amount apply (also to loan balance and reserve)."
+    "linkLabel": "Already booked by hand as … (several parts possible)",
+    "linkHint": "Nothing is created twice: the transactions are assigned to this due item, their date and amount (sum for several) apply – also to loan balance and reserve. Deleting one part reopens the due item.",
+    "parts": "{{n}} parts, together {{amount}}"
   },
   "forms": {
     "required": "Please fill in.",

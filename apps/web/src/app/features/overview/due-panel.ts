@@ -11,7 +11,7 @@ import {
 import {
   daysBetween,
   parseEuroToCents,
-  reconcile,
+  suggestDueLinks,
   type DueEntry,
   type DueOverride,
   type IsoDate,
@@ -38,10 +38,15 @@ interface Row {
   bookable: boolean;
   selected: boolean;
   adjusted: boolean;
-  /** Von Hand erfasste Buchung, mit der die Fälligkeit verknüpft wird */
-  link: Transaction | null;
+  /** Von Hand erfasste Buchungen (auch in mehreren Teilen), mit denen verknüpft wird */
+  link: Transaction[] | null;
   /** Vorschlag: sieht aus wie schon von Hand gebucht */
-  suggestion: Transaction | null;
+  suggestion: Transaction[] | null;
+}
+
+/** Summe mehrerer Buchungen */
+export function sumOf(txs: readonly Pick<Transaction, 'amountCents'>[]): number {
+  return txs.reduce((s, t) => s + t.amountCents, 0);
 }
 
 /**
@@ -74,30 +79,20 @@ export class DuePanel {
   protected readonly editing = signal<string | null>(null);
   private readonly choice = signal(new Map<string, boolean>());
   private readonly overrides = signal(new Map<string, DueOverride>());
-  /** Fälligkeit → von Hand erfasste Buchung */
-  private readonly links = signal(new Map<string, string>());
+  /** Fälligkeit → von Hand erfasste Buchungen */
+  private readonly links = signal(new Map<string, readonly string[]>());
 
   /** Von Hand erfasste Buchungen des Monats, die noch keiner Fälligkeit gehören */
   private readonly manual = computed(() =>
     this.transactions().filter((t) => t.kind === 'normal' && t.sourceType === null),
   );
-  /** Vorschläge wie beim CSV-Import: gleicher Betrag in der Nähe oder ähnlicher Name */
-  private readonly suggestions = computed(() => {
-    const open = (this.entries() ?? []).filter((e) => !e.booked && e.type !== 'transfer');
-    const matches = reconcile(
-      open.map((e) => ({
-        key: e.key,
-        label: null,
-        date: e.date,
-        amountCents: e.amountCents,
-        counterparty: e.name,
-        purpose: '',
-      })),
-      this.manual().map((t) => ({ ...t, sourceType: null, sourceId: null, linked: false })),
-    );
-    const byId = new Map(this.manual().map((t) => [t.id, t]));
-    return new Map([...matches].map(([key, m]) => [key, byId.get(m.transactionId) ?? null]));
-  });
+  /** Vorschläge: gleicher Betrag in der Nähe oder ähnlicher Name, auch mehrere Teile */
+  private readonly suggestions = computed(() =>
+    suggestDueLinks(
+      (this.entries() ?? []).filter((e) => !e.booked && e.type !== 'transfer'),
+      this.manual(),
+    ),
+  );
   protected readonly amountError = signal<string | null>(null);
   protected readonly today = this.clock.today();
 
@@ -108,15 +103,20 @@ export class DuePanel {
     const choice = this.choice();
     const links = this.links();
     const byId = new Map(this.manual().map((t) => [t.id, t]));
-    const used = new Set(links.values());
+    const used = new Set([...links.values()].flat());
     return entries.map((entry) => {
-      const linkId = links.get(entry.key);
-      const link = (!entry.booked && linkId && byId.get(linkId)) || null;
+      const linkIds = entry.booked ? [] : (links.get(entry.key) ?? []);
+      const linkTxs = linkIds.flatMap((id) => byId.get(id) ?? []);
+      const link = linkTxs.length ? linkTxs : null;
       const suggested = this.suggestions().get(entry.key) ?? null;
       const o = overrides.get(entry.linkedKey ?? entry.key);
-      const date = entry.booked ? entry.date : (link?.date ?? o?.date ?? entry.date);
+      const lastDate = link
+        ?.map((t) => t.date)
+        .sort()
+        .at(-1);
+      const date = entry.booked ? entry.date : (lastDate ?? o?.date ?? entry.date);
       const amountCents = link
-        ? link.amountCents
+        ? sumOf(link)
         : !entry.booked && o?.amountCents !== undefined
           ? Math.sign(entry.amountCents) * o.amountCents
           : entry.amountCents;
@@ -140,7 +140,7 @@ export class DuePanel {
         selected: selected && !link,
         adjusted: !!o && !link,
         link,
-        suggestion: !link && suggested && !used.has(suggested.id) ? suggested : null,
+        suggestion: !link && suggested?.every((t) => !used.has(t.id)) ? suggested : null,
       };
     });
   });
@@ -225,7 +225,9 @@ export class DuePanel {
 
   /** Mögliche Buchungen für „Schon gebucht als …“: gleiches Vorzeichen, nächste zuerst */
   protected candidates(row: Row): Transaction[] {
-    const used = new Set(this.links().values());
+    const used = new Set(
+      [...this.links()].filter(([key]) => key !== row.entry.key).flatMap(([, ids]) => ids),
+    );
     return this.manual()
       .filter(
         (t) => !used.has(t.id) && Math.sign(t.amountCents) === Math.sign(row.entry.amountCents),
@@ -239,15 +241,39 @@ export class DuePanel {
       );
   }
 
-  /** Mit einer von Hand erfassten Buchung verknüpfen (bzw. mit `null` lösen). */
-  protected link(key: string, transactionId: string | null) {
+  /** Mit von Hand erfassten Buchungen verknüpfen (leer: lösen). */
+  protected link(key: string, transactionIds: readonly string[]) {
     this.links.update((m) => {
       const next = new Map(m);
-      if (transactionId) next.set(key, transactionId);
+      if (transactionIds.length) next.set(key, transactionIds);
       else next.delete(key);
       return next;
     });
-    if (this.editing() === key) this.editing.set(null);
+  }
+
+  protected isLinked(key: string, transactionId: string): boolean {
+    return this.links().get(key)?.includes(transactionId) ?? false;
+  }
+
+  /** Eine Buchung (ein Teil) hinzufügen oder entfernen */
+  protected toggleLink(key: string, transactionId: string, on: boolean) {
+    const current = this.links().get(key) ?? [];
+    this.link(key, on ? [...current, transactionId] : current.filter((id) => id !== transactionId));
+  }
+
+  protected ids(txs: readonly Transaction[]): string[] {
+    return txs.map((t) => t.id);
+  }
+
+  /** Text für verknüpfte bzw. vorgeschlagene Buchungen: Name(n), Tag bzw. Anzahl und Betrag */
+  protected describe(txs: readonly Transaction[]): { name: string; detail: string } {
+    const name = txs.map((t) => t.name).join(' + ');
+    const [only] = txs;
+    const detail =
+      txs.length === 1 && only
+        ? `${this.f.date(only.date, 'dayMonth')}, ${this.f.money(only.amountCents)}`
+        : this.t.translate('due.parts', { n: txs.length, amount: this.f.money(sumOf(txs)) });
+    return { name, detail };
   }
 
   protected startEdit(key: string) {
@@ -295,7 +321,7 @@ export class DuePanel {
     const keys = this.selectedKeys();
     const links = this.linkedRows().map((r) => ({
       key: r.entry.key,
-      transactionId: r.link?.id ?? '',
+      transactionIds: (r.link ?? []).map((t) => t.id),
     }));
     if (!keys.length && !links.length) return;
     this.pending.set(true);

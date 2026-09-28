@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import { chunkedInsert, runBatch } from '../db/client.js';
 import {
   accounts,
+  bookedItemParts,
   bookedItems,
   cardStatementDates,
   categories,
@@ -27,7 +28,7 @@ import { categoryToApi, strip } from '../mappers.js';
 
 export async function exportUserData(s: Scoped, now = new Date()): Promise<ExportFile> {
   const { db } = s;
-  const [settings, accs, pots, cats, items, txs, booked, ls, snaps, cardDates, links] =
+  const [settings, accs, pots, cats, items, txs, booked, ls, snaps, cardDates, links, parts] =
     await db.batch([
       db.select().from(userSettings).where(eq(userSettings.userId, s.userId)),
       db.select().from(accounts).where(s.own(accounts)),
@@ -40,6 +41,7 @@ export async function exportUserData(s: Scoped, now = new Date()): Promise<Expor
       db.select().from(netWorthSnapshots).where(s.own(netWorthSnapshots)),
       db.select().from(cardStatementDates).where(s.own(cardStatementDates)),
       db.select().from(importLinks).where(s.own(importLinks)),
+      db.select().from(bookedItemParts).where(s.own(bookedItemParts)),
     ]);
   const st = settings[0];
   if (!st) throw new AppError(500, 'user_not_initialized', 'User data is incomplete');
@@ -64,6 +66,7 @@ export async function exportUserData(s: Scoped, now = new Date()): Promise<Expor
       snapshots: snaps.map(strip),
       cardStatementDates: cardDates.map(strip),
       importLinks: links.map(strip),
+      bookedItemParts: parts.map(strip),
     },
   };
 }
@@ -136,6 +139,25 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
     card: maps.account,
   };
 
+  // Alte → neue IDs der Markierungen (für die Teile)
+  const bookedIds = new Map<string, string>();
+  const bookedRows = d.bookedItems.flatMap((b) => {
+    const [prefix, oldId] = b.bookingKey.split(':') as [string, string | undefined];
+    const mapped = oldId ? keyMap[prefix]?.get(oldId) : undefined;
+    const transactionId = maps.transaction.get(b.transactionId);
+    if (!mapped || !transactionId) return []; // Herkunft oder Buchung fehlt: Markierung entfällt
+    return [
+      {
+        ...b,
+        ...meta,
+        id: remember(bookedIds, b.id, newId(now)),
+        bookingKey: `${prefix}:${mapped}`,
+        transactionId,
+        accountId: b.accountId ? (maps.account.get(b.accountId) ?? null) : null,
+        loanId: b.loanId ? (maps.loan.get(b.loanId) ?? null) : null,
+      },
+    ];
+  });
   const rows = {
     // Konten, auf die eine Karte verweist, zuerst einfügen (Fremdschlüssel innerhalb der Tabelle)
     accounts: [...d.accounts]
@@ -176,23 +198,7 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
       sourceId:
         t.sourceType && t.sourceId ? (sourceMap[t.sourceType].get(t.sourceId) ?? null) : null,
     })),
-    bookedItems: d.bookedItems.flatMap((b) => {
-      const [prefix, oldId] = b.bookingKey.split(':') as [string, string | undefined];
-      const mapped = oldId ? keyMap[prefix]?.get(oldId) : undefined;
-      const transactionId = maps.transaction.get(b.transactionId);
-      if (!mapped || !transactionId) return []; // Herkunft oder Buchung fehlt: Markierung entfällt
-      return [
-        {
-          ...b,
-          ...meta,
-          id: newId(now),
-          bookingKey: `${prefix}:${mapped}`,
-          transactionId,
-          accountId: b.accountId ? (maps.account.get(b.accountId) ?? null) : null,
-          loanId: b.loanId ? (maps.loan.get(b.loanId) ?? null) : null,
-        },
-      ];
-    }),
+    bookedItems: bookedRows,
     loans: d.loans.map((l) => ({ ...l, ...meta, id: ref(maps.loan, l.id, 'Kredit') })),
     snapshots: d.snapshots.map((x) => ({ ...x, ...meta, id: newId(now) })),
     cardStatementDates: d.cardStatementDates.map((x) => ({
@@ -201,6 +207,12 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
       id: newId(now),
       accountId: ref(maps.account, x.accountId, 'Abrechnung → Karte'),
     })),
+    bookedItemParts: d.bookedItemParts.flatMap((x) => {
+      const bookedItemId = bookedIds.get(x.bookedItemId);
+      const transactionId = maps.transaction.get(x.transactionId);
+      if (!bookedItemId || !transactionId) return [];
+      return [{ ...x, ...meta, id: newId(now), bookedItemId, transactionId }];
+    }),
     importLinks: d.importLinks.map((x) => ({
       ...x,
       ...meta,
@@ -225,6 +237,7 @@ export async function importUserData(s: Scoped, file: ExportFile) {
   await runBatch(db, [
     db.delete(bookedItems).where(s.own(bookedItems)),
     db.delete(importLinks).where(s.own(importLinks)),
+    db.delete(bookedItemParts).where(s.own(bookedItemParts)),
     db.delete(transactions).where(s.own(transactions)),
     db.delete(recurringItems).where(s.own(recurringItems)),
     db.delete(reservePots).where(s.own(reservePots)),
@@ -247,6 +260,7 @@ export async function importUserData(s: Scoped, file: ExportFile) {
     ...chunkedInsert(db, netWorthSnapshots, rows.snapshots),
     ...chunkedInsert(db, cardStatementDates, rows.cardStatementDates),
     ...chunkedInsert(db, importLinks, rows.importLinks),
+    ...chunkedInsert(db, bookedItemParts, rows.bookedItemParts),
   ]);
   return {
     accounts: rows.accounts.length,
@@ -256,4 +270,9 @@ export async function importUserData(s: Scoped, file: ExportFile) {
     loans: rows.loans.length,
     snapshots: rows.snapshots.length,
   };
+}
+
+function remember(map: Map<string, string>, oldId: string, id: string): string {
+  map.set(oldId, id);
+  return id;
 }

@@ -268,9 +268,37 @@ export const bookedItems = sqliteTable(
   },
   (t) => [
     uniqueIndex('booked_items_key_uq').on(t.userId, t.bookingKey, t.month),
+    uniqueIndex('booked_items_user_id_id_uq').on(t.userId, t.id),
     index('booked_items_transaction_idx').on(t.userId, t.transactionId),
     foreignKey({
       name: 'booked_items_transaction_fk',
+      columns: [t.userId, t.transactionId],
+      foreignColumns: [transactions.userId, transactions.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * Weitere Buchungen einer Fälligkeit, die von Hand in mehreren Teilen erfasst wurde (z. B. 2 × 36 €
+ * für 72 €). Die erste Buchung steht in `booked_items`, die übrigen hier.
+ */
+export const bookedItemParts = sqliteTable(
+  'booked_item_parts',
+  {
+    ...base,
+    bookedItemId: text('booked_item_id').notNull(),
+    transactionId: text('transaction_id').notNull(),
+  },
+  (t) => [
+    uniqueIndex('booked_item_parts_transaction_uq').on(t.userId, t.transactionId),
+    index('booked_item_parts_item_idx').on(t.userId, t.bookedItemId),
+    foreignKey({
+      name: 'booked_item_parts_item_fk',
+      columns: [t.userId, t.bookedItemId],
+      foreignColumns: [bookedItems.userId, bookedItems.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'booked_item_parts_transaction_fk',
       columns: [t.userId, t.transactionId],
       foreignColumns: [transactions.userId, transactions.id],
     }).onDelete('cascade'),

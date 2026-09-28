@@ -119,14 +119,14 @@ describe('Fällige übernehmen', () => {
     const wrong = await api.post(`/due/${lastMonth}/book`, {
       today,
       keys: [],
-      links: [{ key, transactionId: other.id }],
+      links: [{ key, transactionIds: [other.id] }],
     });
     expect(wrong.status).toBe(400);
 
     const res = await api.post(`/due/${lastMonth}/book`, {
       today,
       keys: [],
-      links: [{ key, transactionId: manual.id }],
+      links: [{ key, transactionIds: [manual.id] }],
     });
     expect(res.status).toBe(200);
     expect(res.body.bookedCount).toBe(1);
@@ -149,13 +149,61 @@ describe('Fällige übernehmen', () => {
     const again = await api.post(`/due/${lastMonth}/book`, {
       today,
       keys: [],
-      links: [{ key: `extra:${loan.id}`, transactionId: manual.id }],
+      links: [{ key: `extra:${loan.id}`, transactionIds: [manual.id] }],
     });
     expect(again.status).toBe(400);
 
     // Löschen macht die Tilgung rückgängig, die Fälligkeit ist wieder offen
     await api.del(`/transactions/${manual.id}`);
     expect(await balanceOf(api, '/loans', loan.id)).toBe(840000);
+  });
+
+  it('in zwei Teilen von Hand gebucht: beide gehören zur Fälligkeit, Löschen eines Teils löst alles', async () => {
+    const { api } = await newUser();
+    const { loan } = await household(api);
+    const cat = await categoryId(api, 'Lebensmittel');
+    const part = async (day: string, amountCents: number) =>
+      (
+        await api.post('/transactions', {
+          date: `${lastMonth}-${day}`,
+          name: `Teil ${day}`,
+          categoryId: cat,
+          amountCents,
+        })
+      ).body;
+    const a = await part('02', -13000);
+    const b = await part('05', -13000);
+    const key = `loan:${loan.id}`;
+
+    const res = await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [],
+      links: [{ key, transactionIds: [b.id, a.id] }],
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.entries.find((e: any) => e.key === key)).toMatchObject({
+      booked: true,
+      amountCents: -26000,
+    });
+    expect(await balanceOf(api, '/loans', loan.id)).toBe(840000 + 4130 - 26000);
+    const txs = (await api.get(`/transactions?month=${lastMonth}`)).body as any[];
+    expect(
+      txs
+        .filter((t) => t.kind === 'loan_payment' && t.sourceId === loan.id)
+        .map((t) => t.id)
+        .sort(),
+    ).toEqual([a.id, b.id].sort());
+
+    // Teil mit Tilgung: Betrag nicht mehr änderbar
+    expect((await api.patch(`/transactions/${b.id}`, { amountCents: -1000 })).status).toBe(409);
+
+    // Ein Teil gelöscht: Tilgung zurück, der andere ist wieder eine eigene Buchung, Rate offen
+    await api.del(`/transactions/${b.id}`);
+    expect(await balanceOf(api, '/loans', loan.id)).toBe(840000);
+    const after = (await api.get(`/transactions?month=${lastMonth}`)).body as any[];
+    expect(after.find((t) => t.id === a.id)).toMatchObject({ kind: 'normal', sourceType: null });
+    const plan = (await api.get(`/due/${lastMonth}?today=${today}`)).body as any[];
+    expect(plan.find((e) => e.key === key).booked).toBe(false);
   });
 
   it('ist idempotent: zweiter Aufruf bucht nichts, Stände bleiben', async () => {

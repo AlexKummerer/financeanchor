@@ -13,6 +13,7 @@ import {
 } from './common.js';
 import {
   accountSchema,
+  bookedItemPartSchema,
   bookedItemSchema,
   cardStatementDateSchema,
   importLinkSchema,
@@ -40,6 +41,8 @@ const common = {
   cardStatementDates: z.array(cardStatementDateSchema).default([]),
   /** Seit dem Abgleich mehrerer Zeilen; ältere Sicherungen haben keine */
   importLinks: z.array(importLinkSchema).default([]),
+  /** Seit Fälligkeiten in mehreren Teilen; ältere Sicherungen haben keine */
+  bookedItemParts: z.array(bookedItemPartSchema).default([]),
 };
 
 /** Vollständige Sicherung aller Daten eines Nutzers (Version 2). */

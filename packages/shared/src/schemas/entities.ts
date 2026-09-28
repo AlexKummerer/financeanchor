@@ -246,6 +246,14 @@ export const bookedItemSchema = z.object({
 });
 export type BookedItem = z.infer<typeof bookedItemSchema>;
 
+/** Weitere Buchung einer in mehreren Teilen von Hand erfassten Fälligkeit */
+export const bookedItemPartSchema = z.object({
+  id: idSchema,
+  bookedItemId: idSchema,
+  transactionId: idSchema,
+  ...meta,
+});
+
 // Kredite
 export const loanKinds = ['installment', 'deadline'] as const;
 export const loanKindSchema = z.enum(loanKinds);

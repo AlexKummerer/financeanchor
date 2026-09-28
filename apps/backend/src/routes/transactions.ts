@@ -5,11 +5,18 @@ import {
   transactionUpdateSchema,
   yearMonthSchema,
 } from '@financeanchor/shared';
-import { and, desc, eq, gte, inArray, like, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, like, lte, or, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { chunkedInsert, runBatch } from '../db/client.js';
-import { accounts, bookedItems, importLinks, loans, transactions } from '../db/schema.js';
+import {
+  accounts,
+  bookedItemParts,
+  bookedItems,
+  importLinks,
+  loans,
+  transactions,
+} from '../db/schema.js';
 import type { Scoped } from '../db/scoped.js';
 import { AppError } from '../errors.js';
 import { strip } from '../mappers.js';
@@ -264,13 +271,36 @@ export const transactionRoutes = new Hono<AppEnv>()
       return c.json(strip(row));
     },
   )
-  /** Löschen macht Änderungen an Rücklagenkonto oder Restschuld rückgängig; der Posten ist wieder offen. */
+  /**
+   * Löschen macht Änderungen an Rücklagenkonto oder Restschuld rückgängig; der Posten ist wieder
+   * offen. War die Fälligkeit in mehreren Buchungen erfasst, werden die übrigen wieder eigene
+   * Buchungen (ohne Verknüpfung).
+   */
   .delete('/:id', validate('param', idParam), async (c) => {
     const s = scopedFrom(c);
     const { id } = c.req.valid('param');
     found(await s.get(transactions, id), 'transaction');
     const now = Date.now();
-    const reverts = (await bookingEffectsOf(s.db, s.userId, id)).flatMap((b) => [
+    const effects = await bookingEffectsOf(s.db, s.userId, id);
+    const others: string[] = [];
+    for (const b of effects) {
+      const parts = await s.db
+        .select({ id: bookedItemParts.transactionId })
+        .from(bookedItemParts)
+        .where(s.own(bookedItemParts, eq(bookedItemParts.bookedItemId, b.id)));
+      if (!parts.length) continue;
+      others.push(...[b.transactionId, ...parts.map((p) => p.id)].filter((x) => x !== id));
+    }
+    const release = [
+      ...effects.map((b) => s.db.delete(bookedItems).where(s.byId(bookedItems, b.id))),
+      ...others.map((other) =>
+        s.db
+          .update(transactions)
+          .set({ kind: 'normal', sourceType: null, sourceId: null, updatedAt: now })
+          .where(s.byId(transactions, other)),
+      ),
+    ];
+    const reverts = effects.flatMap((b) => [
       ...(b.accountId && b.accountDeltaCents
         ? [
             s.db
@@ -305,19 +335,31 @@ export const transactionRoutes = new Hono<AppEnv>()
           ]
         : []),
     ]);
-    await runBatch(s.db, [...reverts, s.remove(transactions, id)]);
+    await runBatch(s.db, [...reverts, ...release, s.remove(transactions, id)]);
     return c.body(null, 204);
   });
 
+/** Markierungen der Fälligkeiten, zu denen die Buchung gehört (als Buchung oder als Teil). */
 function bookingEffectsOf(
   db: ReturnType<typeof scopedFrom>['db'],
   userId: string,
   transactionId: string,
 ) {
+  const parts = db
+    .select({ id: bookedItemParts.bookedItemId })
+    .from(bookedItemParts)
+    .where(
+      and(eq(bookedItemParts.userId, userId), eq(bookedItemParts.transactionId, transactionId)),
+    );
   return db
     .select()
     .from(bookedItems)
-    .where(and(eq(bookedItems.userId, userId), eq(bookedItems.transactionId, transactionId)));
+    .where(
+      and(
+        eq(bookedItems.userId, userId),
+        or(eq(bookedItems.transactionId, transactionId), inArray(bookedItems.id, parts)),
+      ),
+    );
 }
 
 /** Datum um Tage verschieben (für das Suchfenster ähnlicher Buchungen). */

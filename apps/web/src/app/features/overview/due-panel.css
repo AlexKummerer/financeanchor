@@ -58,3 +58,27 @@ li.edit input {
   padding: 0;
   color: inherit;
 }
+.parts {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.parts legend {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0;
+  font-weight: 400;
+}
+.check-line input {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  flex: none;
+  accent-color: var(--pine);
+}

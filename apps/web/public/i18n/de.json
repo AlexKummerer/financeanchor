@@ -332,12 +332,13 @@
     "selectAll": "Alle auswählen",
     "selectNone": "Keine auswählen",
     "noMatch": "Keine Einträge zu dieser Suche.",
-    "linked": "Schon gebucht als „{{name}}“ ({{date}}, {{amount}}) – wird verknüpft",
+    "linked": "Schon gebucht als „{{name}}“ ({{detail}}) – wird verknüpft",
     "unlink": "Lösen",
-    "suggestion": "Schon von Hand gebucht? „{{name}}“ ({{date}}, {{amount}})",
+    "suggestion": "Schon von Hand gebucht? „{{name}}“ ({{detail}})",
     "linkIt": "Verknüpfen",
-    "linkLabel": "Schon von Hand gebucht als …",
-    "linkHint": "Dann wird nichts doppelt angelegt: die Buchung wird dieser Fälligkeit zugeordnet, Tag und Betrag der Buchung gelten (auch für Restschuld und Rücklage)."
+    "linkLabel": "Schon von Hand gebucht als … (auch mehrere Teile)",
+    "linkHint": "Dann wird nichts doppelt angelegt: die Buchungen werden dieser Fälligkeit zugeordnet, Tag und Betrag (bei mehreren die Summe) gelten – auch für Restschuld und Rücklage. Wird ein Teil gelöscht, ist die Fälligkeit wieder offen.",
+    "parts": "{{n}} Teile, zusammen {{amount}}"
   },
   "forms": {
     "required": "Bitte ausfüllen.",
