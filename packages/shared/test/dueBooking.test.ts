@@ -68,10 +68,9 @@ describe('Fällige eines Monats planen', () => {
       'item:Strom',
       'item:Handy und Internet',
       'item:Haftpflicht und Hausrat',
-      'transfer:Haftpflicht und Hausrat',
       'item:ETF-Sparplan',
       'item:Bausparvertrag',
-      'transfer:Bausparvertrag',
+      `withdraw:${POT_ID}`,
       'loan:Autokredit',
       'loan:Ratenkauf Laptop',
     ]);
@@ -88,20 +87,51 @@ describe('Fällige eines Monats planen', () => {
     });
   });
 
-  it('Posten über die Rücklage: Ausgabe plus gleich hohe Umbuchung, die das Konto verringert', () => {
+  it('Posten über die Rücklage: Ausgabe; umgebucht wird gesammelt für den ganzen Monat', () => {
     expect(byKey(plan, 'item:Haftpflicht und Hausrat')).toMatchObject({
       amountCents: -3600,
       categoryId: 'cat-vers',
       transactionKind: 'normal',
       accountDelta: null,
     });
-    expect(byKey(plan, 'transfer:Haftpflicht und Hausrat')).toMatchObject({
-      name: 'Umbuchung Rücklage: Haftpflicht und Hausrat',
-      amountCents: 3600,
+    // Haftpflicht (1.) und Bausparvertrag (30.): eine Umbuchung ab dem ersten Fälligkeitstag
+    expect(byKey(plan, `withdraw:${POT_ID}`)).toMatchObject({
+      name: 'Umbuchung vom Tagesgeld Rücklage',
+      amountCents: 3600 + 15000,
+      date: '2026-09-01',
       categoryId: 'sys-transfer',
       transactionKind: 'transfer',
-      accountDelta: { accountId: RESERVE_ACCOUNT_ID, cents: -3600 },
-      linkedKey: 'item:Haftpflicht und Hausrat',
+      sourceType: 'reserve_pot',
+      accountDelta: { accountId: RESERVE_ACCOUNT_ID, cents: -18600 },
+      linkedKey: null,
+      bookable: true,
+    });
+  });
+
+  it('früher je Posten gebuchte Umbuchung bleibt sichtbar und fehlt in der Summe', () => {
+    const p = planDue({
+      ...base,
+      booked: new Map([
+        ['transfer:Haftpflicht und Hausrat', { amountCents: 3600, date: '2026-09-01' }],
+      ]),
+    });
+    expect(byKey(p, 'transfer:Haftpflicht und Hausrat')).toMatchObject({ booked: true });
+    expect(byKey(p, `withdraw:${POT_ID}`)).toMatchObject({
+      amountCents: 15000,
+      date: '2026-09-30',
+    });
+  });
+
+  it('Umbuchung mit anderem Betrag (mehr umgebucht) verringert das Konto entsprechend', () => {
+    const adjusted = applyDueOverrides(
+      plan,
+      [{ key: `withdraw:${POT_ID}`, amountCents: 50000 }],
+      MONTH,
+      TODAY,
+    );
+    expect(byKey(adjusted, `withdraw:${POT_ID}`)).toMatchObject({
+      amountCents: 50000,
+      accountDelta: { cents: -50000 },
     });
   });
 
@@ -145,7 +175,10 @@ describe('Fällige eines Monats planen', () => {
   it('ohne verknüpftes Konto keine Kontoänderung', () => {
     const p = planDue({ ...base, pots: [{ ...base.pots[0]!, accountId: null }] });
     expect(byKey(p, `reserve:${POT_ID}`)).toMatchObject({ name: 'Rücklage', accountDelta: null });
-    expect(byKey(p, 'transfer:Haftpflicht und Hausrat').accountDelta).toBeNull();
+    expect(byKey(p, `withdraw:${POT_ID}`)).toMatchObject({
+      name: 'Umbuchung aus der Rücklage',
+      accountDelta: null,
+    });
   });
 });
 
@@ -206,12 +239,14 @@ describe('Idempotenz', () => {
 describe('Anpassen und Auswählen', () => {
   const plan = planDue(base);
 
-  it('ohne Auswahl: alle buchbaren, Umbuchungen mit ihrem Posten', () => {
+  it('ohne Auswahl: alle buchbaren, die Umbuchung ist ein eigener Eintrag', () => {
     const keys = selectDueForBooking(plan).map((e) => e.key);
     expect(keys).toContain('item:Haftpflicht und Hausrat');
-    expect(keys).toContain('transfer:Haftpflicht und Hausrat');
+    expect(keys).toContain(`withdraw:${POT_ID}`);
     expect(keys).not.toContain('item:Gehalt');
-    expect(keys).not.toContain('transfer:Bausparvertrag');
+    expect(selectDueForBooking(plan, ['item:Haftpflicht und Hausrat']).map((e) => e.key)).toEqual([
+      'item:Haftpflicht und Hausrat',
+    ]);
   });
 
   it('vorgezogenes Datum macht einen Posten buchbar', () => {
@@ -227,7 +262,7 @@ describe('Anpassen und Auswählen', () => {
     ]);
   });
 
-  it('angepasster Betrag und Tag gelten auch für die Umbuchung', () => {
+  it('angepasster Betrag und Tag eines Postens', () => {
     const adjusted = applyDueOverrides(
       plan,
       [{ key: 'item:Bausparvertrag', amountCents: 16000, date: '2026-09-20' }],
@@ -237,11 +272,6 @@ describe('Anpassen und Auswählen', () => {
     expect(byKey(adjusted, 'item:Bausparvertrag')).toMatchObject({
       amountCents: -16000,
       bookable: true,
-    });
-    expect(byKey(adjusted, 'transfer:Bausparvertrag')).toMatchObject({
-      amountCents: 16000,
-      date: '2026-09-20',
-      accountDelta: { cents: -16000 },
     });
   });
 
@@ -307,11 +337,6 @@ describe('Anpassen und Auswählen', () => {
     expect(
       code(() => applyDueOverrides(plan, [{ key: 'item:Strom', amountCents: 0 }], MONTH, TODAY)),
     ).toBe('invalid_amount');
-    expect(
-      code(() =>
-        applyDueOverrides(plan, [{ key: 'transfer:Bausparvertrag', amountCents: 1 }], MONTH, TODAY),
-      ),
-    ).toBe('transfer_not_selectable');
     expect(code(() => applyDueOverrides(plan, [{ key: 'item:gibtsnicht' }], MONTH, TODAY))).toBe(
       'unknown_key',
     );
@@ -329,7 +354,7 @@ describe('Wirkung der Buchungen', () => {
     expect(loanDeltas.get('Ratenkauf Laptop')).toBe(-7500);
   });
 
-  it('im September: Rücklage minus Umbuchungen', () => {
+  it('im September: Rücklage minus Umbuchung', () => {
     const plan = planDue({ ...base, today: '2026-09-30' });
     const { accountDeltas } = bookingEffects(selectDueForBooking(plan));
     expect(accountDeltas.get(RESERVE_ACCOUNT_ID)).toBe(12367 - 3600 - 15000);
@@ -355,25 +380,8 @@ describe('Obergrenze bei Kreditbeträgen', () => {
   });
 });
 
-describe('Ausgabe gebucht, Umbuchung wieder offen', () => {
-  it('Umbuchung ist dann einzeln und ohne Auswahl buchbar', () => {
-    const plan = planDue({
-      ...base,
-      booked: new Map([
-        ['item:Haftpflicht und Hausrat', { amountCents: -3600, date: '2026-09-01' }],
-      ]),
-    });
-    expect(selectDueForBooking(plan).map((e) => e.key)).toContain(
-      'transfer:Haftpflicht und Hausrat',
-    );
-    expect(
-      selectDueForBooking(plan, ['transfer:Haftpflicht und Hausrat']).map((e) => e.key),
-    ).toEqual(['transfer:Haftpflicht und Hausrat']);
-  });
-});
-
-describe('Umbuchung schon gebucht, Ausgabe wieder offen', () => {
-  it('bucht nur die Ausgabe erneut', () => {
+describe('Früher je Posten gebuchte Umbuchung', () => {
+  it('Ausgabe wieder offen: bucht nur die Ausgabe erneut', () => {
     const plan = planDue({
       ...base,
       booked: new Map([

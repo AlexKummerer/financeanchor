@@ -133,6 +133,7 @@ export function remapImport(file: ExportFile, userId: string, now = Date.now()) 
     reserve: maps.pot,
     item: maps.item,
     transfer: maps.item,
+    withdraw: maps.pot,
     loan: maps.loan,
     extra: maps.loan,
     save: maps.loan,

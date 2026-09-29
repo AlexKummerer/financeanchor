@@ -14,7 +14,8 @@ import {
   type ReservePotLike,
 } from './reserve.js';
 
-export type DueEntryType = 'reserve' | 'item' | 'transfer' | 'loan' | 'extra' | 'saving' | 'card';
+export type DueEntryType =
+  'reserve' | 'item' | 'transfer' | 'withdraw' | 'loan' | 'extra' | 'saving' | 'card';
 
 export interface DueEntry {
   key: string;
@@ -49,6 +50,8 @@ export interface DueEntry {
 export interface DueLabels {
   reserve: (accountName: string | null) => string;
   transfer: (itemName: string) => string;
+  /** Gesammelte Umbuchung aus der Rücklage */
+  withdraw: (accountName: string | null) => string;
   loan: (loanName: string) => string;
   /** Einmalzahlung bei „Tilgen bis Datum“ */
   payment: (loanName: string) => string;
@@ -62,6 +65,7 @@ export interface DueLabels {
 export const germanDueLabels: DueLabels = {
   reserve: (account) => (account ? `Rücklage aufs ${account}` : 'Rücklage'),
   transfer: (name) => `Umbuchung Rücklage: ${name}`,
+  withdraw: (account) => (account ? `Umbuchung vom ${account}` : 'Umbuchung aus der Rücklage'),
   loan: (name) => `Rate ${name}`,
   payment: (name) => `Zahlung ${name}`,
   saving: (name) => `Rücklage für ${name}`,
@@ -95,8 +99,9 @@ export interface DueInput {
 type Draft = Omit<DueEntry, 'booked' | 'bookable'>;
 
 /**
- * Alle Fälligkeiten eines Monats: monatliche Rücklage je Topf, fällige Posten (über die Rücklage
- * zusätzlich die Umbuchung) und die Aufteilung des Kreditbudgets (Raten, Fristen, Extra).
+ * Alle Fälligkeiten eines Monats: monatliche Rücklage je Topf, fällige Posten, je Topf eine
+ * gesammelte Umbuchung aus der Rücklage für die Posten, die über sie laufen, und die Aufteilung des
+ * Kreditbudgets (Raten, Fristen, Extra).
  * Bereits gebuchte Einträge erscheinen mit den tatsächlich gebuchten Werten.
  */
 export function planDue(input: DueInput): DueEntry[] {
@@ -130,6 +135,7 @@ export function planDue(input: DueInput): DueEntry[] {
     });
   }
 
+  const withdraw = new Map<string, { cents: Cents; date: IsoDate }>();
   for (const item of input.items) {
     if (!isDue(item, input.month)) continue;
     const date = dateInMonth(input.month, item.dueDay);
@@ -152,29 +158,63 @@ export function planDue(input: DueInput): DueEntry[] {
       linkedKey: null,
       paidWith: item.accountId ?? null,
     });
-    if (viaReserve(item)) {
-      const pot = potById.get(potIdForItem(item, defaultPotId));
-      drafts.push({
-        key: bookingKeys.transfer(item.id),
-        type: 'transfer',
-        name: labels.transfer(item.name),
-        categoryId: sys.transfer,
-        amountCents: item.amountCents,
-        date,
-        transactionKind: 'transfer',
-        sourceType: 'recurring_item',
-        sourceId: item.id,
-        accountDelta: pot?.accountId
-          ? { accountId: pot.accountId, cents: -item.amountCents }
-          : null,
-        loanDelta: null,
-        savingDelta: null,
-        interestCents: 0,
-        maxAmountCents: null,
-        linkedKey: itemKey,
-        paidWith: null,
+    if (!viaReserve(item)) continue;
+    const potId = potIdForItem(item, defaultPotId);
+    if (!input.booked.has(bookingKeys.transfer(item.id))) {
+      // Umgebucht wird gesammelt je Topf (siehe unten)
+      const w = withdraw.get(potId) ?? { cents: 0, date };
+      withdraw.set(potId, {
+        cents: w.cents + item.amountCents,
+        date: date < w.date ? date : w.date,
       });
+      continue;
     }
+    // Früher je Posten gebuchte Umbuchung: bleibt als gebucht sichtbar
+    const pot = potById.get(potId);
+    drafts.push({
+      key: bookingKeys.transfer(item.id),
+      type: 'transfer',
+      name: labels.transfer(item.name),
+      categoryId: sys.transfer,
+      amountCents: item.amountCents,
+      date,
+      transactionKind: 'transfer',
+      sourceType: 'recurring_item',
+      sourceId: item.id,
+      accountDelta: pot?.accountId ? { accountId: pot.accountId, cents: -item.amountCents } : null,
+      loanDelta: null,
+      savingDelta: null,
+      interestCents: 0,
+      maxAmountCents: null,
+      linkedKey: itemKey,
+      paidWith: null,
+    });
+  }
+
+  // Umbuchung aus der Rücklage: Summe der in diesem Monat fälligen Posten des Topfs, eine Buchung
+  for (const pot of input.pots) {
+    const key = bookingKeys.withdraw(pot.id);
+    const w = withdraw.get(pot.id);
+    if (!w && !input.booked.has(key)) continue;
+    const cents = w?.cents ?? 0;
+    drafts.push({
+      key,
+      type: 'withdraw',
+      name: labels.withdraw(pot.accountId ? (accountName.get(pot.accountId) ?? null) : null),
+      categoryId: sys.transfer,
+      amountCents: cents,
+      date: w?.date ?? dateInMonth(input.month, 1),
+      transactionKind: 'transfer',
+      sourceType: 'reserve_pot',
+      sourceId: pot.id,
+      accountDelta: pot.accountId ? { accountId: pot.accountId, cents: -cents } : null,
+      loanDelta: null,
+      savingDelta: null,
+      interestCents: 0,
+      maxAmountCents: null,
+      linkedKey: null,
+      paidWith: null,
+    });
   }
 
   // Kredite: Raten, Frist-Raten, Zurücklegen und die eigene Extra-Tilgung. Schon gebuchte Raten

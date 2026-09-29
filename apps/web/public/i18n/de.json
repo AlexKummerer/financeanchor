@@ -445,7 +445,7 @@
   },
   "reserve": {
     "title": "Rücklage für nicht-monatliche Kosten",
-    "explain": "Jeden Monat geht ein fester Betrag aufs Rücklagenkonto (als Ausgabe). Ist ein vierteljährlicher, halbjährlicher oder jährlicher Posten fällig, wird er als Ausgabe gebucht und derselbe Betrag als Umbuchung vom Rücklagenkonto zurückgeholt.",
+    "explain": "Jeden Monat geht ein fester Betrag aufs Rücklagenkonto (als Ausgabe). Ist ein vierteljährlicher, halbjährlicher oder jährlicher Posten fällig, wird er als Ausgabe gebucht; das Geld holst du gesammelt mit einer Umbuchung vom Rücklagenkonto zurück.",
     "monthly": "Monatliche Rücklage (€)",
     "auto": "Leer lassen für automatisch ({{amount}})",
     "account": "Rücklagenkonto",
@@ -456,7 +456,17 @@
     "belowNeed": "Deine Rücklage von {{amount}} liegt {{gap}} unter dem, was die Posten im Schnitt kosten.",
     "negative": "Die Rücklage rutscht voraussichtlich auf {{low}}. Rücklagenkonto verknüpfen und Stand prüfen oder den Monatsbetrag erhöhen.",
     "forecastTitle": "Voraussichtlicher Stand der Rücklage, jeweils nach den Buchungen des Monats",
-    "noItems": "Lege einen Posten mit vierteljährlichem, halbjährlichem oder jährlichem Rhythmus an."
+    "noItems": "Lege einen Posten mit vierteljährlichem, halbjährlichem oder jährlichem Rhythmus an.",
+    "withdraw": {
+      "title": "Diesen Monat umzubuchen",
+      "sum": "Aus der Rücklage zurückholen",
+      "amount": "Tatsächlich umgebucht (€)",
+      "book": "Umbuchung buchen",
+      "hint": "Trag ein, was du wirklich umbuchst – auch mehr oder weniger. Die Umbuchung steht auch unter „Diesen Monat fällig“.",
+      "booked": "Umgebucht am {{date}}: {{amount}}",
+      "none": "Diesen Monat ist nichts aus der Rücklage fällig.",
+      "done": "Umbuchung gebucht"
+    }
   },
   "assets": {
     "netLabel": "Nettovermögen (Konten und Depots minus Kredite)",

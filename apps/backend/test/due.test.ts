@@ -65,7 +65,7 @@ describe('Fällige übernehmen', () => {
 
     const plan = (await api.get(`/due/${lastMonth}?today=${today}`)).body;
     const types = plan.map((e: any) => e.type).sort();
-    expect(types).toEqual(['extra', 'item', 'item', 'item', 'loan', 'reserve', 'transfer']);
+    expect(types).toEqual(['extra', 'item', 'item', 'item', 'loan', 'reserve', 'withdraw']);
     expect(plan.find((e: any) => e.type === 'reserve').key).toBe(`reserve:${pot.id}`);
     expect(plan.find((e: any) => e.type === 'loan').key).toBe(`loan:${loan.id}`);
     expect(plan.every((e: any) => e.bookable)).toBe(true);
@@ -87,7 +87,7 @@ describe('Fällige übernehmen', () => {
     );
     expect(txs.find((t: any) => t.kind === 'transfer')).toMatchObject({
       amountCents: 3600,
-      name: 'Umbuchung Rücklage: Haftpflicht',
+      name: 'Umbuchung vom Tagesgeld Rücklage',
     });
     expect(txs.find((t: any) => t.name === 'Gehalt').date).toBe(
       `${lastMonth}-${String(daysInMonth(lastMonth)).padStart(2, '0')}`,
@@ -308,10 +308,38 @@ describe('Fällige übernehmen', () => {
     expect(await balanceOf(api, '/accounts', reserveAccount.id)).toBe(59600 + 3600);
 
     const plan = (await api.get(`/due/${lastMonth}?today=${today}`)).body;
-    expect(plan.filter((e: any) => !e.booked).map((e: any) => e.type)).toEqual(['transfer']);
-    // Umbuchungen sind nicht einzeln wählbar, ohne Auswahl wird aber alles Offene gebucht
+    expect(plan.filter((e: any) => !e.booked).map((e: any) => e.type)).toEqual(['withdraw']);
     expect((await api.post(`/due/${lastMonth}/book`, { today })).body.bookedCount).toBe(1);
     expect(await balanceOf(api, '/accounts', reserveAccount.id)).toBe(59600);
+  });
+
+  it('Umbuchung aus der Rücklage: gesammelt, eigener Eintrag, Betrag änderbar (mehr umgebucht)', async () => {
+    const { api } = await newUser();
+    const { reserveAccount, pot } = await household(api);
+    const key = `withdraw:${pot.id}`;
+    const plan = (await api.get(`/due/${lastMonth}?today=${today}`)).body;
+    expect(plan.find((e: any) => e.key === key)).toMatchObject({
+      type: 'withdraw',
+      amountCents: 3600,
+      name: 'Umbuchung vom Tagesgeld Rücklage',
+    });
+    // Posten allein: keine Umbuchung dabei
+    const item = plan.find((e: any) => e.name === 'Haftpflicht');
+    expect(
+      (await api.post(`/due/${lastMonth}/book`, { today, keys: [item.key] })).body.bookedCount,
+    ).toBe(1);
+    expect(await balanceOf(api, '/accounts', reserveAccount.id)).toBe(62000);
+
+    const res = await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [key],
+      overrides: [{ key, amountCents: 50000 }],
+    });
+    expect(res.body.entries.find((e: any) => e.key === key)).toMatchObject({
+      booked: true,
+      amountCents: 50000,
+    });
+    expect(await balanceOf(api, '/accounts', reserveAccount.id)).toBe(62000 - 50000);
   });
 
   it('laufender Monat: nur bis heute Fälliges; vorgezogenes Datum macht es buchbar', async () => {

@@ -445,7 +445,7 @@
   },
   "reserve": {
     "title": "Reserve for non-monthly costs",
-    "explain": "Every month a fixed amount goes to the reserve account (as an expense). When a quarterly, half-yearly or yearly item is due, it is booked as an expense and the same amount is transferred back from the reserve account.",
+    "explain": "Every month a fixed amount goes to the reserve account (as an expense). When a quarterly, half-yearly or yearly item is due, it is booked as an expense; you get the money back from the reserve account with one collected transfer.",
     "monthly": "Monthly reserve (€)",
     "auto": "Leave empty for automatic ({{amount}})",
     "account": "Reserve account",
@@ -456,7 +456,17 @@
     "belowNeed": "Your reserve of {{amount}} is {{gap}} below what the items cost on average.",
     "negative": "The reserve is expected to drop to {{low}}. Link the reserve account and check its balance, or raise the monthly amount.",
     "forecastTitle": "Expected reserve balance after each month's bookings",
-    "noItems": "Add an item with a quarterly, half-yearly or yearly frequency."
+    "noItems": "Add an item with a quarterly, half-yearly or yearly frequency.",
+    "withdraw": {
+      "title": "To transfer this month",
+      "sum": "Take back from the reserve",
+      "amount": "Actually transferred (€)",
+      "book": "Book transfer",
+      "hint": "Enter what you really transfer – more or less is fine. The transfer is also listed under “Due this month”.",
+      "booked": "Transferred on {{date}}: {{amount}}",
+      "none": "Nothing from the reserve is due this month.",
+      "done": "Transfer booked"
+    }
   },
   "assets": {
     "netLabel": "Net worth (accounts and investments minus loans)",

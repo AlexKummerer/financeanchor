@@ -2,7 +2,10 @@
 export const bookingKeys = {
   reserve: (potId: string) => `reserve:${potId}`,
   item: (itemId: string) => `item:${itemId}`,
+  /** Früher: Umbuchung je Posten aus der Rücklage (nur noch für schon gebuchte Monate) */
   transfer: (itemId: string) => `transfer:${itemId}`,
+  /** Gesammelte Umbuchung aus der Rücklage im Monat, je Topf */
+  withdraw: (potId: string) => `withdraw:${potId}`,
   loan: (loanId: string) => `loan:${loanId}`,
   extra: (loanId: string) => `extra:${loanId}`,
   /** Ansparen für eine Einmalzahlung */

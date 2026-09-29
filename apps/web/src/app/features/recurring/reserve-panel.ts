@@ -1,18 +1,26 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { reserveStatus } from '@financeanchor/shared';
+import {
+  bookingKeys,
+  isDue,
+  parseEuroToCents,
+  potIdForItem,
+  reserveStatus,
+  viaReserve,
+  type DueEntry,
+} from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { Clock } from '../../core/clock';
 import { DueApi } from '../../core/data/due-api';
 import { FinanceStore } from '../../core/data/finance-store';
 import { toCentsOrNull } from '../../core/forms/validators';
 import { Formatter } from '../../core/format/formatter';
-import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
+import { DatePipe, MoneyPipe, MonthPipe } from '../../core/format/pipes';
 import { ToastService } from '../../core/ui/toast.service';
 
 /** Standard-Rücklagentopf: Monatsbetrag, verknüpftes Konto, Buchungstag, Vorschau und Warnungen. */
 @Component({
   selector: 'fa-reserve-panel',
-  imports: [TranslocoPipe, MoneyPipe, MonthPipe],
+  imports: [TranslocoPipe, MoneyPipe, MonthPipe, DatePipe],
   template: `
     <p class="small muted">{{ 'reserve.explain' | transloco }}</p>
     @if (pot(); as p) {
@@ -87,6 +95,59 @@ import { ToastService } from '../../core/ui/toast.service';
           {{ 'reserve.negative' | transloco: { low: (status().lowestBalanceCents | money: true) } }}
         </p>
       }
+      <section class="withdraw" aria-labelledby="rs-wd-title">
+        <h3 id="rs-wd-title" class="subtitle">{{ 'reserve.withdraw.title' | transloco }}</h3>
+        @if (withdraw(); as w) {
+          @if (w.booked) {
+            <p class="small">
+              {{
+                'reserve.withdraw.booked'
+                  | transloco
+                    : { date: (w.date | faDate: 'dayMonth'), amount: (w.amountCents | money) }
+              }}
+            </p>
+          } @else {
+            <ul class="wd-items small">
+              @for (i of dueItems(); track i.id) {
+                <li>
+                  <span>{{ i.name }}</span
+                  ><span>{{ i.amountCents | money }}</span>
+                </li>
+              }
+              <li class="sum">
+                <span>{{ 'reserve.withdraw.sum' | transloco }}</span
+                ><span>{{ w.amountCents | money }}</span>
+              </li>
+            </ul>
+            <form
+              class="wd-form"
+              (submit)="$event.preventDefault(); bookWithdraw(w, wdAmount.value)"
+            >
+              <div>
+                <label for="rs-wd-amount">{{ 'reserve.withdraw.amount' | transloco }}</label>
+                <input
+                  #wdAmount
+                  id="rs-wd-amount"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  [value]="amountInput(w.amountCents)"
+                  [attr.aria-invalid]="withdrawError()"
+                  aria-describedby="rs-wd-hint"
+                />
+              </div>
+              <button class="btn" type="submit" [disabled]="busy()">
+                {{ 'reserve.withdraw.book' | transloco }}
+              </button>
+            </form>
+            @if (withdrawError()) {
+              <p class="field-error">{{ 'forms.amountInvalid' | transloco }}</p>
+            }
+            <p id="rs-wd-hint" class="small muted">{{ 'reserve.withdraw.hint' | transloco }}</p>
+          }
+        } @else {
+          <p class="small muted">{{ 'reserve.withdraw.none' | transloco }}</p>
+        }
+      </section>
       <p class="small muted" style="margin-top: 14px" id="rs-fc-title">
         {{ 'reserve.forecastTitle' | transloco }}
       </p>
@@ -134,6 +195,34 @@ import { ToastService } from '../../core/ui/toast.service';
       background: var(--debt-soft);
       color: var(--debt);
     }
+    .withdraw {
+      margin-top: 16px;
+    }
+    .wd-items {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0;
+    }
+    .wd-items li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .wd-items .sum {
+      font-weight: 700;
+      border-bottom: 0;
+    }
+    .wd-form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 8px 12px;
+    }
+    .wd-form > div {
+      flex: 1 1 160px;
+    }
     @media (max-width: 420px) {
       .forecast {
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -151,8 +240,35 @@ export class ReservePanel {
 
   protected readonly pot = this.store.defaultPot;
   protected readonly amountError = signal(false);
-  /** Im laufenden Monat schon Gebuchtes steckt bereits im Kontostand. */
-  private readonly bookedKeys = signal<ReadonlySet<string>>(new Set());
+  /** Fälligkeiten des laufenden Monats (Gebuchtes steckt bereits im Kontostand) */
+  private readonly entries = signal<DueEntry[]>([]);
+  private readonly bookedKeys = computed(
+    () =>
+      new Set(
+        this.entries()
+          .filter((e) => e.booked)
+          .map((e) => e.key),
+      ),
+  );
+  protected readonly busy = signal(false);
+  protected readonly withdrawError = signal(false);
+
+  /** Gesammelte Umbuchung aus der Rücklage in diesem Monat */
+  protected readonly withdraw = computed(() => {
+    const pot = this.pot();
+    return pot
+      ? (this.entries().find((e) => e.key === bookingKeys.withdraw(pot.id)) ?? null)
+      : null;
+  });
+  /** Posten, die diesen Monat über die Rücklage fällig sind */
+  protected readonly dueItems = computed(() => {
+    const pot = this.pot();
+    if (!pot) return [];
+    const month = this.clock.month();
+    return this.store.items
+      .items()
+      .filter((i) => viaReserve(i) && isDue(i, month) && potIdForItem(i, pot.id) === pot.id);
+  });
 
   protected readonly accounts = computed(() =>
     this.store.accounts.items().filter((a) => a.kind !== 'depot' && a.kind !== 'credit_card'),
@@ -182,12 +298,51 @@ export class ReservePanel {
   });
 
   constructor() {
-    this.dueApi
-      .plan(this.clock.month(), this.clock.today())
-      .then((entries) =>
-        this.bookedKeys.set(new Set(entries.filter((e) => e.booked).map((e) => e.key))),
-      )
-      .catch(() => undefined);
+    void this.loadEntries();
+  }
+
+  private async loadEntries() {
+    try {
+      this.entries.set(await this.dueApi.plan(this.clock.month(), this.clock.today()));
+    } catch {
+      // Ohne Fälligkeiten fehlen nur Umbuchung und die Korrektur der Vorschau
+    }
+  }
+
+  protected amountInput(cents: number): string {
+    return this.f.amountInput(cents);
+  }
+
+  /**
+   * Umbuchung buchen – mit dem Betrag, der tatsächlich umgebucht wurde (auch mehr oder weniger);
+   * vor dem ersten Fälligkeitstag mit heutigem Datum.
+   */
+  protected async bookWithdraw(entry: DueEntry, value: string) {
+    const cents = parseEuroToCents(value);
+    this.withdrawError.set(cents === null || cents <= 0);
+    if (cents === null || cents <= 0) return;
+    const today = this.clock.today();
+    const override = {
+      key: entry.key,
+      ...(cents !== entry.amountCents ? { amountCents: cents } : {}),
+      ...(entry.date > today ? { date: today } : {}),
+    };
+    this.busy.set(true);
+    try {
+      const res = await this.dueApi.book(this.clock.month(), {
+        today,
+        keys: [entry.key],
+        overrides: Object.keys(override).length > 1 ? [override] : [],
+      });
+      this.entries.set(res.entries);
+      await this.store.reloadBalances();
+      this.toast.show(this.t.translate('reserve.withdraw.done'));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+      await this.loadEntries();
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected saveAmount(value: string) {

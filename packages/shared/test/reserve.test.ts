@@ -86,6 +86,13 @@ describe('Vorschau', () => {
     expect(f[1]?.balanceCents).toBe(62000 - 3600 + NEED);
   });
 
+  it('gesammelte Umbuchung schon gebucht: alle Posten des Monats stecken im Kontostand', () => {
+    const booked = new Set([bookingKeys.reserve(POT_ID), bookingKeys.withdraw(POT_ID)]);
+    const f = reserveForecast({ ...base, bookedKeysInFromMonth: booked });
+    expect(f[0]?.balanceCents).toBe(62000);
+    expect(f[1]?.balanceCents).toBe(62000 + NEED);
+  });
+
   it('warnt bei negativem Stand und zu kleinem eigenen Betrag', () => {
     const s = reserveStatus({ ...base, startBalanceCents: 0, pot: { monthlyAmountCents: 5000 } });
     expect(s.needCents).toBe(NEED);

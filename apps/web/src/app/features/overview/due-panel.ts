@@ -445,6 +445,7 @@ export class DuePanel {
       case 'reserve':
         return ['due.tag.reserve', 'res'];
       case 'transfer':
+      case 'withdraw':
         return ['due.tag.transfer', 'res'];
       case 'loan':
         return ['due.tag.loan', 'debt'];

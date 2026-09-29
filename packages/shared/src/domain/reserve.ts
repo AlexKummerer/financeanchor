@@ -72,8 +72,10 @@ export function reserveForecast(input: ReserveForecastInput): ReserveForecastPoi
     if (!(first && booked.has(bookingKeys.reserve(input.potId)))) {
       balance += input.monthlyAmountCents;
     }
+    // Umbuchung des Monats schon gebucht: ihr (ggf. anderer) Betrag steckt im Kontostand
+    const withdrawn = first && booked.has(bookingKeys.withdraw(input.potId));
     for (const item of items) {
-      if (!isDue(item, month)) continue;
+      if (!isDue(item, month) || withdrawn) continue;
       if (first && booked.has(bookingKeys.transfer(item.id))) continue;
       balance -= item.amountCents;
     }

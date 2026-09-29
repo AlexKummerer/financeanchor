@@ -11,7 +11,7 @@ Mehrere Excel-Listen (Fixkosten, Haushaltsbuch, Vermögen) und eine separate Kre
 - **Fixkosten**: Wiederkehrende Posten mit Rhythmus (monatlich bis jährlich) und automatischer Monatsumlage.
 - **Rücklage**: Nicht-monatliche Ausgaben laufen über ein Rücklagenkonto.
   - Monatlich: Rücklage als Ausgabe aufs Tagesgeld.
-  - Bei Fälligkeit: Ausgabe für den Posten plus gleich hohe Einnahme als Umbuchung aus der Rücklage.
+  - Bei Fälligkeit: Ausgabe für den Posten; zurückgeholt wird gesammelt mit einer Umbuchung je Monat (Summe der fälligen Posten, tatsächlicher Betrag änderbar).
   - Gilt auch für nicht-monatliche Sparposten.
   - 12-Monats-Vorschau des Rücklagenstands mit Warnung bei Unterdeckung.
 - **Kredite**: Tilgungsplan mit Extra-Tilgung und Strategie (höchster Zins zuerst oder kleinste Schuld zuerst).
