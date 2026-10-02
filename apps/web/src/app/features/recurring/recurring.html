@@ -5,6 +5,7 @@
     <summary>{{ (editing() ? 'recurring.editTitle' : 'recurring.add') | transloco }}</summary>
     <fa-recurring-form
       [item]="editing()"
+      [prefill]="prefill()"
       [busy]="saving()"
       (saved)="save($event)"
       (cancelled)="cancelEdit()"
@@ -30,6 +31,57 @@
     <p class="kpi-value pos">{{ breakdown().incomeCents | money: true }}</p>
   </div>
 </div>
+
+@if (templateHints().length || subscriptionHints().length) {
+  <h2 id="hints-title">{{ 'recurring.hints.title' | transloco }}</h2>
+  <section class="panel" aria-labelledby="hints-title">
+    <ul class="list hints">
+      @for (h of templateHints(); track h.itemId) {
+        <li>
+          <div class="grow">
+            <div class="name">{{ h.item.name }}</div>
+            <span class="small muted">
+              {{
+                'recurring.hints.template'
+                  | transloco
+                    : { amount: (h.amountCents | money), planned: (h.item.amountCents | money) }
+              }}
+            </span>
+          </div>
+          <div class="hint-actions">
+            <button class="btn" type="button" (click)="applyTemplate(h)">
+              {{ 'recurring.hints.apply' | transloco: { amount: (h.amountCents | money) } }}
+            </button>
+            <button class="linkbtn" type="button" (click)="dismiss(templateKey(h))">
+              {{ 'recurring.hints.dismiss' | transloco }}
+            </button>
+          </div>
+        </li>
+      }
+      @for (c of subscriptionHints(); track c.key) {
+        <li>
+          <div class="grow">
+            <div class="name">{{ c.name }}</div>
+            <span class="small muted">
+              {{
+                'recurring.hints.subscription'
+                  | transloco: { amount: (c.amountCents | money), n: c.months }
+              }}
+            </span>
+          </div>
+          <div class="hint-actions">
+            <button class="btn" type="button" (click)="createFrom(c)">
+              {{ 'recurring.hints.create' | transloco }}
+            </button>
+            <button class="linkbtn" type="button" (click)="dismiss('abo:' + c.key)">
+              {{ 'recurring.hints.dismiss' | transloco }}
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+}
 
 <h2 id="reserve-title">{{ 'reserve.title' | transloco }}</h2>
 <section class="panel" aria-labelledby="reserve-title">

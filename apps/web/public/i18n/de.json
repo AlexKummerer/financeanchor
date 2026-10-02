@@ -455,7 +455,15 @@
     "deleteText": "Bisherige Buchungen bleiben erhalten.",
     "none": "Noch keine Posten. Starte mit deinem Gehalt als Einnahme und der Miete.",
     "loansHint": "Kreditraten stehen im Bereich Kredite und fließen automatisch in die Übersicht ein.",
-    "paidWithHint": "Abos oder Beiträge, die über eine Kreditkarte laufen: Die Buchung zählt dann zum Kartenstand und zur Abrechnung."
+    "paidWithHint": "Abos oder Beiträge, die über eine Kreditkarte laufen: Die Buchung zählt dann zum Kartenstand und zur Abrechnung.",
+    "hints": {
+      "title": "Hinweise",
+      "template": "Zuletzt zweimal {{amount}} gebucht – in der Vorlage stehen {{planned}}.",
+      "apply": "Auf {{amount}} ändern",
+      "subscription": "{{amount}} in {{n}} Monaten – sieht nach einem Abo aus.",
+      "create": "Als Fixkosten anlegen",
+      "dismiss": "Ausblenden"
+    }
   },
   "reserve": {
     "title": "Rücklage für nicht-monatliche Kosten",

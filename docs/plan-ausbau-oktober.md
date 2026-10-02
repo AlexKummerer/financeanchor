@@ -12,3 +12,9 @@ Wunsch (02.10.2026) nach den ersten Wochen im Einsatz. Reihenfolge = Umsetzung, 
 8. **Erinnerungen (Web Push)**: fällige Posten (morgens), Kartenabrechnung (Stichtag), Monatsabschluss (letzter Tag), Budget überschritten. Worker-Cron, VAPID-Schlüssel als Secret, Abo je Gerät in den Einstellungen.
 
 Entscheidungen des Nutzers: Prognose für ein wählbares Hauptkonto; Budgets ohne Übertrag; alle vier Erinnerungsarten.
+
+## Umgesetzt
+
+- 1 (02.10.): `POST /api/due/:month/unbook`, Rücknahme in `services/booking.ts` (gemeinsam mit Löschen).
+- 7 (02.10.): Suche im Monat (Name, Kategorie, Betrag), `POST /api/transactions/delete` (atomar, max. 90 je Aufruf).
+- 2+3 (02.10.): `GET /api/recurring-items/insights` mit `templateSuggestions` (letzte zwei gebuchte Monate gleich, ≠ Vorlage) und `subscriptionCandidates` (Ausgabe ohne Herkunft, gleiches Merkmal in ≥2 der letzten 3 Monate, Betrag ±5 %, kein Posten mit ähnlichem Namen). Fixkosten → „Hinweise“; Ausblenden je Gerät (`KeyValueStore`).

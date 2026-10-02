@@ -71,6 +71,22 @@ describe('RecurringForm', () => {
     expect(el.textContent).toContain('Änderungen speichern');
   });
 
+  it('übernimmt eine Vorbelegung für einen neuen Posten (erkanntes Abo)', async () => {
+    const fixture = TestBed.createComponent(RecurringForm);
+    fixture.componentRef.setInput('prefill', {
+      name: 'Disney+',
+      amountCents: 899,
+      dueDay: 15,
+      categoryId: 'c-vers',
+    });
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector<HTMLInputElement>('#rc-name')!.value).toBe('Disney+');
+    expect(el.querySelector<HTMLInputElement>('#rc-amount')!.value).toBe('8,99');
+    expect(el.querySelector<HTMLInputElement>('#rc-day')!.value).toBe('15');
+    expect(el.querySelector<HTMLInputElement>('#rc-cat')!.value).toBe('Versicherungen');
+  });
+
   it('liefert Cent, Rhythmus als Zahl und legt neue Kategorien an', async () => {
     const { fixture, el, emitted } = await render(null);
     set(el, '#rc-name', 'Kfz-Versicherung');

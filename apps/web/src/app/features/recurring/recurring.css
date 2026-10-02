@@ -7,3 +7,12 @@
 .tag {
   margin-right: 6px;
 }
+.hints li {
+  flex-wrap: wrap;
+}
+.hint-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+}

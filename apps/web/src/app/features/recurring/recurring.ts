@@ -1,3 +1,4 @@
+import { httpResource } from '@angular/common/http';
 import { Component, DOCUMENT, computed, inject, signal, viewChild } from '@angular/core';
 import {
   monthlyBreakdown,
@@ -5,10 +6,13 @@ import {
   nextDueMonth,
   viaReserve,
   type RecurringItem,
+  type SubscriptionCandidate,
+  type TemplateSuggestion,
 } from '@financeanchor/shared';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { Clock } from '../../core/clock';
 import { FinanceStore } from '../../core/data/finance-store';
+import { KeyValueStore } from '../../core/platform/key-value-store';
 import { MoneyPipe, MonthPipe } from '../../core/format/pipes';
 import { Dialogs } from '../../core/ui/dialogs';
 import { ToastService } from '../../core/ui/toast.service';
@@ -16,6 +20,8 @@ import { RecurringForm, type RecurringFormValue } from './recurring-form';
 import { ReservePanel } from './reserve-panel';
 
 const KIND_ORDER = { income: 0, fixed: 1, saving: 2 } as const;
+/** Ausgeblendete Hinweise (je Gerät) */
+const DISMISSED_KEY = 'fa.recurring.dismissedInsights';
 
 @Component({
   selector: 'fa-recurring',
@@ -36,6 +42,76 @@ export class RecurringPage {
   protected readonly formOpen = signal(false);
   protected readonly saving = signal(false);
   protected readonly month = this.clock.month();
+  private readonly kv = inject(KeyValueStore);
+  /** Vorbelegung des Formulars aus einem erkannten Abo */
+  protected readonly prefill = signal<Partial<RecurringFormValue> | null>(null);
+
+  private readonly insights = httpResource<{
+    templates: TemplateSuggestion[];
+    subscriptions: SubscriptionCandidate[];
+  }>(() => `/api/recurring-items/insights?today=${this.clock.today()}`, {
+    defaultValue: { templates: [], subscriptions: [] },
+  });
+  private readonly dismissed = signal<ReadonlySet<string>>(this.loadDismissed());
+  /** Vorlage anpassen: Posten mit zweimal demselben abweichenden Betrag */
+  protected readonly templateHints = computed(() =>
+    this.insights
+      .value()
+      .templates.map((t) => ({ ...t, item: this.store.items.byId().get(t.itemId) }))
+      .filter(
+        (t): t is TemplateSuggestion & { item: RecurringItem } =>
+          !!t.item && !this.dismissed().has(this.templateKey(t)),
+      ),
+  );
+  protected readonly subscriptionHints = computed(() =>
+    this.insights.value().subscriptions.filter((c) => !this.dismissed().has(`abo:${c.key}`)),
+  );
+
+  protected templateKey(t: TemplateSuggestion): string {
+    return `tpl:${t.itemId}:${t.amountCents}`;
+  }
+
+  private loadDismissed(): ReadonlySet<string> {
+    try {
+      const raw = this.kv.get(DISMISSED_KEY);
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  protected dismiss(key: string) {
+    const next = new Set(this.dismissed()).add(key);
+    this.dismissed.set(next);
+    this.kv.set(DISMISSED_KEY, JSON.stringify([...next]));
+  }
+
+  /** Neuen Betrag in die Vorlage übernehmen */
+  protected async applyTemplate(t: TemplateSuggestion) {
+    try {
+      await this.store.items.update(t.itemId, { amountCents: t.amountCents });
+      this.insights.reload();
+      this.toast.show(this.t.translate('recurring.updated'));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+    }
+  }
+
+  /** Erkanntes Abo als Posten anlegen: Formular vorbelegt öffnen */
+  protected createFrom(c: SubscriptionCandidate) {
+    this.editing.set(null);
+    this.prefill.set({
+      name: c.name,
+      amountCents: c.amountCents,
+      dueDay: c.dueDay,
+      categoryId: c.categoryId,
+      accountId: c.accountId,
+      kind: 'fixed',
+      intervalMonths: 1,
+    });
+    this.formOpen.set(true);
+    queueMicrotask(() => this.document.getElementById('rc-name')?.focus());
+  }
 
   protected readonly breakdown = computed(() =>
     monthlyBreakdown({
@@ -79,6 +155,8 @@ export class RecurringPage {
         this.toast.show(this.t.translate('recurring.updated'));
       } else {
         await this.store.items.create(v);
+        this.prefill.set(null);
+        this.insights.reload();
         this.formRef()?.clear();
         this.toast.show(this.t.translate('recurring.saved'));
       }

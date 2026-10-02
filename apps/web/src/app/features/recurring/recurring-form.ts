@@ -151,6 +151,8 @@ export interface RecurringFormValue {
 export class RecurringForm {
   /** Zu bearbeitender Posten; ohne Wert wird ein neuer angelegt. */
   readonly item = input<RecurringItem | null>(null);
+  /** Vorbelegung für einen neuen Posten (z. B. aus einem erkannten Abo) */
+  readonly prefill = input<Partial<RecurringFormValue> | null>(null);
   readonly busy = input(false);
   readonly saved = output<RecurringFormValue>();
   readonly cancelled = output<void>();
@@ -185,13 +187,18 @@ export class RecurringForm {
   constructor() {
     effect(() => {
       const it = this.item();
+      const pre = this.prefill();
       this.submitted.set(false);
       if (!it) {
         this.form.reset({
-          startMonth: this.clock.month(),
-          dueDay: 1,
-          intervalMonths: 1,
-          kind: 'fixed',
+          startMonth: pre?.startMonth ?? this.clock.month(),
+          dueDay: pre?.dueDay ?? 1,
+          intervalMonths: pre?.intervalMonths ?? 1,
+          kind: pre?.kind ?? 'fixed',
+          name: pre?.name ?? '',
+          amount: pre?.amountCents ? this.f.amountInput(pre.amountCents) : '',
+          category: pre?.categoryId ? this.store.categoryName(pre.categoryId) : '',
+          accountId: pre?.accountId ?? null,
         });
         return;
       }

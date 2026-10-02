@@ -18,6 +18,7 @@ export * from './domain/entitlements.js';
 export * from './domain/loanAdvice.js';
 export * from './domain/cards.js';
 export * from './domain/dueLinks.js';
+export * from './domain/insights.js';
 export * from './import/csv.js';
 export * from './import/statement.js';
 export * from './import/match.js';
