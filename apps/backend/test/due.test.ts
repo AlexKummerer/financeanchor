@@ -273,6 +273,41 @@ describe('Fällige übernehmen', () => {
     expect(mixed.status).toBe(400);
   });
 
+  it('Verknüpfung lösen: Wirkung zurück, Buchungen bleiben, Fälligkeit wieder offen', async () => {
+    const { api } = await newUser();
+    const { loan } = await household(api);
+    const cat = await categoryId(api, 'Lebensmittel');
+    const part = async (day: string) =>
+      (
+        await api.post('/transactions', {
+          date: `${lastMonth}-${day}`,
+          name: `Rate Teil ${day}`,
+          categoryId: cat,
+          amountCents: -13000,
+        })
+      ).body;
+    const a = await part('02');
+    const b = await part('05');
+    const key = `loan:${loan.id}`;
+    await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [],
+      links: [{ key, transactionIds: [a.id, b.id] }],
+    });
+    expect(await balanceOf(api, '/loans', loan.id)).toBe(840000 + 4130 - 26000);
+
+    const res = await api.post(`/due/${lastMonth}/unbook`, { today, key });
+    expect(res.status).toBe(200);
+    expect(res.body.entries.find((e: any) => e.key === key).booked).toBe(false);
+    expect(await balanceOf(api, '/loans', loan.id)).toBe(840000);
+    const txs = (await api.get(`/transactions?month=${lastMonth}`)).body as any[];
+    for (const id of [a.id, b.id]) {
+      expect(txs.find((t) => t.id === id)).toMatchObject({ kind: 'normal', sourceType: null });
+    }
+    // Nicht gebucht: 404
+    expect((await api.post(`/due/${lastMonth}/unbook`, { today, key })).status).toBe(404);
+  });
+
   it('ist idempotent: zweiter Aufruf bucht nichts, Stände bleiben', async () => {
     const { api } = await newUser();
     const { reserveAccount, loan } = await household(api);

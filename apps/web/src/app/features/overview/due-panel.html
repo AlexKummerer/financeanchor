@@ -48,7 +48,16 @@
           <span class="small muted">
             {{ row.date | faDate: 'dayMonth' }}
             @if (row.entry.booked) {
-              · {{ 'due.status.booked' | transloco }}
+              · {{ 'due.status.booked' | transloco }} ·
+              <button
+                class="linkbtn unbook"
+                type="button"
+                [disabled]="pending()"
+                [attr.aria-label]="'due.unbookLabel' | transloco: { name: row.entry.name }"
+                (click)="unbook(row)"
+              >
+                {{ 'due.unbook' | transloco }}
+              </button>
             } @else if (!row.bookable) {
               · {{ 'due.status.later' | transloco }}
             }

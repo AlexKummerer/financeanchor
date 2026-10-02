@@ -1,6 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
-import type { DueBookRequest, DueEntry, IsoDate, YearMonth } from '@financeanchor/shared';
+import type {
+  DueBookRequest,
+  DueEntry,
+  DueUnbookRequest,
+  IsoDate,
+  YearMonth,
+} from '@financeanchor/shared';
 import { firstValueFrom } from 'rxjs';
 import { toApiError } from '../http/api-error';
 
@@ -12,6 +18,17 @@ export class DueApi {
     try {
       return await firstValueFrom(
         this.http.get<DueEntry[]>(`/api/due/${month}`, { params: { today } }),
+      );
+    } catch (err) {
+      throw toApiError(err);
+    }
+  }
+
+  /** Gebuchte Fälligkeit wieder öffnen; die Buchungen bleiben. */
+  async unbook(month: YearMonth, req: DueUnbookRequest) {
+    try {
+      return await firstValueFrom(
+        this.http.post<{ entries: DueEntry[] }>(`/api/due/${month}/unbook`, req),
       );
     } catch (err) {
       throw toApiError(err);

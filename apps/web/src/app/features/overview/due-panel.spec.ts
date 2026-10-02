@@ -243,6 +243,19 @@ describe('DuePanel', () => {
     ]);
   });
 
+  it('gebuchte Fälligkeit lässt sich lösen', async () => {
+    const unbook = vi
+      .fn()
+      .mockResolvedValue({ entries: plan.map((e) => ({ ...e, booked: false })) });
+    (TestBed.inject(DueApi) as unknown as { unbook: typeof unbook }).unbook = unbook;
+    const { fixture, el } = await render();
+    const strom = [...el.querySelectorAll('li')].find((li) => li.textContent?.includes('Strom'))!;
+    strom.querySelector<HTMLButtonElement>('button.unbook')!.click();
+    await fixture.whenStable();
+    expect(unbook).toHaveBeenCalledWith('2026-09', { today: '2026-09-25', key: 'item:strom' });
+    expect(checkbox(el, 'Strom')).not.toBeNull();
+  });
+
   it('Suche filtert die Liste nach Name', async () => {
     const { fixture, el } = await render();
     (fixture.componentInstance as unknown as { query: WritableSignal<string> }).query.set('miet');

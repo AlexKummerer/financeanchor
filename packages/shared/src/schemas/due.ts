@@ -29,3 +29,10 @@ export const dueBookRequestSchema = z.object({
   links: z.array(dueLinkSchema).max(100).default([]),
 });
 export type DueBookRequest = z.infer<typeof dueBookRequestSchema>;
+
+/** Gebuchte Fälligkeit wieder öffnen; die Buchungen bleiben als eigene Buchungen. */
+export const dueUnbookRequestSchema = z.object({
+  today: isoDateSchema,
+  key: z.string().min(1).max(100),
+});
+export type DueUnbookRequest = z.infer<typeof dueUnbookRequestSchema>;

@@ -1,8 +1,13 @@
-import { dueBookRequestSchema, isoDateSchema, yearMonthSchema } from '@financeanchor/shared';
+import {
+  dueBookRequestSchema,
+  dueUnbookRequestSchema,
+  isoDateSchema,
+  yearMonthSchema,
+} from '@financeanchor/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AppEnv } from '../middleware/context.js';
-import { assertPlausibleToday, bookDue, loadDuePlan } from '../services/due.js';
+import { assertPlausibleToday, bookDue, loadDuePlan, unbookDue } from '../services/due.js';
 import { validate } from '../validation.js';
 import { scopedFrom } from './util.js';
 
@@ -27,5 +32,19 @@ export const dueRoutes = new Hono<AppEnv>()
       const body = c.req.valid('json');
       const result = await bookDue(s, month, body);
       return c.json({ ...result, entries: await loadDuePlan(s, month, body.today) });
+    },
+  )
+  /** Gebuchte Fälligkeit wieder öffnen; liefert danach den aktuellen Stand. */
+  .post(
+    '/:month/unbook',
+    validate('param', monthParam),
+    validate('json', dueUnbookRequestSchema),
+    async (c) => {
+      const s = scopedFrom(c);
+      const { month } = c.req.valid('param');
+      const body = c.req.valid('json');
+      assertPlausibleToday(body.today);
+      await unbookDue(s, month, body.key);
+      return c.json({ entries: await loadDuePlan(s, month, body.today) });
     },
   );

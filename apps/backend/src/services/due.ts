@@ -31,6 +31,7 @@ import {
 } from '../db/schema.js';
 import type { Scoped } from '../db/scoped.js';
 import { AppError } from '../errors.js';
+import { releaseBookings } from './booking.js';
 
 export function assertPlausibleToday(today: IsoDate) {
   if (!isPlausibleToday(today, Date.now())) {
@@ -391,4 +392,17 @@ function splitAmounts(groups: Map<string, LinkGroup>, entries: readonly DueEntry
       throw new DueBookingError('invalid_amount', key);
     }
   }
+}
+
+/**
+ * Gebuchte Fälligkeit wieder öffnen („Verknüpfung lösen“): Wirkung zurück, Markierung weg, die
+ * Buchungen bleiben als eigene Buchungen.
+ */
+export async function unbookDue(s: Scoped, month: YearMonth, key: string) {
+  const rows = await s.db
+    .select()
+    .from(bookedItems)
+    .where(s.own(bookedItems, and(eq(bookedItems.month, month), eq(bookedItems.bookingKey, key))));
+  if (!rows.length) throw new AppError(404, 'not_booked', 'This entry is not booked');
+  await runBatch(s.db, await releaseBookings(s, rows));
 }

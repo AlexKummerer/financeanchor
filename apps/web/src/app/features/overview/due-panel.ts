@@ -436,6 +436,23 @@ export class DuePanel {
     }
   }
 
+  /** „Verknüpfung lösen“: Fälligkeit wieder offen, die Buchungen bleiben als eigene Buchungen. */
+  protected async unbook(row: Row) {
+    this.pending.set(true);
+    try {
+      const res = await this.api.unbook(this.month(), { today: this.today, key: row.entry.key });
+      this.entries.set(res.entries);
+      await this.store.reloadBalances();
+      this.toast.show(this.t.translate('due.unbooked', { name: row.entry.name }));
+      this.booked.emit(0);
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+      await this.load();
+    } finally {
+      this.pending.set(false);
+    }
+  }
+
   protected amountText(row: Row): string {
     return this.f.amountInput(Math.abs(row.amountCents));
   }
