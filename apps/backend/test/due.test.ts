@@ -308,6 +308,40 @@ describe('Fällige übernehmen', () => {
     expect((await api.post(`/due/${lastMonth}/unbook`, { today, key })).status).toBe(404);
   });
 
+  it('mehrere Buchungen löschen: atomar, Wirkung zurück, übrige Teile bleiben', async () => {
+    const { api } = await newUser();
+    const { loan } = await household(api);
+    const cat = await categoryId(api, 'Lebensmittel');
+    const tx = async (day: string, amountCents: number) =>
+      (
+        await api.post('/transactions', {
+          date: `${lastMonth}-${day}`,
+          name: `Buchung ${day}`,
+          categoryId: cat,
+          amountCents,
+        })
+      ).body;
+    const a = await tx('02', -13000);
+    const b = await tx('05', -13000);
+    const c = await tx('06', -500);
+    const key = `loan:${loan.id}`;
+    await api.post(`/due/${lastMonth}/book`, {
+      today,
+      keys: [],
+      links: [{ key, transactionIds: [a.id, b.id] }],
+    });
+
+    const bob = await newUser('bob');
+    expect((await bob.api.post('/transactions/delete', { ids: [c.id] })).status).toBe(404);
+
+    const res = await api.post('/transactions/delete', { ids: [b.id, c.id] });
+    expect(res.body).toEqual({ deleted: 2 });
+    expect(await balanceOf(api, '/loans', loan.id)).toBe(840000);
+    const txs = (await api.get(`/transactions?month=${lastMonth}`)).body as any[];
+    expect(txs.map((t) => t.id)).toEqual([a.id]);
+    expect(txs[0]).toMatchObject({ kind: 'normal', sourceType: null });
+  });
+
   it('ist idempotent: zweiter Aufruf bucht nichts, Stände bleiben', async () => {
     const { api } = await newUser();
     const { reserveAccount, loan } = await household(api);

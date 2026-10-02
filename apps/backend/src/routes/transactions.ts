@@ -1,6 +1,7 @@
 import {
   importCheckSchema,
   importCommitSchema,
+  transactionDeleteManySchema,
   transactionCreateSchema,
   transactionUpdateSchema,
   yearMonthSchema,
@@ -265,6 +266,22 @@ export const transactionRoutes = new Hono<AppEnv>()
       return c.json(strip(row));
     },
   )
+  /** Mehrere Buchungen auf einmal löschen (atomar), sonst wie einzeln. */
+  .post('/delete', validate('json', transactionDeleteManySchema), async (c) => {
+    const s = scopedFrom(c);
+    const { ids } = c.req.valid('json');
+    const own = await s.db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(s.own(transactions, inArray(transactions.id, ids)));
+    if (own.length !== new Set(ids).size)
+      throw new AppError(404, 'not_found', 'Unknown transaction');
+    const effects = new Map<string, Awaited<ReturnType<typeof bookingEffectsOf>>[number]>();
+    for (const id of ids) for (const b of await bookingEffectsOf(s, id)) effects.set(b.id, b);
+    const release = await releaseBookings(s, [...effects.values()], ids);
+    await runBatch(s.db, [...release, ...ids.map((id) => s.remove(transactions, id))]);
+    return c.json({ deleted: own.length });
+  })
   /**
    * Löschen macht Änderungen an Rücklagenkonto oder Restschuld rückgängig; der Posten ist wieder
    * offen. War die Fälligkeit in mehreren Buchungen erfasst, werden die übrigen wieder eigene
@@ -274,7 +291,7 @@ export const transactionRoutes = new Hono<AppEnv>()
     const s = scopedFrom(c);
     const { id } = c.req.valid('param');
     found(await s.get(transactions, id), 'transaction');
-    const release = await releaseBookings(s, await bookingEffectsOf(s, id), id);
+    const release = await releaseBookings(s, await bookingEffectsOf(s, id), [id]);
     await runBatch(s.db, [...release, s.remove(transactions, id)]);
     return c.body(null, 204);
   });

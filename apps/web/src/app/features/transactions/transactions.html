@@ -122,9 +122,54 @@
   @if (transactions.error()) {
     <p role="alert">{{ 'errors.loadFailed' | transloco }}</p>
   } @else {
+    <div class="tools">
+      <input
+        class="search"
+        type="search"
+        [value]="query()"
+        (input)="query.set($any($event.target).value)"
+        [placeholder]="'tx.search' | transloco"
+        [attr.aria-label]="'tx.search' | transloco"
+        autocomplete="off"
+      />
+      @if (transactions.value().length) {
+        <button class="linkbtn" type="button" (click)="toggleSelecting()">
+          {{ (selecting() ? 'tx.selectDone' : 'tx.selectMode') | transloco }}
+        </button>
+      }
+    </div>
+    @if (query().trim()) {
+      <p class="small muted" role="status">
+        {{ 'tx.found' | transloco: { n: visible().length, sum: (visibleSum() | money) } }}
+      </p>
+    }
+    @if (selecting()) {
+      <div class="tools select-bar">
+        <button class="linkbtn" type="button" (click)="toggleAll()">
+          {{ (allVisibleSelected() ? 'due.selectNone' : 'due.selectAll') | transloco }}
+        </button>
+        <button
+          class="btn danger"
+          type="button"
+          [disabled]="selected().size === 0"
+          (click)="removeSelected()"
+        >
+          {{ 'tx.deleteMany' | transloco: { n: selected().size } }}
+        </button>
+      </div>
+    }
     <ul class="list">
-      @for (tx of transactions.value(); track tx.id) {
+      @for (tx of visible(); track tx.id) {
         <li>
+          @if (selecting()) {
+            <input
+              class="pick"
+              type="checkbox"
+              [checked]="selected().has(tx.id)"
+              (change)="toggle(tx.id, $any($event.target).checked)"
+              [attr.aria-label]="'tx.selectNamed' | transloco: { name: tx.name }"
+            />
+          }
           <div class="grow">
             <div class="name">{{ tx.name }}</div>
             <span class="small muted">{{ tx.date | faDate: 'dayMonth' }}</span>
@@ -143,17 +188,21 @@
           >
             {{ tx.amountCents | money }}
           </div>
-          <button
-            class="iconbtn"
-            type="button"
-            (click)="remove(tx)"
-            [attr.aria-label]="'tx.deleteNamed' | transloco: { name: tx.name }"
-          >
-            ×
-          </button>
+          @if (!selecting()) {
+            <button
+              class="iconbtn"
+              type="button"
+              (click)="remove(tx)"
+              [attr.aria-label]="'tx.deleteNamed' | transloco: { name: tx.name }"
+            >
+              ×
+            </button>
+          }
         </li>
       } @empty {
-        <li class="empty">{{ 'tx.none' | transloco }}</li>
+        <li class="empty">
+          {{ (query().trim() ? 'tx.noneFound' : 'tx.none') | transloco }}
+        </li>
       }
     </ul>
   }

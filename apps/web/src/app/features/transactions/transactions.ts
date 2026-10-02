@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   categoryNameKey,
   monthOfDate,
+  parseEuroToCents,
   monthTotals,
   type Category,
   type Transaction,
@@ -17,6 +18,7 @@ import { LoanPlanner } from '../../core/data/loan-planner';
 import { FinanceStore } from '../../core/data/finance-store';
 import { Segmented } from '../../core/forms/segmented';
 import { euroAmount, toCents } from '../../core/forms/validators';
+import { Formatter } from '../../core/format/formatter';
 import { DatePipe, MoneyPipe, MonthPipe } from '../../core/format/pipes';
 import { ApiError } from '../../core/http/api-error';
 import { Dialogs } from '../../core/ui/dialogs';
@@ -48,6 +50,7 @@ export class TransactionsPage {
   private readonly toast = inject(ToastService);
   private readonly dialogs = inject(Dialogs);
   private readonly planner = inject(LoanPlanner);
+  private readonly f = inject(Formatter);
   private readonly amountEl = viewChild<ElementRef<HTMLInputElement>>('amountInput');
   private readonly categoriesManager = viewChild(CategoriesManager);
 
@@ -72,6 +75,32 @@ export class TransactionsPage {
       .reverse(),
   );
   protected readonly totals = computed(() => monthTotals(this.transactions.value(), this.month()));
+
+  /** Suche im gewählten Monat: Name, Kategorie oder Betrag (z. B. „72“ oder „72,50“) */
+  protected readonly query = signal('');
+  protected readonly visible = computed(() => {
+    const q = this.query().trim().toLowerCase();
+    const all = this.transactions.value();
+    if (!q) return all;
+    const cents = parseEuroToCents(q.replace(/^-/, ''));
+    return all.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        this.store.categoryName(t.categoryId).toLowerCase().includes(q) ||
+        (cents !== null && Math.abs(t.amountCents) === cents) ||
+        this.f.money(t.amountCents).includes(q),
+    );
+  });
+  protected readonly visibleSum = computed(() =>
+    this.visible().reduce((s, t) => s + t.amountCents, 0),
+  );
+
+  /** Auswahl zum Löschen mehrerer Buchungen */
+  protected readonly selecting = signal(false);
+  protected readonly selected = signal<ReadonlySet<string>>(new Set());
+  protected readonly allVisibleSelected = computed(
+    () => this.visible().length > 0 && this.visible().every((t) => this.selected().has(t.id)),
+  );
   protected readonly nameSuggestions = computed(() => this.suggestions.value().map((s) => s.name));
 
   private readonly fb = inject(FormBuilder).nonNullable;
@@ -179,6 +208,58 @@ export class TransactionsPage {
         this.t.translate(err instanceof ApiError ? 'errors.saveFailed' : 'errors.generic'),
         'error',
       );
+    }
+  }
+
+  protected toggleSelecting() {
+    this.selecting.update((v) => !v);
+    this.selected.set(new Set());
+  }
+
+  protected toggle(id: string, on: boolean) {
+    this.selected.update((set) => {
+      const next = new Set(set);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  protected toggleAll() {
+    const all = !this.allVisibleSelected();
+    this.selected.set(new Set(all ? this.visible().map((t) => t.id) : []));
+  }
+
+  /** Gewählte Buchungen löschen; gebuchte Fälligkeiten werden dabei wieder offen. */
+  protected async removeSelected() {
+    const ids = [...this.selected()];
+    if (!ids.length) return;
+    const chosen = this.transactions.value().filter((t) => this.selected().has(t.id));
+    const managed = chosen.some((t) => t.kind !== 'normal' || t.sourceType);
+    const ok = await this.dialogs.confirm({
+      title: this.t.translate('tx.deleteManyTitle', { n: ids.length }),
+      message: this.t.translate(managed ? 'tx.deleteManyManaged' : 'tx.deleteManyText'),
+      confirmLabel: this.t.translate('common.delete'),
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      for (let i = 0; i < ids.length; i += 90) {
+        await firstValueFrom(
+          this.http.post('/api/transactions/delete', { ids: ids.slice(i, i + 90) }),
+        );
+      }
+      this.selected.set(new Set());
+      this.selecting.set(false);
+      this.transactions.reload();
+      this.monthsWithData.reload();
+      this.categoriesManager()?.refresh();
+      await this.store.reloadBalances();
+      void this.planner.refresh();
+      this.toast.show(this.t.translate('tx.deletedMany', { n: ids.length }));
+    } catch {
+      this.toast.show(this.t.translate('errors.saveFailed'), 'error');
+      this.transactions.reload();
     }
   }
 

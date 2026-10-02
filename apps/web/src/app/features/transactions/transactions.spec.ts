@@ -121,4 +121,60 @@ describe('TransactionsPage', () => {
     expect(el.querySelector('#tx-amount-err')?.textContent).toContain('12,50');
     http.expectNone((r) => r.method === 'POST');
   });
+
+  it('Suche nach Name und Betrag; mehrere auswählen und löschen', async () => {
+    const fixture = TestBed.createComponent(TransactionsPage);
+    TestBed.tick();
+    const tx = (id: string, name: string, amountCents: number) => ({
+      id,
+      date: '2026-09-03',
+      name,
+      categoryId: 'c-food',
+      amountCents,
+      kind: 'normal',
+      sourceType: null,
+      sourceId: null,
+      accountId: null,
+    });
+    http
+      .match(() => true)
+      .forEach((r) =>
+        r.flush(
+          r.request.url.startsWith('/api/transactions?month')
+            ? [tx('a', 'Strato', -7200), tx('b', 'Rewe', -4210), tx('c', 'Rewe Markt', -1999)]
+            : r.request.url.includes('usage')
+              ? {}
+              : [],
+        ),
+      );
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    const page = fixture.componentInstance as unknown as { query: { set(v: string): void } };
+    const names = () => {
+      fixture.detectChanges();
+      return [...el.querySelectorAll('[aria-labelledby=tx-list-title] ul.list .name')].map((n) =>
+        n.textContent?.trim(),
+      );
+    };
+
+    page.query.set('rewe');
+    await fixture.whenStable();
+    expect(names()).toEqual(['Rewe', 'Rewe Markt']);
+    page.query.set('72');
+    await fixture.whenStable();
+    expect(names()).toEqual(['Strato']);
+
+    page.query.set('rewe');
+    await fixture.whenStable();
+    const buttons = () => [...el.querySelectorAll<HTMLButtonElement>('button')];
+    buttons()
+      .find((b) => b.textContent?.includes('Auswählen'))!
+      .click();
+    await fixture.whenStable();
+    buttons()
+      .find((b) => b.textContent?.includes('Alle auswählen'))!
+      .click();
+    await fixture.whenStable();
+    expect(buttons().find((b) => b.textContent?.includes('2 löschen'))!.disabled).toBe(false);
+  });
 });

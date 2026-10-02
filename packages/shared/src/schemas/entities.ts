@@ -373,6 +373,11 @@ export const loanUpdateSchema = patchSchema(
   }),
 );
 
+/** Mehrere Buchungen löschen (Liste, höchstens 90 wegen der Parameter je Abfrage) */
+export const transactionDeleteManySchema = z.object({
+  ids: z.array(idSchema).min(1).max(90),
+});
+
 // Verknüpfung einer Zeile des Kontoauszugs mit einer vorhandenen Buchung
 export const importLinkSchema = z.object({
   id: idSchema,

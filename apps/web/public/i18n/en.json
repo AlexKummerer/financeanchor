@@ -373,7 +373,18 @@
     "deleteManagedText": "Changes to the reserve account or loan balance are reverted and the item is open again this month.",
     "paidWith": "Paid with",
     "paidAccount": "Account / cash",
-    "cardPaymentNote": "Transfer – not an expense (purchases count individually)"
+    "cardPaymentNote": "Transfer – not an expense (purchases count individually)",
+    "search": "Search: name, category or amount",
+    "found": "{{n}} matches, together {{sum}}",
+    "noneFound": "No transaction matches the search.",
+    "selectMode": "Select",
+    "selectDone": "Done",
+    "selectNamed": "Select {{name}}",
+    "deleteMany": "Delete {{n}}",
+    "deleteManyTitle": "Delete {{n}} transactions?",
+    "deleteManyText": "The selected transactions will be deleted permanently.",
+    "deleteManyManaged": "The selected transactions will be deleted permanently. Some are booked due items – they become open again, reserve and loan balances are reset.",
+    "deletedMany": "{{n}} transactions deleted"
   },
   "categories": {
     "title": "Categories",

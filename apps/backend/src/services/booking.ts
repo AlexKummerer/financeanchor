@@ -25,12 +25,12 @@ export function bookingEffectsOf(s: Scoped, transactionId: string) {
 /**
  * Gebuchte Fälligkeiten wieder öffnen: Wirkung auf Rücklagenkonto, Restschuld und Zurückgelegtes
  * zurücknehmen, Markierungen (mit ihren Teilen) entfernen. Die zugehörigen Buchungen bleiben als
- * eigene Buchungen ohne Herkunft – außer `except` (z. B. die Buchung, die gerade gelöscht wird).
+ * eigene Buchungen ohne Herkunft – außer `except` (z. B. Buchungen, die gerade gelöscht werden).
  */
 export async function releaseBookings(
   s: Scoped,
   booked: readonly BookedItemRow[],
-  except: string | null = null,
+  except: readonly string[] = [],
 ): Promise<BatchItem<'sqlite'>[]> {
   const now = Date.now();
   const txIds = new Set<string>();
@@ -42,7 +42,7 @@ export async function releaseBookings(
       .where(s.own(bookedItemParts, eq(bookedItemParts.bookedItemId, b.id)));
     for (const p of parts) txIds.add(p.id);
   }
-  if (except) txIds.delete(except);
+  for (const id of except) txIds.delete(id);
   return [
     ...booked.flatMap((b) => [
       ...(b.accountId && b.accountDeltaCents
