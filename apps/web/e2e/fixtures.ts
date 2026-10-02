@@ -26,5 +26,22 @@ export async function login(page: Page, { fresh = false } = {}) {
   session = await page.context().cookies();
 }
 
+/**
+ * „Heute“ so, wie die App im Test-Browser es sieht (Zeitzone Europe/Berlin laut Konfiguration) –
+ * nicht in der Zeitzone des Rechners, sonst passen Tag oder Monat kurz nach Mitternacht nicht.
+ */
+export function appToday(): { year: number; month: number; day: number; ym: string } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  const year = get('year');
+  const month = get('month');
+  return { year, month, day: get('day'), ym: `${year}-${String(month).padStart(2, '0')}` };
+}
+
 export const test = base;
 export { expect };

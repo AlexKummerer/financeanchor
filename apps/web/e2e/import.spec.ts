@@ -1,10 +1,10 @@
-import { expect, login, test } from './fixtures';
+import { appToday, expect, login, test } from './fixtures';
 
 /** Eigene Datei im Sparkasse-Format (CSV-CAMT V2) mit Datum im laufenden Monat */
 function sparkasseCsv(): string {
-  const d = new Date();
+  const d = appToday();
   const day = (n: number) =>
-    `${String(n).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getFullYear()).slice(2)}`;
+    `${String(n).padStart(2, '0')}.${String(d.month).padStart(2, '0')}.${String(d.year).slice(2)}`;
   return [
     '"Auftragskonto";"Buchungstag";"Valutadatum";"Buchungstext";"Verwendungszweck";"Glaeubiger ID";"Mandatsreferenz";"Kundenreferenz (End-to-End)";"Sammlerreferenz";"Lastschrift Ursprungsbetrag";"Auslagenersatz Ruecklastschrift";"Beguenstigter/Zahlungspflichtiger";"Kontonummer/IBAN";"BIC (SWIFT-Code)";"Betrag";"Waehrung";"Info"',
     `"DE00";"${day(1)}";"${day(1)}";"KARTENZAHLUNG";"Einkauf";"";"";"";"";"";"";"Baeckerei Import E2E";"";"";"-7,40";"EUR";"Umsatz gebucht"`,
@@ -88,8 +88,7 @@ test('Amex-Datei auf die Karte: Belastungen werden Ausgaben', async ({ page }) =
 
 test('Anderer Bank-Text und Betrag: von Hand als schon gebucht verknüpfen', async ({ page }) => {
   await login(page);
-  const d = new Date();
-  const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const month = appToday().ym;
   const categories = (await (await page.request.get('/api/categories')).json()) as {
     id: string;
     name: string;

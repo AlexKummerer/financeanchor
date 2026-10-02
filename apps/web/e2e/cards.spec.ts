@@ -1,4 +1,4 @@
-import { expect, login, test } from './fixtures';
+import { appToday, expect, login, test } from './fixtures';
 
 test('Kreditkarte: anlegen, mit Karte buchen, Stand und Abgleich', async ({ page }) => {
   await login(page);
@@ -42,7 +42,7 @@ test('Kreditkarte: anlegen, mit Karte buchen, Stand und Abgleich', async ({ page
   await expect(current.getByRole('status')).toContainText('Stimmt überein');
 
   // Kauf am Stichtag: Karte mit Stichtag heute, Kauf auf die nächste Abrechnung verschieben
-  const todayDay = new Date().getDate();
+  const todayDay = appToday().day;
   await nav.getByRole('link', { name: 'Vermögen' }).click();
   await page.getByText('Konto oder Depot hinzufügen', { exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('Visa E2E');
@@ -72,9 +72,8 @@ test('Kreditkarte: anlegen, mit Karte buchen, Stand und Abgleich', async ({ page
   await expect(running.locator('summary')).toContainText('0,00');
 
   // Ältere Abrechnung: Kauf von vor zwei Monaten auf der Amex
-  const old = new Date();
-  old.setDate(15);
-  old.setMonth(old.getMonth() - 2);
+  const now = appToday();
+  const old = new Date(Date.UTC(now.year, now.month - 3, 15));
   const oldIso = old.toISOString().slice(0, 10);
   await nav.getByRole('link', { name: 'Buchungen' }).click();
   await page.getByLabel('Betrag (€)', { exact: true }).fill('12,00');
